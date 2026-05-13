@@ -8,6 +8,9 @@
 > Pulls data from Tushare Pro, stores as Parquet partitions,  
 > queries via DuckDB, with incremental sync & APScheduler automation.
 
+> 我在公众号「极客投研笔记」记录这个项目的设计过程、踩坑记录和后续扩展。  
+> 如果你对 AI + 量化投研、本地股票数据系统、因子研究工作流感兴趣，欢迎关注。
+
 A-股数据本地化管道，基于 [Tushare Pro](https://tushare.pro) 拉取股票数据，以 Parquet 分区存储，DuckDB 提供快速元数据查询，支持增量同步与定时调度。
 
 ## 特性
@@ -198,6 +201,12 @@ examples/         # 本地查询 API 示例
 config/
 └── settings.example.toml
 ```
+
+## 交流
+
+公众号：极客投研笔记
+
+这个项目主要讨论数据系统、工具链和研究流程。
 
 ## License
 
