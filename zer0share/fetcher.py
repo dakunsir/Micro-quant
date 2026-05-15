@@ -29,6 +29,30 @@ DAILY_COLS = [
 ]
 TRADE_CAL_COLS = ["exchange", "cal_date", "is_open", "pretrade_date"]
 ADJ_FACTOR_COLS = ["ts_code", "trade_date", "adj_factor"]
+DAILY_BASIC_COLS = [
+    "ts_code",
+    "trade_date",
+    "close",
+    "turnover_rate",
+    "turnover_rate_f",
+    "volume_ratio",
+    "pe",
+    "pe_ttm",
+    "pb",
+    "ps",
+    "ps_ttm",
+    "dv_ratio",
+    "dv_ttm",
+    "total_share",
+    "float_share",
+    "free_share",
+    "total_mv",
+    "circ_mv",
+]
+STOCK_ST_COLS = ["ts_code", "name", "trade_date", "type", "type_name"]
+SUSPEND_D_COLS = ["ts_code", "trade_date", "suspend_timing", "suspend_type"]
+STK_LIMIT_COLS = ["trade_date", "ts_code", "pre_close", "up_limit", "down_limit"]
+INDEX_WEIGHT_COLS = ["index_code", "con_code", "trade_date", "weight"]
 
 
 class TushareFetcher:
@@ -72,6 +96,53 @@ class TushareFetcher:
         ).dt.date
         return df[ADJ_FACTOR_COLS]
 
+    def fetch_daily_basic(self, trade_date: date) -> pd.DataFrame:
+        date_str = trade_date.strftime("%Y%m%d")
+        logger.info(f"拉取每日指标: {date_str}")
+        df = self._pro.daily_basic(
+            ts_code="",
+            trade_date=date_str,
+            fields=",".join(DAILY_BASIC_COLS),
+        )
+        return _format_trade_date(df, DAILY_BASIC_COLS)
+
+    def fetch_stock_st(self, trade_date: date) -> pd.DataFrame:
+        date_str = trade_date.strftime("%Y%m%d")
+        logger.info(f"拉取ST股票列表: {date_str}")
+        df = self._pro.stock_st(trade_date=date_str, fields=",".join(STOCK_ST_COLS))
+        return _format_trade_date(df, STOCK_ST_COLS)
+
+    def fetch_suspend_d(self, trade_date: date) -> pd.DataFrame:
+        date_str = trade_date.strftime("%Y%m%d")
+        logger.info(f"拉取每日停复牌: {date_str}")
+        df = self._pro.suspend_d(
+            trade_date=date_str,
+            suspend_type="S",
+            fields=",".join(SUSPEND_D_COLS),
+        )
+        return _format_trade_date(df, SUSPEND_D_COLS)
+
+    def fetch_stk_limit(self, trade_date: date) -> pd.DataFrame:
+        date_str = trade_date.strftime("%Y%m%d")
+        logger.info(f"拉取每日涨跌停价格: {date_str}")
+        df = self._pro.stk_limit(trade_date=date_str, fields=",".join(STK_LIMIT_COLS))
+        return _format_trade_date(df, STK_LIMIT_COLS)
+
+    def fetch_index_weight(
+        self, index_code: str, start_date: date, end_date: date
+    ) -> pd.DataFrame:
+        logger.info(
+            f"拉取指数成分: {index_code} "
+            f"{start_date.strftime('%Y%m%d')}~{end_date.strftime('%Y%m%d')}"
+        )
+        df = self._pro.index_weight(
+            index_code=index_code,
+            start_date=start_date.strftime("%Y%m%d"),
+            end_date=end_date.strftime("%Y%m%d"),
+            fields=",".join(INDEX_WEIGHT_COLS),
+        )
+        return _format_trade_date(df, INDEX_WEIGHT_COLS)
+
     def fetch_trade_cal(self, exchange: str) -> pd.DataFrame:
         today = date.today().strftime("%Y%m%d")
         logger.info(f"拉取交易日历: {exchange}")
@@ -91,3 +162,12 @@ class TushareFetcher:
         ).apply(lambda x: x.date() if not pd.isnull(x) else None)
         df["is_open"] = df["is_open"].astype(str).map({"1": True, "0": False}).astype(object)
         return df[TRADE_CAL_COLS]
+
+
+def _format_trade_date(df: pd.DataFrame | None, columns: list[str]) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame(columns=columns)
+    df["trade_date"] = pd.to_datetime(
+        df["trade_date"], format="%Y%m%d", errors="coerce"
+    ).dt.date
+    return df[columns]

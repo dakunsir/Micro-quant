@@ -9,6 +9,7 @@ from zer0share.fetcher import TushareFetcher
 from zer0share.notifier import Notifier
 from zer0share.pipeline import Pipeline
 from zer0share.storage import MetaStore
+from zer0share.universe import build_universes
 
 
 _logger_initialized = False
@@ -35,10 +36,23 @@ def cli():
     pass
 
 
+SYNC_TABLES = [
+    "daily_kline",
+    "basic",
+    "trade_cal",
+    "adj_factor",
+    "daily_basic",
+    "stock_st",
+    "suspend_d",
+    "stk_limit",
+    "index_weight",
+]
+
+
 @cli.command()
 @click.option(
     "--table",
-    type=click.Choice(["daily_kline", "basic", "trade_cal", "adj_factor"]),
+    type=click.Choice(SYNC_TABLES),
     default=None,
 )
 @click.option("--all", "sync_all", is_flag=True, default=False)
@@ -53,8 +67,17 @@ def sync(
     """同步数据。"""
     if end_date is not None and start_date is None:
         raise click.UsageError("--end-date requires --start-date")
-    if (start_date is not None or end_date is not None) and table not in ("daily_kline", "adj_factor"):
-        raise click.UsageError("date range options are only supported for daily_kline")
+    range_tables = {
+        "daily_kline",
+        "adj_factor",
+        "daily_basic",
+        "stock_st",
+        "suspend_d",
+        "stk_limit",
+        "index_weight",
+    }
+    if (start_date is not None or end_date is not None) and table not in range_tables:
+        raise click.UsageError("date range options are only supported for daily partitioned tables")
 
     parsed_start_date = start_date.date() if start_date is not None else None
     parsed_end_date = end_date.date() if end_date is not None else None
@@ -80,6 +103,41 @@ def sync(
                 start_date=parsed_start_date,
                 end_date=parsed_end_date,
             )
+        if sync_all or table == "daily_basic":
+            pipeline.sync_daily_basic(
+                start_date=parsed_start_date,
+                end_date=parsed_end_date,
+            )
+        if sync_all or table == "stock_st":
+            pipeline.sync_stock_st(
+                start_date=parsed_start_date,
+                end_date=parsed_end_date,
+            )
+        if sync_all or table == "suspend_d":
+            pipeline.sync_suspend_d(
+                start_date=parsed_start_date,
+                end_date=parsed_end_date,
+            )
+        if sync_all or table == "stk_limit":
+            pipeline.sync_stk_limit(
+                start_date=parsed_start_date,
+                end_date=parsed_end_date,
+            )
+        if sync_all or table == "index_weight":
+            pipeline.sync_index_weight(
+                start_date=parsed_start_date,
+                end_date=parsed_end_date,
+            )
+
+
+@cli.command("build-universe")
+@click.option("--date", "trade_date", type=click.DateTime(formats=["%Y-%m-%d", "%Y%m%d"]), required=True)
+def build_universe_cmd(trade_date: datetime) -> None:
+    """构建指定交易日的股票池。"""
+    cfg = load_config(Path("config/settings.toml"))
+    counts = build_universes(cfg.data_dir, trade_date.date())
+    for name, count in counts.items():
+        click.echo(f"{name}: {count}")
 
 
 @cli.command()
@@ -87,7 +145,7 @@ def status() -> None:
     """显示各表最后更新时间。"""
     cfg = load_config(Path("config/settings.toml"))
     with MetaStore(cfg.db_path) as store:
-        for table in ["trade_cal", "daily_kline", "adj_factor", "basic"]:
+        for table in SYNC_TABLES:
             last = store.get_last_date(table)
             click.echo(f"{table}: {last or '从未同步'}")
 

@@ -5,7 +5,17 @@ import duckdb
 import pandas as pd
 
 from zer0share.config import load_config
-from zer0share.fetcher import ADJ_FACTOR_COLS, BASIC_COLS, DAILY_COLS, TRADE_CAL_COLS
+from zer0share.fetcher import (
+    ADJ_FACTOR_COLS,
+    BASIC_COLS,
+    DAILY_BASIC_COLS,
+    DAILY_COLS,
+    INDEX_WEIGHT_COLS,
+    STOCK_ST_COLS,
+    STK_LIMIT_COLS,
+    SUSPEND_D_COLS,
+    TRADE_CAL_COLS,
+)
 
 
 class LocalPro:
@@ -133,6 +143,128 @@ class LocalPro:
             fields=fields,
         )
 
+    def daily_basic(
+        self,
+        ts_code: str | None = None,
+        trade_date: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        fields: str | list[str] | None = None,
+    ) -> pd.DataFrame:
+        return self._query_daily_partitioned(
+            table_name="daily_basic",
+            sync_table="daily_basic",
+            columns=DAILY_BASIC_COLS,
+            ts_code=ts_code,
+            trade_date=trade_date,
+            start_date=start_date,
+            end_date=end_date,
+            fields=fields,
+        )
+
+    def stock_st(
+        self,
+        ts_code: str | None = None,
+        trade_date: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        fields: str | list[str] | None = None,
+    ) -> pd.DataFrame:
+        return self._query_daily_partitioned(
+            table_name="stock_st",
+            sync_table="stock_st",
+            columns=STOCK_ST_COLS,
+            ts_code=ts_code,
+            trade_date=trade_date,
+            start_date=start_date,
+            end_date=end_date,
+            fields=fields,
+        )
+
+    def suspend_d(
+        self,
+        ts_code: str | None = None,
+        trade_date: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        fields: str | list[str] | None = None,
+    ) -> pd.DataFrame:
+        return self._query_daily_partitioned(
+            table_name="suspend_d",
+            sync_table="suspend_d",
+            columns=SUSPEND_D_COLS,
+            ts_code=ts_code,
+            trade_date=trade_date,
+            start_date=start_date,
+            end_date=end_date,
+            fields=fields,
+        )
+
+    def stk_limit(
+        self,
+        ts_code: str | None = None,
+        trade_date: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        fields: str | list[str] | None = None,
+    ) -> pd.DataFrame:
+        return self._query_daily_partitioned(
+            table_name="stk_limit",
+            sync_table="stk_limit",
+            columns=STK_LIMIT_COLS,
+            ts_code=ts_code,
+            trade_date=trade_date,
+            start_date=start_date,
+            end_date=end_date,
+            fields=fields,
+        )
+
+    def index_weight(
+        self,
+        index_code: str | None = None,
+        trade_date: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        fields: str | list[str] | None = None,
+    ) -> pd.DataFrame:
+        if trade_date is not None and (start_date is not None or end_date is not None):
+            raise ValueError("trade_date cannot be combined with start_date or end_date")
+        parsed_start = _parse_date(start_date) if start_date is not None else None
+        parsed_end = _parse_date(end_date) if end_date is not None else None
+        if parsed_start is not None and parsed_end is not None and parsed_end < parsed_start:
+            raise ValueError("end_date must be on or after start_date")
+
+        table_dir = self._data_dir / "index_weight"
+        if not table_dir.exists():
+            raise FileNotFoundError(
+                "index_weight data not found; run `python main.py sync --table index_weight` first"
+            )
+
+        selected = _parse_fields(fields, INDEX_WEIGHT_COLS)
+        where = []
+        params = []
+        if index_code is not None:
+            where.append("index_code = ?")
+            params.append(index_code)
+        if trade_date is not None:
+            where.append("trade_date = ?")
+            params.append(_parse_date(trade_date))
+        if parsed_start is not None:
+            where.append("trade_date >= ?")
+            params.append(parsed_start)
+        if parsed_end is not None:
+            where.append("trade_date <= ?")
+            params.append(parsed_end)
+
+        pattern = table_dir / "index_code=*" / "date=*" / "data.parquet"
+        sql = f"SELECT {', '.join(selected)} FROM read_parquet(?, hive_partitioning=true)"
+        if where:
+            sql += " WHERE " + " AND ".join(where)
+        sql += " ORDER BY index_code, con_code, trade_date"
+
+        df = duckdb.connect().execute(sql, [str(pattern), *params]).fetchdf()
+        return _format_date_columns(df, ["trade_date"])
+
     def pro_bar(
         self,
         ts_code: str,
@@ -202,6 +334,11 @@ class LocalPro:
             "trade_cal": self.trade_cal,
             "daily": self.daily,
             "adj_factor": self.adj_factor,
+            "daily_basic": self.daily_basic,
+            "stock_st": self.stock_st,
+            "suspend_d": self.suspend_d,
+            "stk_limit": self.stk_limit,
+            "index_weight": self.index_weight,
             "pro_bar": self.pro_bar,
         }
         try:

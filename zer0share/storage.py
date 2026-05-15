@@ -126,6 +126,52 @@ def adj_factor_partition_exists(data_dir: Path, trade_date: date) -> bool:
     return path.exists()
 
 
+def write_daily_partition(
+    data_dir: Path, table_name: str, trade_date: date, df: pd.DataFrame
+) -> None:
+    partition_dir = data_dir / table_name / f"date={trade_date.strftime('%Y%m%d')}"
+    partition_dir.mkdir(parents=True, exist_ok=True)
+    table = pa.Table.from_pandas(df, preserve_index=False)
+    pq.write_table(table, partition_dir / "data.parquet")
+
+
+def daily_partition_exists(data_dir: Path, table_name: str, trade_date: date) -> bool:
+    path = data_dir / table_name / f"date={trade_date.strftime('%Y%m%d')}" / "data.parquet"
+    return path.exists()
+
+
+def read_daily_partition(data_dir: Path, table_name: str, trade_date: date) -> pd.DataFrame:
+    path = data_dir / table_name / f"date={trade_date.strftime('%Y%m%d')}" / "data.parquet"
+    if not path.exists():
+        return pd.DataFrame()
+    return pq.read_table(path).to_pandas()
+
+
+def write_index_weight(data_dir: Path, index_code: str, trade_date: date, df: pd.DataFrame) -> None:
+    partition_dir = (
+        data_dir / "index_weight" / f"index_code={index_code}" / f"date={trade_date.strftime('%Y%m%d')}"
+    )
+    partition_dir.mkdir(parents=True, exist_ok=True)
+    table = pa.Table.from_pandas(df, preserve_index=False)
+    pq.write_table(table, partition_dir / "data.parquet")
+
+
+def index_weight_partition_exists(data_dir: Path, index_code: str, trade_date: date) -> bool:
+    path = (
+        data_dir / "index_weight" / f"index_code={index_code}" / f"date={trade_date.strftime('%Y%m%d')}" / "data.parquet"
+    )
+    return path.exists()
+
+
+def write_universe(data_dir: Path, universe_name: str, trade_date: date, df: pd.DataFrame) -> None:
+    partition_dir = (
+        data_dir / "universe" / f"name={universe_name}" / f"date={trade_date.strftime('%Y%m%d')}"
+    )
+    partition_dir.mkdir(parents=True, exist_ok=True)
+    table = pa.Table.from_pandas(df, preserve_index=False)
+    pq.write_table(table, partition_dir / "data.parquet")
+
+
 def write_basic(data_dir: Path, df: pd.DataFrame) -> None:
     basic_dir = data_dir / "basic"
     basic_dir.mkdir(parents=True, exist_ok=True)
