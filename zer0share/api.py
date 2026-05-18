@@ -257,7 +257,10 @@ class LocalPro:
             params.append(parsed_end)
 
         pattern = table_dir / "index_code=*" / "date=*" / "data.parquet"
-        sql = f"SELECT {', '.join(selected)} FROM read_parquet(?, hive_partitioning=true)"
+        sql = (
+            f"SELECT {', '.join(selected)} "
+            "FROM read_parquet(?, hive_partitioning=true, union_by_name=true)"
+        )
         if where:
             sql += " WHERE " + " AND ".join(where)
         sql += " ORDER BY index_code, con_code, trade_date"
@@ -390,7 +393,10 @@ class LocalPro:
             params.append(parsed_end)
 
         pattern = table_dir / "date=*" / "data.parquet"
-        sql = f"SELECT {', '.join(selected)} FROM read_parquet(?, hive_partitioning=true)"
+        sql = (
+            f"SELECT {', '.join(selected)} "
+            "FROM read_parquet(?, hive_partitioning=true, union_by_name=true)"
+        )
         if where:
             sql += " WHERE " + " AND ".join(where)
         sql += " ORDER BY ts_code, trade_date"

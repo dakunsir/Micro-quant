@@ -4,7 +4,13 @@ import pandas as pd
 import pytest
 
 from zer0share.api import LocalPro
-from zer0share.storage import write_adj_factor, write_basic, write_daily_kline, write_trade_cal
+from zer0share.storage import (
+    write_adj_factor,
+    write_basic,
+    write_daily_kline,
+    write_daily_partition,
+    write_trade_cal,
+)
 
 
 def test_stock_basic_filters_and_formats_dates(tmp_path):
@@ -134,6 +140,46 @@ def test_daily_filters_multiple_codes_by_date_range_and_formats_dates(tmp_path):
     assert result.to_dict("records") == [
         {"ts_code": "000001.SZ", "trade_date": "20240103", "close": 11.5},
         {"ts_code": "600000.SH", "trade_date": "20240103", "close": 21.5},
+    ]
+
+
+def test_daily_partitioned_query_handles_empty_partitions(tmp_path):
+    write_daily_partition(
+        tmp_path,
+        "stock_st",
+        date(2024, 1, 2),
+        pd.DataFrame(columns=["ts_code", "name", "trade_date", "type", "type_name"]),
+    )
+    write_daily_partition(
+        tmp_path,
+        "stock_st",
+        date(2024, 1, 3),
+        pd.DataFrame(
+            {
+                "ts_code": ["000001.SZ"],
+                "name": ["ST Test"],
+                "trade_date": [date(2024, 1, 3)],
+                "type": ["ST"],
+                "type_name": ["Risk"],
+            }
+        ),
+    )
+
+    pro = LocalPro(tmp_path)
+    result = pro.stock_st(
+        start_date="20240102",
+        end_date="20240103",
+        fields="ts_code,name,trade_date,type,type_name",
+    )
+
+    assert result.to_dict("records") == [
+        {
+            "ts_code": "000001.SZ",
+            "name": "ST Test",
+            "trade_date": "20240103",
+            "type": "ST",
+            "type_name": "Risk",
+        }
     ]
 
 
