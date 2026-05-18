@@ -64,6 +64,26 @@ def _log_daily_progress(
     )
 
 
+def _month_ranges(start: date, end: date) -> list[tuple[date, date]]:
+    ranges = []
+    current = date(start.year, start.month, 1)
+    while current <= end:
+        next_month = (
+            date(current.year + 1, 1, 1)
+            if current.month == 12
+            else date(current.year, current.month + 1, 1)
+        )
+        month_start = max(start, current)
+        month_end = min(end, next_month - timedelta(days=1))
+        ranges.append((month_start, month_end))
+        current = next_month
+    return ranges
+
+
+def _index_weight_meta_key(index_code: str) -> str:
+    return f"index_weight:{index_code}"
+
+
 class Pipeline:
     def __init__(self, cfg: Config, fetcher: TushareFetcher, notifier: Notifier):
         self._cfg = cfg
@@ -354,46 +374,78 @@ class Pipeline:
         end_date: date | None = None,
     ) -> None:
         today = date.today()
-        last = self._meta.get_last_date("index_weight")
-        if start_date is None:
-            start = (last + timedelta(days=1)) if last else FIRST_DATE
-            end = today
-        else:
-            start = start_date
-            end = end_date or today
-
-        if start_date is None and start > end:
-            logger.info("index_weight 已是最新，无需同步")
-            return
-        if start > end:
+        end = end_date or today
+        if start_date is not None and start_date > end:
             raise ValueError("start_date must be on or before end_date")
 
         success = 0
         skipped_existing = 0
-        frontier = last
+        empty_months = 0
+        requests = 0
+        coverage_dates: list[date] = []
         for index_code in INDEX_CODES:
+            meta_key = _index_weight_meta_key(index_code)
+            last = self._meta.get_last_date(meta_key)
+            start = start_date or ((last + timedelta(days=1)) if last else FIRST_DATE)
+            if start > end:
+                logger.info(f"index_weight {index_code} 已覆盖到 {last}，无需同步")
+                if last is not None:
+                    coverage_dates.append(last)
+                continue
+
+            month_ranges = _month_ranges(start, end)
+            logger.info(
+                f"index_weight {index_code} 同步开始: {start} ~ {end}, "
+                f"共 {len(month_ranges)} 个月度窗口"
+            )
             try:
-                df = self._fetcher.fetch_index_weight(index_code, start, end)
-                time.sleep(0.2)
-                if df.empty:
-                    continue
-                for trade_date, part in df.groupby("trade_date"):
-                    if index_weight_partition_exists(self._cfg.data_dir, index_code, trade_date):
-                        skipped_existing += 1
-                        continue
-                    write_index_weight(self._cfg.data_dir, index_code, trade_date, part)
-                    if frontier is None or trade_date > frontier:
-                        self._meta.update_last_date("index_weight", trade_date)
-                        frontier = trade_date
-                    success += 1
+                for processed, (month_start, month_end) in enumerate(
+                    month_ranges, start=1
+                ):
+                    df = self._fetcher.fetch_index_weight(
+                        index_code, month_start, month_end
+                    )
+                    requests += 1
+                    time.sleep(0.2)
+                    if df.empty:
+                        empty_months += 1
+                    else:
+                        for trade_date, part in df.groupby("trade_date"):
+                            if index_weight_partition_exists(
+                                self._cfg.data_dir, index_code, trade_date
+                            ):
+                                skipped_existing += 1
+                                continue
+                            write_index_weight(
+                                self._cfg.data_dir, index_code, trade_date, part
+                            )
+                            success += 1
+
+                    if _should_log_progress(processed, len(month_ranges)):
+                        percent = processed / len(month_ranges) * 100
+                        logger.info(
+                            f"index_weight {index_code} 同步进度: "
+                            f"{processed}/{len(month_ranges)} ({percent:.1f}%), "
+                            f"当前窗口 {month_start} ~ {month_end}, "
+                            f"成功 {success} 个分区, 空窗口 {empty_months} 个, "
+                            f"跳过已存在 {skipped_existing} 个分区"
+                        )
+
+                frontier = max(last, end) if last is not None else end
+                self._meta.update_last_date(meta_key, frontier)
+                coverage_dates.append(frontier)
             except Exception as e:
                 logger.error(f"index_weight {index_code} 同步失败: {e}")
                 self._notifier.send(f"index_weight {index_code} 同步失败: {e}")
                 raise
 
+        if coverage_dates:
+            self._meta.update_last_date("index_weight", min(coverage_dates))
+
         msg = (
             f"index_weight 同步完成: 成功 {success} 个分区, "
-            f"跳过已存在 {skipped_existing} 个分区"
+            f"空窗口 {empty_months} 个, 跳过已存在 {skipped_existing} 个分区, "
+            f"请求 {requests} 次"
         )
         logger.info(msg)
         self._notifier.send(msg)

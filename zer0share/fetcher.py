@@ -131,7 +131,7 @@ class TushareFetcher:
     def fetch_index_weight(
         self, index_code: str, start_date: date, end_date: date
     ) -> pd.DataFrame:
-        logger.info(
+        logger.debug(
             f"拉取指数成分: {index_code} "
             f"{start_date.strftime('%Y%m%d')}~{end_date.strftime('%Y%m%d')}"
         )

@@ -510,3 +510,57 @@ def test_sync_daily_partitioned_logs_progress(pipeline, cfg):
     assert any("stock_st 同步开始" in message for message in messages)
     assert any("stock_st 同步进度: 50/51 (98.0%)" in message for message in messages)
     assert any("stock_st 同步进度: 51/51 (100.0%)" in message for message in messages)
+
+
+def test_sync_index_weight_fetches_monthly_ranges(pipeline, cfg):
+    def fetch_index_weight(index_code, start, end):
+        return pd.DataFrame(
+            {
+                "index_code": [index_code],
+                "con_code": ["000001.SZ"],
+                "trade_date": [end],
+                "weight": [1.0],
+            }
+        )
+
+    pipeline._fetcher.fetch_index_weight.side_effect = fetch_index_weight
+
+    with (
+        patch("zer0share.pipeline.INDEX_CODES", ["399300.SZ"]),
+        patch("zer0share.pipeline.time.sleep"),
+    ):
+        pipeline.sync_index_weight(
+            start_date=date(2024, 1, 15),
+            end_date=date(2024, 2, 10),
+        )
+
+    called_ranges = [
+        (call.args[1], call.args[2])
+        for call in pipeline._fetcher.fetch_index_weight.call_args_list
+    ]
+    assert called_ranges == [
+        (date(2024, 1, 15), date(2024, 1, 31)),
+        (date(2024, 2, 1), date(2024, 2, 10)),
+    ]
+    assert pipeline._meta.get_last_date("index_weight:399300.SZ") == date(2024, 2, 10)
+    assert pipeline._meta.get_last_date("index_weight") == date(2024, 2, 10)
+
+
+def test_sync_index_weight_does_not_use_global_meta_for_new_index_meta(pipeline):
+    pipeline._meta.update_last_date("index_weight", date(2024, 1, 31))
+    pipeline._fetcher.fetch_index_weight.return_value = pd.DataFrame()
+
+    with (
+        patch("zer0share.pipeline.INDEX_CODES", ["399300.SZ"]),
+        patch("zer0share.pipeline.FIRST_DATE", date(2024, 1, 1)),
+        patch("zer0share.pipeline.date") as mock_date,
+        patch("zer0share.pipeline.time.sleep"),
+    ):
+        mock_date.today.return_value = date(2024, 1, 31)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        pipeline.sync_index_weight()
+
+    pipeline._fetcher.fetch_index_weight.assert_called_once_with(
+        "399300.SZ", date(2024, 1, 1), date(2024, 1, 31)
+    )
+    assert pipeline._meta.get_last_date("index_weight:399300.SZ") == date(2024, 1, 31)
