@@ -10,7 +10,7 @@ from zer0share.logging import init_logger
 from zer0share.notifier import Notifier
 from zer0share.pipeline import Pipeline
 from zer0share.storage import MetaStore
-from zer0share.universe import build_universes
+from zer0share.universe import build_universes, build_universes_range
 
 
 def _make_pipeline(config_path: str = "config/settings.toml") -> Pipeline:
@@ -121,12 +121,37 @@ def sync(
 
 
 @cli.command("build-universe")
-@click.option("--date", "trade_date", type=click.DateTime(formats=["%Y-%m-%d", "%Y%m%d"]), required=True)
-def build_universe_cmd(trade_date: datetime) -> None:
-    """构建指定交易日的股票池。"""
+@click.option("--date", "trade_date", type=click.DateTime(formats=["%Y-%m-%d", "%Y%m%d"]), default=None)
+@click.option("--start-date", type=click.DateTime(formats=["%Y-%m-%d", "%Y%m%d"]), default=None)
+@click.option("--end-date", type=click.DateTime(formats=["%Y-%m-%d", "%Y%m%d"]), default=None)
+def build_universe_cmd(
+    trade_date: datetime | None,
+    start_date: datetime | None,
+    end_date: datetime | None,
+) -> None:
+    """构建股票池。"""
+    if trade_date is not None and (start_date is not None or end_date is not None):
+        raise click.UsageError("--date cannot be used with --start-date or --end-date")
+
     cfg = load_config(Path("config/settings.toml"))
-    counts = build_universes(cfg.data_dir, trade_date.date())
-    for name, count in counts.items():
+    init_logger(cfg.log_path)
+    if trade_date is not None:
+        counts = build_universes(cfg.data_dir, trade_date.date())
+        for name, count in counts.items():
+            click.echo(f"{name}: {count}")
+        return
+
+    summary = build_universes_range(
+        cfg.data_dir,
+        start_date=start_date.date() if start_date is not None else None,
+        end_date=end_date.date() if end_date is not None else None,
+    )
+    click.echo(
+        f"range: {summary['start_date']} ~ {summary['end_date']}, "
+        f"trading_days: {summary['trading_days']}, "
+        f"built: {summary['built_days']}, skipped: {summary['skipped_days']}"
+    )
+    for name, count in summary["counts"].items():
         click.echo(f"{name}: {count}")
 
 

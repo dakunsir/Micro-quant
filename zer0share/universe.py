@@ -3,15 +3,82 @@ from pathlib import Path
 
 import duckdb
 import pandas as pd
+from loguru import logger
 
-from zer0share.storage import write_universe
+from zer0share.storage import read_trade_cal, write_universe
 
 
+FIRST_UNIVERSE_DATE = date(2016, 1, 1)
+PROGRESS_INTERVAL = 50
+BASE_UNIVERSES = ("univ_research_base", "univ_trade_base")
 INDEX_UNIVERSES = {
     "univ_trade_hs300": "399300.SZ",
     "univ_trade_zz500": "000905.SH",
     "univ_trade_zz1000": "000852.SH",
 }
+UNIVERSE_NAMES = (*BASE_UNIVERSES, *INDEX_UNIVERSES.keys())
+
+
+def build_universes_range(
+    data_dir: str | Path,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    incremental: bool = True,
+) -> dict[str, object]:
+    data_path = Path(data_dir)
+    end = end_date or _latest_complete_source_date(data_path)
+    start = start_date or _default_range_start(data_path, end, incremental)
+    if start > end:
+        if start_date is not None:
+            raise ValueError("start_date must be on or before end_date")
+        logger.info(f"build_universe 已是最新，无需构建，已覆盖到 {end}")
+        return {
+            "start_date": end,
+            "end_date": end,
+            "trading_days": 0,
+            "built_days": 0,
+            "skipped_days": 0,
+            "counts": {name: 0 for name in UNIVERSE_NAMES},
+        }
+
+    trading_days = _open_trading_days(data_path, start, end)
+    counts = {name: 0 for name in UNIVERSE_NAMES}
+    built_days = 0
+    skipped_days = 0
+
+    logger.info(
+        f"build_universe 同步开始: {start} ~ {end}, 共 {len(trading_days)} 个交易日"
+    )
+    for processed, trade_date in enumerate(trading_days, start=1):
+        if incremental and _universe_partitions_exist(data_path, trade_date):
+            skipped_days += 1
+            if _should_log_progress(processed, len(trading_days)):
+                _log_range_progress(
+                    processed, len(trading_days), trade_date, built_days, skipped_days
+                )
+            continue
+        day_counts = build_universes(data_path, trade_date)
+        for name, count in day_counts.items():
+            counts[name] += count
+        built_days += 1
+        if _should_log_progress(processed, len(trading_days)):
+            _log_range_progress(
+                processed, len(trading_days), trade_date, built_days, skipped_days
+            )
+
+    logger.info(
+        f"build_universe 同步完成: 构建 {built_days} 天, "
+        f"跳过已存在 {skipped_days} 天, 共 {len(trading_days)} 个交易日"
+    )
+
+    return {
+        "start_date": start,
+        "end_date": end,
+        "trading_days": len(trading_days),
+        "built_days": built_days,
+        "skipped_days": skipped_days,
+        "counts": counts,
+    }
 
 
 def build_universes(data_dir: str | Path, trade_date: date) -> dict[str, int]:
@@ -32,7 +99,110 @@ def build_universes(data_dir: str | Path, trade_date: date) -> dict[str, int]:
         result = df.assign(universe=name).loc[:, ["trade_date", "universe", "ts_code"]]
         write_universe(data_path, name, trade_date, result)
         counts[name] = len(result)
+    logger.info(
+        "build_universe 单日完成: "
+        f"{trade_date}, " + ", ".join(f"{name}={count}" for name, count in counts.items())
+    )
     return counts
+
+
+def _open_trading_days(data_dir: Path, start: date, end: date) -> list[date]:
+    trade_cal = read_trade_cal(data_dir, "SSE")
+    if trade_cal.empty:
+        raise FileNotFoundError(
+            "SSE trade_cal data not found; run `python main.py sync --table trade_cal` first"
+        )
+    mask = (
+        (trade_cal["cal_date"] >= start)
+        & (trade_cal["cal_date"] <= end)
+        & (trade_cal["is_open"] == True)
+    )
+    return sorted(trade_cal.loc[mask, "cal_date"].tolist())
+
+
+def _universe_partitions_exist(data_dir: Path, trade_date: date) -> bool:
+    date_part = f"date={trade_date.strftime('%Y%m%d')}"
+    return all(
+        (data_dir / "universe" / f"name={name}" / date_part / "data.parquet").exists()
+        for name in UNIVERSE_NAMES
+    )
+
+
+def _latest_complete_source_date(data_dir: Path) -> date:
+    required_tables = ("daily_kline", "daily_basic", "stock_st", "suspend_d", "stk_limit")
+    available_dates = [_partition_dates(data_dir / table_name) for table_name in required_tables]
+    if any(not dates for dates in available_dates):
+        missing = [
+            table_name
+            for table_name, dates in zip(required_tables, available_dates)
+            if not dates
+        ]
+        raise FileNotFoundError(
+            f"required data not found for {', '.join(missing)}; "
+            "run `python main.py sync --all` first"
+        )
+    common_dates = set.intersection(*available_dates)
+    if not common_dates:
+        raise FileNotFoundError(
+            "no common date found across required daily tables; "
+            "sync daily_kline, daily_basic, stock_st, suspend_d, and stk_limit first"
+        )
+    return max(common_dates)
+
+
+def _default_range_start(data_dir: Path, end: date, incremental: bool) -> date:
+    if not incremental:
+        return FIRST_UNIVERSE_DATE
+    latest_universe_date = _latest_complete_universe_date(data_dir)
+    if latest_universe_date is None:
+        return FIRST_UNIVERSE_DATE
+
+    next_days = _open_trading_days(
+        data_dir, latest_universe_date + timedelta(days=1), end
+    )
+    return next_days[0] if next_days else end + timedelta(days=1)
+
+
+def _latest_complete_universe_date(data_dir: Path) -> date | None:
+    available_dates = [
+        _partition_dates(data_dir / "universe" / f"name={name}")
+        for name in UNIVERSE_NAMES
+    ]
+    if any(not dates for dates in available_dates):
+        return None
+    common_dates = set.intersection(*available_dates)
+    return max(common_dates) if common_dates else None
+
+
+def _partition_dates(table_dir: Path) -> set[date]:
+    if not table_dir.exists():
+        return set()
+    dates = set()
+    for path in table_dir.glob("date=*/data.parquet"):
+        value = path.parent.name.removeprefix("date=")
+        try:
+            dates.add(pd.to_datetime(value, format="%Y%m%d").date())
+        except ValueError:
+            continue
+    return dates
+
+
+def _should_log_progress(processed: int, total: int) -> bool:
+    return total > 0 and (processed == total or processed % PROGRESS_INTERVAL == 0)
+
+
+def _log_range_progress(
+    processed: int,
+    total: int,
+    trade_date: date,
+    built_days: int,
+    skipped_days: int,
+) -> None:
+    percent = processed / total * 100
+    logger.info(
+        f"build_universe 同步进度: {processed}/{total} ({percent:.1f}%), "
+        f"当前日期 {trade_date}, 构建 {built_days} 天, 跳过已存在 {skipped_days} 天"
+    )
 
 
 def build_universe_detail(data_dir: str | Path, trade_date: date) -> pd.DataFrame:

@@ -81,9 +81,16 @@ uv run python main.py sync --table index_weight --start-date 2024-01-01 --end-da
 
 ### 4. 构建股票池
 
-同步完对应交易日的数据后，可以构建单日股票池：
+同步完对应交易日的数据后，可以构建股票池。默认按交易日从 2016-01-01 构建到今天，并跳过已存在的完整分区：
 
 ```bash
+uv run python main.py build-universe
+```
+
+也可以指定区间或构建单日：
+
+```bash
+uv run python main.py build-universe --start-date 2024-01-01 --end-date 2024-01-31
 uv run python main.py build-universe --date 2024-01-31
 ```
 
@@ -227,6 +234,8 @@ db/
 | `sync --table stk_limit` | 增量同步每日涨跌停价格 |
 | `sync --table index_weight` | 增量同步指数成分和权重 |
 | `sync --all` | 按顺序同步全部 |
+| `build-universe` | 从 2016-01-01 到今天增量构建 5 个股票池 |
+| `build-universe --start-date YYYY-MM-DD --end-date YYYY-MM-DD` | 构建指定区间的 5 个股票池 |
 | `build-universe --date YYYY-MM-DD` | 构建指定交易日的 5 个股票池 |
 | `status` | 查看各表最后同步时间 |
 | `scheduler start` | 启动定时调度 |
