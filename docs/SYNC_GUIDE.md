@@ -54,7 +54,7 @@ uv run python main.py sync --table trade_cal
 ```
 
 此命令会：
-- 拉取 SSE、SZSE、CFFEX、SHFE、CZCE、DCE、INE 共 7 个交易所从 1990-01-01 至今的全量日历
+- 拉取 SSE、SZSE 共 2 个交易所从 1990-01-01 至今的全量日历
 - 写入 `data/trade_cal/exchange=XXX/data.parquet`
 - 加载到 DuckDB 供后续查询
 
@@ -164,12 +164,7 @@ uv run python main.py scheduler start
 data/
 ├── trade_cal/
 │   ├── exchange=SSE/data.parquet
-│   ├── exchange=SZSE/data.parquet
-│   ├── exchange=CFFEX/data.parquet
-│   ├── exchange=SHFE/data.parquet
-│   ├── exchange=CZCE/data.parquet
-│   ├── exchange=DCE/data.parquet
-│   └── exchange=INE/data.parquet
+│   └── exchange=SZSE/data.parquet
 ├── basic/
 │   └── data.parquet
 ├── daily_kline/

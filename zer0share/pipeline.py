@@ -22,7 +22,7 @@ from zer0share.storage import (
 
 
 FIRST_DATE = date(2016, 1, 1)
-EXCHANGES = ["SSE", "SZSE", "CFFEX", "SHFE", "CZCE", "DCE", "INE"]
+EXCHANGES = ["SSE", "SZSE"]
 INDEX_CODES = ["399300.SZ", "000905.SH", "000852.SH"]
 
 

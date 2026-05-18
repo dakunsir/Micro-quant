@@ -180,8 +180,7 @@ uv run python examples/local_query_api_smoke.py
 data/
 ├── trade_cal/
 │   ├── exchange=SSE/data.parquet
-│   ├── exchange=SZSE/data.parquet
-│   └── ...                          # CFFEX / SHFE / CZCE / DCE / INE
+│   └── exchange=SZSE/data.parquet
 ├── basic/
 │   └── data.parquet
 ├── daily_kline/
