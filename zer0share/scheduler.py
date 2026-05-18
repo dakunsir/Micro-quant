@@ -6,24 +6,14 @@ from loguru import logger
 
 from zer0share.config import load_config
 from zer0share.fetcher import TushareFetcher
+from zer0share.logging import init_logger
 from zer0share.notifier import Notifier
 from zer0share.pipeline import Pipeline
 
 
-_logger_initialized = False
-
-
-def _init_logger(log_path: Path) -> None:
-    global _logger_initialized
-    if not _logger_initialized:
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        logger.add(log_path, rotation="10 MB", retention="30 days")
-        _logger_initialized = True
-
-
 def start_scheduler(config_path: str = "config/settings.toml") -> None:
     cfg = load_config(Path(config_path))
-    _init_logger(cfg.log_path)
+    init_logger(cfg.log_path)
 
     fetcher = TushareFetcher(cfg.tushare_token)
     notifier = Notifier(cfg.wecom_webhook_url, cfg.notifier_enabled)

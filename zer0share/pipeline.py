@@ -25,6 +25,7 @@ from zer0share.storage import (
 
 FIRST_DATE = date(2016, 1, 1)
 TRADE_CAL_FIRST_DATE = date(1990, 1, 1)
+PROGRESS_INTERVAL = 50
 EXCHANGES = ["SSE", "SZSE"]
 INDEX_CODES = ["399300.SZ", "000905.SH", "000852.SH"]
 
@@ -39,6 +40,27 @@ def _merge_trade_cal(existing: pd.DataFrame, fetched: pd.DataFrame) -> pd.DataFr
         .drop_duplicates(subset=["exchange", "cal_date"], keep="last")
         .sort_values(["exchange", "cal_date"])
         .reset_index(drop=True)
+    )
+
+
+def _should_log_progress(processed: int, total: int) -> bool:
+    return processed == total or processed % PROGRESS_INTERVAL == 0
+
+
+def _log_daily_progress(
+    table_name: str,
+    processed: int,
+    total: int,
+    trade_date: date,
+    success: int,
+    empty: int,
+    skipped_existing: int,
+) -> None:
+    percent = processed / total * 100
+    logger.info(
+        f"{table_name} 同步进度: {processed}/{total} ({percent:.1f}%), "
+        f"当前日期 {trade_date}, "
+        f"成功 {success} 天, 空数据 {empty} 天, 跳过已存在 {skipped_existing} 天"
     )
 
 
@@ -132,12 +154,26 @@ class Pipeline:
             return
 
         success = 0
+        empty = 0
         skipped_existing = 0
         frontier = last
 
-        for trade_date in trading_days:
+        logger.info(
+            f"daily_kline 同步开始: {start} ~ {end}, 共 {len(trading_days)} 个交易日"
+        )
+        for processed, trade_date in enumerate(trading_days, start=1):
             if daily_kline_partition_exists(self._cfg.data_dir, trade_date):
                 skipped_existing += 1
+                if _should_log_progress(processed, len(trading_days)):
+                    _log_daily_progress(
+                        "daily_kline",
+                        processed,
+                        len(trading_days),
+                        trade_date,
+                        success,
+                        empty,
+                        skipped_existing,
+                    )
                 continue
             try:
                 df = self._fetcher.fetch_daily_kline(trade_date)
@@ -148,14 +184,27 @@ class Pipeline:
                         self._meta.update_last_date("daily_kline", trade_date)
                         frontier = trade_date
                     success += 1
+                else:
+                    empty += 1
             except Exception as e:
                 logger.error(f"daily_kline {trade_date} 同步失败: {e}")
                 self._notifier.send(f"daily_kline {trade_date} 同步失败: {e}")
                 raise
+            if _should_log_progress(processed, len(trading_days)):
+                _log_daily_progress(
+                    "daily_kline",
+                    processed,
+                    len(trading_days),
+                    trade_date,
+                    success,
+                    empty,
+                    skipped_existing,
+                )
 
         msg = (
             f"daily_kline 同步完成: 成功 {success} 天, "
-            f"跳过已存在 {skipped_existing} 天, 共 {len(trading_days)} 个交易日"
+            f"空数据 {empty} 天, 跳过已存在 {skipped_existing} 天, "
+            f"共 {len(trading_days)} 个交易日"
         )
         logger.info(msg)
         self._notifier.send(msg)
@@ -194,12 +243,26 @@ class Pipeline:
             return
 
         success = 0
+        empty = 0
         skipped_existing = 0
         frontier = last
 
-        for trade_date in trading_days:
+        logger.info(
+            f"adj_factor 同步开始: {start} ~ {end}, 共 {len(trading_days)} 个交易日"
+        )
+        for processed, trade_date in enumerate(trading_days, start=1):
             if adj_factor_partition_exists(self._cfg.data_dir, trade_date):
                 skipped_existing += 1
+                if _should_log_progress(processed, len(trading_days)):
+                    _log_daily_progress(
+                        "adj_factor",
+                        processed,
+                        len(trading_days),
+                        trade_date,
+                        success,
+                        empty,
+                        skipped_existing,
+                    )
                 continue
             try:
                 df = self._fetcher.fetch_adj_factor(trade_date)
@@ -210,14 +273,27 @@ class Pipeline:
                         self._meta.update_last_date("adj_factor", trade_date)
                         frontier = trade_date
                     success += 1
+                else:
+                    empty += 1
             except Exception as e:
                 logger.error(f"adj_factor {trade_date} 同步失败: {e}")
                 self._notifier.send(f"adj_factor {trade_date} 同步失败: {e}")
                 raise
+            if _should_log_progress(processed, len(trading_days)):
+                _log_daily_progress(
+                    "adj_factor",
+                    processed,
+                    len(trading_days),
+                    trade_date,
+                    success,
+                    empty,
+                    skipped_existing,
+                )
 
         msg = (
             f"adj_factor 同步完成: 成功 {success} 天, "
-            f"跳过已存在 {skipped_existing} 天, 共 {len(trading_days)} 个交易日"
+            f"空数据 {empty} 天, 跳过已存在 {skipped_existing} 天, "
+            f"共 {len(trading_days)} 个交易日"
         )
         logger.info(msg)
         self._notifier.send(msg)
@@ -356,11 +432,25 @@ class Pipeline:
             return
 
         success = 0
+        empty = 0
         skipped_existing = 0
         frontier = last
-        for trade_date in trading_days:
+        logger.info(
+            f"{table_name} 同步开始: {start} ~ {end}, 共 {len(trading_days)} 个交易日"
+        )
+        for processed, trade_date in enumerate(trading_days, start=1):
             if daily_partition_exists(self._cfg.data_dir, table_name, trade_date):
                 skipped_existing += 1
+                if _should_log_progress(processed, len(trading_days)):
+                    _log_daily_progress(
+                        table_name,
+                        processed,
+                        len(trading_days),
+                        trade_date,
+                        success,
+                        empty,
+                        skipped_existing,
+                    )
                 continue
             try:
                 df = fetch(trade_date)
@@ -370,15 +460,31 @@ class Pipeline:
                     if frontier is None or trade_date > frontier:
                         self._meta.update_last_date(table_name, trade_date)
                         frontier = trade_date
-                    success += 1
+                    if df.empty:
+                        empty += 1
+                    else:
+                        success += 1
+                else:
+                    empty += 1
             except Exception as e:
                 logger.error(f"{table_name} {trade_date} 同步失败: {e}")
                 self._notifier.send(f"{table_name} {trade_date} 同步失败: {e}")
                 raise
+            if _should_log_progress(processed, len(trading_days)):
+                _log_daily_progress(
+                    table_name,
+                    processed,
+                    len(trading_days),
+                    trade_date,
+                    success,
+                    empty,
+                    skipped_existing,
+                )
 
         msg = (
             f"{table_name} 同步完成: 成功 {success} 天, "
-            f"跳过已存在 {skipped_existing} 天, 共 {len(trading_days)} 个交易日"
+            f"空数据 {empty} 天, 跳过已存在 {skipped_existing} 天, "
+            f"共 {len(trading_days)} 个交易日"
         )
         logger.info(msg)
         self._notifier.send(msg)

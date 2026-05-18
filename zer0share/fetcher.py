@@ -76,7 +76,7 @@ class TushareFetcher:
 
     def fetch_daily_kline(self, trade_date: date) -> pd.DataFrame:
         date_str = trade_date.strftime("%Y%m%d")
-        logger.info(f"拉取日线行情: {date_str}")
+        logger.debug(f"拉取日线行情: {date_str}")
         df = self._pro.daily(trade_date=date_str, fields=",".join(DAILY_COLS))
         if df is None or df.empty:
             return pd.DataFrame(columns=DAILY_COLS)
@@ -87,7 +87,7 @@ class TushareFetcher:
 
     def fetch_adj_factor(self, trade_date: date) -> pd.DataFrame:
         date_str = trade_date.strftime("%Y%m%d")
-        logger.info(f"拉取复权因子: {date_str}")
+        logger.debug(f"拉取复权因子: {date_str}")
         df = self._pro.adj_factor(trade_date=date_str, fields=",".join(ADJ_FACTOR_COLS))
         if df is None or df.empty:
             return pd.DataFrame(columns=ADJ_FACTOR_COLS)
@@ -98,7 +98,7 @@ class TushareFetcher:
 
     def fetch_daily_basic(self, trade_date: date) -> pd.DataFrame:
         date_str = trade_date.strftime("%Y%m%d")
-        logger.info(f"拉取每日指标: {date_str}")
+        logger.debug(f"拉取每日指标: {date_str}")
         df = self._pro.daily_basic(
             ts_code="",
             trade_date=date_str,
@@ -108,13 +108,13 @@ class TushareFetcher:
 
     def fetch_stock_st(self, trade_date: date) -> pd.DataFrame:
         date_str = trade_date.strftime("%Y%m%d")
-        logger.info(f"拉取ST股票列表: {date_str}")
+        logger.debug(f"拉取ST股票列表: {date_str}")
         df = self._pro.stock_st(trade_date=date_str, fields=",".join(STOCK_ST_COLS))
         return _format_trade_date(df, STOCK_ST_COLS)
 
     def fetch_suspend_d(self, trade_date: date) -> pd.DataFrame:
         date_str = trade_date.strftime("%Y%m%d")
-        logger.info(f"拉取每日停复牌: {date_str}")
+        logger.debug(f"拉取每日停复牌: {date_str}")
         df = self._pro.suspend_d(
             trade_date=date_str,
             suspend_type="S",
@@ -124,7 +124,7 @@ class TushareFetcher:
 
     def fetch_stk_limit(self, trade_date: date) -> pd.DataFrame:
         date_str = trade_date.strftime("%Y%m%d")
-        logger.info(f"拉取每日涨跌停价格: {date_str}")
+        logger.debug(f"拉取每日涨跌停价格: {date_str}")
         df = self._pro.stk_limit(trade_date=date_str, fields=",".join(STK_LIMIT_COLS))
         return _format_trade_date(df, STK_LIMIT_COLS)
 

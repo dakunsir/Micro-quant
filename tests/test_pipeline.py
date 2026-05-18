@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -476,3 +476,37 @@ def test_sync_daily_kline_sleeps_between_requests(pipeline, cfg):
 
     assert mock_sleep.call_count == 2
     mock_sleep.assert_any_call(0.2)
+
+
+def test_sync_daily_partitioned_logs_progress(pipeline, cfg):
+    days = [date(2024, 1, 1) + timedelta(days=i) for i in range(51)]
+    trade_cal = pd.DataFrame(
+        {
+            "exchange": ["SSE"] * len(days),
+            "cal_date": days,
+            "is_open": [True] * len(days),
+            "pretrade_date": [None] * len(days),
+        }
+    )
+    write_trade_cal(cfg.data_dir, "SSE", trade_cal)
+    pipeline._meta.load_trade_cal_from_parquet(cfg.data_dir)
+    pipeline._fetcher.fetch_stock_st.return_value = pd.DataFrame(
+        {
+            "ts_code": ["000001.SZ"],
+            "name": ["ST测试"],
+            "trade_date": [days[0]],
+            "type": ["S"],
+            "type_name": ["ST"],
+        }
+    )
+
+    with (
+        patch("zer0share.pipeline.time.sleep"),
+        patch("zer0share.pipeline.logger.info") as mock_info,
+    ):
+        pipeline.sync_stock_st(start_date=days[0], end_date=days[-1])
+
+    messages = [call.args[0] for call in mock_info.call_args_list]
+    assert any("stock_st 同步开始" in message for message in messages)
+    assert any("stock_st 同步进度: 50/51 (98.0%)" in message for message in messages)
+    assert any("stock_st 同步进度: 51/51 (100.0%)" in message for message in messages)
