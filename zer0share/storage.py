@@ -53,15 +53,21 @@ class MetaStore:
         self.close()
         return False
 
-    def load_trade_cal_from_parquet(self, data_dir: Path) -> None:
+    def load_trade_cal_from_parquet(
+        self, data_dir: Path, exchanges: list[str] | None = None
+    ) -> None:
         trade_cal_dir = data_dir / "trade_cal"
         if not trade_cal_dir.exists():
             return
+        allowed_exchanges = set(exchanges) if exchanges is not None else None
         self._conn.execute("BEGIN")
         try:
             self._conn.execute("DELETE FROM trade_cal")
             for exchange_dir in sorted(trade_cal_dir.iterdir()):
                 if not exchange_dir.is_dir():
+                    continue
+                exchange = exchange_dir.name.removeprefix("exchange=")
+                if allowed_exchanges is not None and exchange not in allowed_exchanges:
                     continue
                 parquet_path = exchange_dir / "data.parquet"
                 if not parquet_path.exists():

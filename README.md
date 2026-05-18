@@ -217,7 +217,7 @@ db/
 
 | 命令 | 说明 |
 |------|------|
-| `sync --table trade_cal` | 同步交易日历（7 个交易所） |
+| `sync --table trade_cal` | 增量同步交易日历（SSE、SZSE） |
 | `sync --table basic` | 同步股票基础信息 |
 | `sync --table daily_kline` | 增量同步日线行情 |
 | `sync --table adj_factor` | 增量同步复权因子 |

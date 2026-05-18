@@ -147,6 +147,25 @@ def test_fetch_trade_cal_returns_correct_columns(mock_pro):
     assert len(df) == 2
 
 
+def test_fetch_trade_cal_uses_date_range(mock_pro):
+    mock_pro.trade_cal.return_value = pd.DataFrame({
+        "exchange": ["SSE"],
+        "cal_date": ["20240102"],
+        "is_open": ["1"],
+        "pretrade_date": ["20231229"],
+    })
+    fetcher = TushareFetcher("fake_token")
+
+    fetcher.fetch_trade_cal("SSE", date(2024, 1, 1), date(2024, 12, 31))
+
+    mock_pro.trade_cal.assert_called_once_with(
+        exchange="SSE",
+        start_date="20240101",
+        end_date="20241231",
+        fields="exchange,cal_date,is_open,pretrade_date",
+    )
+
+
 def test_fetch_trade_cal_converts_types(mock_pro):
     mock_pro.trade_cal.return_value = pd.DataFrame({
         "exchange": ["SSE", "SSE"],

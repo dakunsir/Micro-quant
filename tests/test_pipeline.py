@@ -222,6 +222,73 @@ def test_sync_trade_cal_updates_meta(pipeline, cfg):
     assert pipeline._meta.get_last_date("trade_cal") is not None
 
 
+def test_sync_trade_cal_uses_incremental_range(pipeline, cfg):
+    write_trade_cal(
+        cfg.data_dir,
+        "SSE",
+        pd.DataFrame({
+            "exchange": ["SSE", "SSE"],
+            "cal_date": [date(2024, 1, 1), date(2024, 1, 2)],
+            "is_open": [True, True],
+            "pretrade_date": [date(2023, 12, 29), date(2024, 1, 1)],
+        }),
+    )
+    write_trade_cal(
+        cfg.data_dir,
+        "SZSE",
+        pd.DataFrame({
+            "exchange": ["SZSE"],
+            "cal_date": [date(2024, 1, 3)],
+            "is_open": [True],
+            "pretrade_date": [date(2024, 1, 2)],
+        }),
+    )
+
+    def fetch_trade_cal(exchange, start, end):
+        return pd.DataFrame({
+            "exchange": [exchange],
+            "cal_date": [start],
+            "is_open": [True],
+            "pretrade_date": [date(2024, 1, 2)],
+        })
+
+    pipeline._fetcher.fetch_trade_cal.side_effect = fetch_trade_cal
+    with patch("zer0share.pipeline.date") as mock_date:
+        mock_date.today.return_value = date(2024, 5, 18)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        pipeline.sync_trade_cal()
+
+    pipeline._fetcher.fetch_trade_cal.assert_any_call(
+        "SSE", date(2024, 1, 3), date(2024, 12, 31)
+    )
+    pipeline._fetcher.fetch_trade_cal.assert_any_call(
+        "SZSE", date(2024, 1, 4), date(2024, 12, 31)
+    )
+    assert pipeline._meta.get_last_date("trade_cal") == date(2024, 1, 3)
+
+
+def test_sync_trade_cal_skips_when_already_covers_year_end(pipeline, cfg):
+    for exchange in EXCHANGES:
+        write_trade_cal(
+            cfg.data_dir,
+            exchange,
+            pd.DataFrame({
+                "exchange": [exchange],
+                "cal_date": [date(2024, 12, 31)],
+                "is_open": [False],
+                "pretrade_date": [date(2024, 12, 30)],
+            }),
+        )
+
+    with patch("zer0share.pipeline.date") as mock_date:
+        mock_date.today.return_value = date(2024, 5, 18)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        pipeline.sync_trade_cal()
+
+    pipeline._fetcher.fetch_trade_cal.assert_not_called()
+    assert pipeline._meta.get_last_date("trade_cal") == date(2024, 12, 31)
+
+
 def test_sync_trade_cal_failure_sends_alert(pipeline, cfg):
     pipeline._fetcher.fetch_trade_cal.side_effect = RuntimeError("API error")
     with pytest.raises(RuntimeError):

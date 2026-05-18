@@ -54,8 +54,9 @@ uv run python main.py sync --table trade_cal
 ```
 
 此命令会：
-- 拉取 SSE、SZSE 共 2 个交易所从 1990-01-01 至今的全量日历
-- 写入 `data/trade_cal/exchange=XXX/data.parquet`
+- 首次拉取 SSE、SZSE 共 2 个交易所从 1990-01-01 到当年年底的日历
+- 后续从本地最大 `cal_date` 的下一天增量拉取到当年年底
+- 合并写入 `data/trade_cal/exchange=XXX/data.parquet`
 - 加载到 DuckDB 供后续查询
 
 预计耗时：1～3 分钟（受网络和 Tushare 限速影响）。
@@ -127,7 +128,7 @@ adj_factor   last sync: 2026-04-17
 
 ## 增量更新
 
-再次运行任意 `sync` 命令时，pipeline 会自动从上次同步的日期之后继续拉取，无需重新全量同步。
+再次运行任意 `sync` 命令时，pipeline 会自动从上次同步的日期之后继续拉取，无需重新全量同步。交易日历按每个交易所本地已有的最大 `cal_date` 增量补齐。
 
 ```bash
 # 每个交易日收盘后更新日线行情

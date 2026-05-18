@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 import time
 
+import pandas as pd
 from loguru import logger
 
 from zer0share.config import Config
@@ -12,6 +13,7 @@ from zer0share.storage import (
     daily_partition_exists,
     daily_kline_partition_exists,
     index_weight_partition_exists,
+    read_trade_cal,
     write_adj_factor,
     write_basic,
     write_daily_partition,
@@ -22,8 +24,22 @@ from zer0share.storage import (
 
 
 FIRST_DATE = date(2016, 1, 1)
+TRADE_CAL_FIRST_DATE = date(1990, 1, 1)
 EXCHANGES = ["SSE", "SZSE"]
 INDEX_CODES = ["399300.SZ", "000905.SH", "000852.SH"]
+
+
+def _merge_trade_cal(existing: pd.DataFrame, fetched: pd.DataFrame) -> pd.DataFrame:
+    if existing.empty:
+        return fetched
+    if fetched.empty:
+        return existing
+    return (
+        pd.concat([existing, fetched], ignore_index=True)
+        .drop_duplicates(subset=["exchange", "cal_date"], keep="last")
+        .sort_values(["exchange", "cal_date"])
+        .reset_index(drop=True)
+    )
 
 
 class Pipeline:
@@ -47,12 +63,35 @@ class Pipeline:
 
     def sync_trade_cal(self) -> None:
         try:
+            end = date(date.today().year, 12, 31)
+            max_dates: list[date] = []
             for exchange in EXCHANGES:
-                df = self._fetcher.fetch_trade_cal(exchange)
-                write_trade_cal(self._cfg.data_dir, exchange, df)
-                logger.info(f"trade_cal {exchange} 写入完成: {len(df)} 条")
-            self._meta.load_trade_cal_from_parquet(self._cfg.data_dir)
-            self._meta.update_last_date("trade_cal", date.today())
+                existing = read_trade_cal(self._cfg.data_dir, exchange)
+                last = (
+                    existing["cal_date"].max()
+                    if not existing.empty
+                    else None
+                )
+                start = (last + timedelta(days=1)) if last else TRADE_CAL_FIRST_DATE
+
+                if start <= end:
+                    fetched = self._fetcher.fetch_trade_cal(exchange, start, end)
+                    df = _merge_trade_cal(existing, fetched)
+                    write_trade_cal(self._cfg.data_dir, exchange, df)
+                    logger.info(
+                        f"trade_cal {exchange} 写入完成: 新增 {len(fetched)} 条, "
+                        f"共 {len(df)} 条"
+                    )
+                else:
+                    df = existing
+                    logger.info(f"trade_cal {exchange} 已覆盖到 {last}，无需同步")
+
+                if not df.empty:
+                    max_dates.append(df["cal_date"].max())
+
+            self._meta.load_trade_cal_from_parquet(self._cfg.data_dir, EXCHANGES)
+            if max_dates:
+                self._meta.update_last_date("trade_cal", min(max_dates))
             logger.info("trade_cal 全部同步完成")
         except Exception as e:
             logger.error(f"trade_cal 同步失败: {e}")

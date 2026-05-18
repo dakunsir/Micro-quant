@@ -239,6 +239,30 @@ def test_load_trade_cal_from_parquet(tmp_path):
         assert row[0] == 2
 
 
+def test_load_trade_cal_from_parquet_filters_exchanges(tmp_path):
+    db_path = tmp_path / "meta.duckdb"
+    sse_df = pd.DataFrame({
+        "exchange": ["SSE"],
+        "cal_date": [date(2024, 1, 2)],
+        "is_open": [True],
+        "pretrade_date": [date(2023, 12, 29)],
+    })
+    cffex_df = pd.DataFrame({
+        "exchange": ["CFFEX"],
+        "cal_date": [date(2024, 1, 2)],
+        "is_open": [True],
+        "pretrade_date": [date(2023, 12, 29)],
+    })
+    write_trade_cal(tmp_path, "SSE", sse_df)
+    write_trade_cal(tmp_path, "CFFEX", cffex_df)
+    with MetaStore(db_path) as store:
+        store.load_trade_cal_from_parquet(tmp_path, ["SSE"])
+        exchanges = store._conn.execute(
+            "SELECT DISTINCT exchange FROM trade_cal"
+        ).fetchall()
+    assert exchanges == [("SSE",)]
+
+
 def test_get_trading_days(tmp_path):
     db_path = tmp_path / "meta.duckdb"
     df = pd.DataFrame({

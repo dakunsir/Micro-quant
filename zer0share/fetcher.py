@@ -143,13 +143,22 @@ class TushareFetcher:
         )
         return _format_trade_date(df, INDEX_WEIGHT_COLS)
 
-    def fetch_trade_cal(self, exchange: str) -> pd.DataFrame:
-        today = date.today().strftime("%Y%m%d")
-        logger.info(f"拉取交易日历: {exchange}")
+    def fetch_trade_cal(
+        self,
+        exchange: str,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> pd.DataFrame:
+        start = start_date or date(1990, 1, 1)
+        end = end_date or date.today()
+        logger.info(
+            f"拉取交易日历: {exchange} "
+            f"{start.strftime('%Y%m%d')}~{end.strftime('%Y%m%d')}"
+        )
         df = self._pro.trade_cal(
             exchange=exchange,
-            start_date="19900101",
-            end_date=today,
+            start_date=start.strftime("%Y%m%d"),
+            end_date=end.strftime("%Y%m%d"),
             fields=",".join(TRADE_CAL_COLS),
         )
         if df is None or df.empty:
