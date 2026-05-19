@@ -23,6 +23,7 @@ The example calls the local Tushare-like API:
 - `pro.suspend_d`
 - `pro.stk_limit`
 - `pro.index_weight`
+- `pro.universe`
 - `pro.pro_bar`
 - `pro.query`
 

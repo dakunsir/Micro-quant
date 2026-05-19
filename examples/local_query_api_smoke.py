@@ -23,6 +23,7 @@ def run_examples(
     index_code: str,
     index_start_date: str,
     index_end_date: str,
+    universe_name: str,
 ) -> None:
     pro = pro_api()
 
@@ -95,6 +96,13 @@ def run_examples(
     )
     _print_frame("index_weight", index_weight)
 
+    universe = pro.universe(
+        universe=universe_name,
+        trade_date=trade_date,
+        fields="trade_date,universe,ts_code",
+    )
+    _print_frame("universe", universe)
+
     qfq = pro.pro_bar(
         ts_code=ts_code,
         start_date=start_date,
@@ -128,6 +136,14 @@ def run_examples(
     )
     _print_frame("query_index_weight", index_by_query)
 
+    universe_by_query = pro.query(
+        "universe",
+        universe=universe_name,
+        trade_date=trade_date,
+        fields="trade_date,universe,ts_code",
+    )
+    _print_frame("query_universe", universe_by_query)
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -140,6 +156,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--index-code", default="399300.SZ")
     parser.add_argument("--index-start-date", default="20260401")
     parser.add_argument("--index-end-date", default="20260518")
+    parser.add_argument("--universe", default="univ_trade_base")
     return parser.parse_args()
 
 
@@ -154,6 +171,7 @@ def main() -> int:
             index_code=args.index_code,
             index_start_date=args.index_start_date,
             index_end_date=args.index_end_date,
+            universe_name=args.universe,
         )
     except FileNotFoundError as exc:
         print(f"Missing local data: {exc}", file=sys.stderr)

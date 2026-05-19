@@ -10,6 +10,7 @@ from zer0share.storage import (
     write_daily_kline,
     write_daily_partition,
     write_trade_cal,
+    write_universe,
 )
 
 
@@ -179,6 +180,48 @@ def test_daily_partitioned_query_handles_empty_partitions(tmp_path):
             "trade_date": "20240103",
             "type": "ST",
             "type_name": "Risk",
+        }
+    ]
+
+
+def test_universe_filters_by_name_date_and_code(tmp_path):
+    write_universe(
+        tmp_path,
+        "univ_trade_base",
+        date(2024, 1, 2),
+        pd.DataFrame(
+            {
+                "trade_date": [date(2024, 1, 2), date(2024, 1, 2)],
+                "universe": ["univ_trade_base", "univ_trade_base"],
+                "ts_code": ["000001.SZ", "600000.SH"],
+            }
+        ),
+    )
+    write_universe(
+        tmp_path,
+        "univ_research_base",
+        date(2024, 1, 2),
+        pd.DataFrame(
+            {
+                "trade_date": [date(2024, 1, 2)],
+                "universe": ["univ_research_base"],
+                "ts_code": ["000001.SZ"],
+            }
+        ),
+    )
+
+    pro = LocalPro(tmp_path)
+    result = pro.universe(
+        universe="univ_trade_base",
+        ts_code="000001.SZ",
+        trade_date="20240102",
+    )
+
+    assert result.to_dict("records") == [
+        {
+            "trade_date": "20240102",
+            "universe": "univ_trade_base",
+            "ts_code": "000001.SZ",
         }
     ]
 
