@@ -565,6 +565,74 @@ def test_pro_bar_rounds_adjusted_prices_to_two_decimals(tmp_path):
     assert result.iloc[0]["close"] == 12.34
 
 
+def test_pro_bar_supports_multiple_codes_with_qfq_base_per_stock(tmp_path):
+    for day, rows in [
+        (
+            date(2024, 1, 1),
+            [
+                ["000001.SZ", 10.0, 10.0],
+                ["000002.SZ", 20.0, 20.0],
+            ],
+        ),
+        (
+            date(2024, 1, 2),
+            [
+                ["000001.SZ", 12.0, 12.0],
+                ["000002.SZ", 22.0, 22.0],
+            ],
+        ),
+    ]:
+        write_daily_kline(
+            tmp_path,
+            day,
+            pd.DataFrame(
+                {
+                    "ts_code": [row[0] for row in rows],
+                    "trade_date": [day, day],
+                    "open": [row[1] for row in rows],
+                    "high": [row[1] for row in rows],
+                    "low": [row[1] for row in rows],
+                    "close": [row[2] for row in rows],
+                    "pre_close": [row[2] for row in rows],
+                    "change": [0.0, 0.0],
+                    "pct_chg": [0.0, 0.0],
+                    "vol": [1000.0, 2000.0],
+                    "amount": [10000.0, 20000.0],
+                }
+            ),
+        )
+    for day, factors in [
+        (date(2024, 1, 1), [1.0, 10.0]),
+        (date(2024, 1, 2), [2.0, 20.0]),
+    ]:
+        write_adj_factor(
+            tmp_path,
+            day,
+            pd.DataFrame(
+                {
+                    "ts_code": ["000001.SZ", "000002.SZ"],
+                    "trade_date": [day, day],
+                    "adj_factor": factors,
+                }
+            ),
+        )
+
+    pro = LocalPro(tmp_path)
+    result = pro.pro_bar(
+        ts_code="000001.SZ,000002.SZ",
+        start_date="20240101",
+        end_date="20240102",
+        adj="qfq",
+    )
+
+    assert result[["ts_code", "trade_date", "close"]].to_dict("records") == [
+        {"ts_code": "000001.SZ", "trade_date": "20240101", "close": 5.0},
+        {"ts_code": "000001.SZ", "trade_date": "20240102", "close": 12.0},
+        {"ts_code": "000002.SZ", "trade_date": "20240101", "close": 10.0},
+        {"ts_code": "000002.SZ", "trade_date": "20240102", "close": 22.0},
+    ]
+
+
 def test_pro_bar_rejects_unsupported_asset_and_freq(tmp_path):
     pro = LocalPro(tmp_path)
 

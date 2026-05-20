@@ -376,7 +376,7 @@ class LocalPro:
 
         price_columns = ["open", "high", "low", "close", "pre_close"]
         if adj == "qfq":
-            base_factor = result.sort_values("trade_date").iloc[-1]["adj_factor"]
+            base_factor = result.groupby("ts_code")["adj_factor"].transform("last")
             multiplier = result["adj_factor"] / base_factor
         else:
             multiplier = result["adj_factor"]
