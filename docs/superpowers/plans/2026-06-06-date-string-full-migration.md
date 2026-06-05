@@ -470,7 +470,95 @@ def is_trading_day(self, exchange: str, cal_date: str) -> bool:
     return bool(row[0])
 ```
 
-- [ ] **Step 5: Update all storage functions in `storage.py`**
+- [ ] **Step 5: Add `_coerce_date_str` helper and apply in all `read_*` functions**
+
+Old Parquet files may have `date32` columns (written before this refactor). When read with `pq.read_table(...).to_pandas()`, they return Python `date` objects, not strings. `str(date(2024,1,2))` is `'2024-01-02'`, which breaks YYYYMMDD comparisons.
+
+Add a private helper at the top of storage.py (below the imports):
+
+```python
+def _coerce_date_str(series: pd.Series) -> pd.Series:
+    """Normalise a Series to YYYYMMDD strings, handling both str and date values."""
+    if series.empty:
+        return series
+    sample = series.dropna()
+    if sample.empty or isinstance(sample.iloc[0], str):
+        return series
+    return series.apply(lambda v: v.strftime("%Y%m%d") if v is not None else None)
+```
+
+Apply it in every `read_*` function for known date columns:
+
+```python
+def read_daily_kline(data_dir: Path, trade_date: str) -> pd.DataFrame:
+    path = data_dir / "daily_kline" / f"date={trade_date}" / "data.parquet"
+    if not path.exists():
+        return pd.DataFrame()
+    df = pq.read_table(path).to_pandas()
+    if "trade_date" in df.columns:
+        df["trade_date"] = _coerce_date_str(df["trade_date"])
+    return df
+
+
+def read_daily_partition(data_dir: Path, table_name: str, trade_date: str) -> pd.DataFrame:
+    path = data_dir / table_name / f"date={trade_date}" / "data.parquet"
+    if not path.exists():
+        return pd.DataFrame()
+    df = pq.read_table(path).to_pandas()
+    if "trade_date" in df.columns:
+        df["trade_date"] = _coerce_date_str(df["trade_date"])
+    return df
+
+
+def read_trade_cal(data_dir: Path, exchange: str) -> pd.DataFrame:
+    path = data_dir / "trade_cal" / f"exchange={exchange}" / "data.parquet"
+    if not path.exists():
+        return pd.DataFrame()
+    df = pq.read_table(path, schema=pq.read_schema(path)).to_pandas()
+    for col in ("cal_date", "pretrade_date"):
+        if col in df.columns:
+            df[col] = _coerce_date_str(df[col])
+    return df
+```
+
+Apply the same pattern to `read_basic`, `read_sw_classify`, `read_sw_member`, `read_ci_member` for any date columns they may contain (`list_date`, `delist_date`, `in_date`, `out_date`):
+
+```python
+def read_basic(data_dir: Path) -> pd.DataFrame:
+    path = data_dir / "basic" / "data.parquet"
+    if not path.exists():
+        return pd.DataFrame()
+    df = pq.read_table(path).to_pandas()
+    for col in ("list_date", "delist_date"):
+        if col in df.columns:
+            df[col] = _coerce_date_str(df[col])
+    return df
+```
+
+```python
+def read_sw_member(data_dir: Path) -> pd.DataFrame:
+    path = data_dir / "industry" / "sw_member" / "data.parquet"
+    if not path.exists():
+        return pd.DataFrame()
+    df = pq.read_table(path).to_pandas()
+    for col in ("in_date", "out_date"):
+        if col in df.columns:
+            df[col] = _coerce_date_str(df[col])
+    return df
+
+
+def read_ci_member(data_dir: Path) -> pd.DataFrame:
+    path = data_dir / "industry" / "ci_member" / "data.parquet"
+    if not path.exists():
+        return pd.DataFrame()
+    df = pq.read_table(path).to_pandas()
+    for col in ("in_date", "out_date"):
+        if col in df.columns:
+            df[col] = _coerce_date_str(df[col])
+    return df
+```
+
+- [ ] **Step 7: Update all storage functions in `storage.py`**
 
 Change every `trade_date: date` parameter to `trade_date: str` and simplify path building from `f"date={trade_date.strftime('%Y%m%d')}"` to `f"date={trade_date}"`. Apply to all 11 functions:
 
@@ -505,18 +593,18 @@ def daily_partition_exists(data_dir: Path, table_name: str, trade_date: str) -> 
 
 Apply the same pattern to the remaining 9 functions.
 
-- [ ] **Step 6: Run tests to see them pass**
+- [ ] **Step 8: Run tests to see them pass**
 
 ```bash
 python -m pytest tests/test_storage.py tests/test_api.py -v 2>&1 | tail -20
 ```
 Expected: all tests PASS
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add zer0share/storage.py tests/test_storage.py tests/test_api.py
-git commit -m "refactor: MetaStore and storage functions accept/return str dates"
+git commit -m "refactor: MetaStore and storage functions accept/return str dates, coerce old date32 columns on read"
 ```
 
 ---
