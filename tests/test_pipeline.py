@@ -1160,3 +1160,80 @@ def test_sync_trade_cal_writes_all_8_exchanges(pipeline, cfg):
         pipeline.sync_trade_cal()
     for ex in NEW_ALL_EXCHANGES:
         assert (cfg.data_dir / "trade_cal" / f"exchange={ex}" / "data.parquet").exists(), f"Missing {ex}"
+
+
+# --- Non-trading-day skip tests ---
+
+
+def _setup_non_trading_day(pipeline, cfg):
+    """Set up a non-trading day (2024-01-03, SSE) in the calendar."""
+    trade_cal = pd.DataFrame({
+        "exchange": ["SSE"],
+        "cal_date": [date(2024, 1, 3)],
+        "is_open": [False],
+        "pretrade_date": [date(2024, 1, 2)],
+    })
+    write_trade_cal(cfg.data_dir, "SSE", trade_cal)
+    pipeline._meta.load_trade_cal_from_parquet(cfg.data_dir)
+    pipeline._meta.update_last_date("trade_cal", date(2024, 1, 3))
+
+
+def test_sync_basic_skips_non_trading_day(pipeline, cfg):
+    _setup_non_trading_day(pipeline, cfg)
+    with patch("zer0share.pipeline.date") as mock_date:
+        mock_date.today.return_value = date(2024, 1, 3)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        pipeline.sync_basic()
+    pipeline._fetcher.fetch_basic.assert_not_called()
+    pipeline._notifier.send.assert_not_called()
+
+
+def test_sync_industry_skips_non_trading_day(pipeline, cfg):
+    _setup_non_trading_day(pipeline, cfg)
+    with patch("zer0share.pipeline.date") as mock_date:
+        mock_date.today.return_value = date(2024, 1, 3)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        pipeline.sync_industry()
+    pipeline._fetcher.fetch_sw_classify.assert_not_called()
+    pipeline._notifier.send.assert_not_called()
+
+
+def test_sync_ci_member_skips_non_trading_day(pipeline, cfg):
+    _setup_non_trading_day(pipeline, cfg)
+    with patch("zer0share.pipeline.date") as mock_date:
+        mock_date.today.return_value = date(2024, 1, 3)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        pipeline.sync_ci_member()
+    pipeline._fetcher.fetch_ci_member.assert_not_called()
+    pipeline._notifier.send.assert_not_called()
+
+
+def test_sync_fut_basic_skips_non_trading_day(pipeline, cfg):
+    _setup_non_trading_day(pipeline, cfg)
+    with patch("zer0share.pipeline.date") as mock_date:
+        mock_date.today.return_value = date(2024, 1, 3)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        pipeline.sync_fut_basic()
+    pipeline._fetcher.fetch_fut_basic.assert_not_called()
+    pipeline._notifier.send.assert_not_called()
+
+
+def test_sync_opt_basic_skips_non_trading_day(pipeline, cfg):
+    _setup_non_trading_day(pipeline, cfg)
+    with patch("zer0share.pipeline.date") as mock_date:
+        mock_date.today.return_value = date(2024, 1, 3)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        pipeline.sync_opt_basic()
+    pipeline._fetcher.fetch_opt_basic.assert_not_called()
+    pipeline._notifier.send.assert_not_called()
+
+
+def test_sync_fut_index_daily_skips_non_trading_day(pipeline, cfg):
+    _setup_non_trading_day(pipeline, cfg)
+    pipeline._meta.update_last_date("fut_index_daily", date(2024, 1, 1))
+    with patch("zer0share.pipeline.date") as mock_date:
+        mock_date.today.return_value = date(2024, 1, 3)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        pipeline.sync_fut_index_daily()
+    pipeline._fetcher.fetch_fut_index_daily.assert_not_called()
+    pipeline._notifier.send.assert_not_called()

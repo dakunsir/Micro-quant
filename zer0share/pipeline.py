@@ -130,6 +130,8 @@ class Pipeline:
         return False
 
     def sync_basic(self) -> None:
+        if self._skip_if_not_trading("SSE"):
+            return
         today = date.today()
         try:
             df = self._fetcher.fetch_basic()
@@ -555,6 +557,8 @@ class Pipeline:
         self._notifier.send(msg)
 
     def sync_industry(self) -> None:
+        if self._skip_if_not_trading("SSE"):
+            return
         today = date.today()
         try:
             df = self._fetcher.fetch_sw_classify()
@@ -572,6 +576,8 @@ class Pipeline:
             raise
 
     def sync_ci_member(self) -> None:
+        if self._skip_if_not_trading("SSE"):
+            return
         today = date.today()
         try:
             df = self._fetcher.fetch_ci_member()
@@ -584,6 +590,8 @@ class Pipeline:
             raise
 
     def sync_fut_basic(self) -> None:
+        if self._skip_if_not_trading("SSE"):
+            return
         today = date.today()
         futures_dir = self._cfg.data_dir / "futures"
         all_frames = []
@@ -620,6 +628,8 @@ class Pipeline:
         )
 
     def sync_opt_basic(self) -> None:
+        if self._skip_if_not_trading("SSE"):
+            return
         today = date.today()
         options_dir = self._cfg.data_dir / "options"
         all_frames = []
@@ -750,6 +760,8 @@ class Pipeline:
         start_date: date | None = None,
         end_date: date | None = None,
     ) -> None:
+        if self._skip_if_not_trading("SSE"):
+            return
         today = date.today()
         last = self._meta.get_last_date("fut_index_daily")
 
