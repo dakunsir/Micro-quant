@@ -886,6 +886,7 @@ class Pipeline:
         end_date: date | None,
         write_empty: bool = False,
         data_dir: Path | None = None,
+        exchange: str = "SSE",
     ) -> None:
         base_dir = data_dir or self._cfg.data_dir
         today = date.today()
@@ -903,10 +904,10 @@ class Pipeline:
         if start > end:
             raise ValueError("start_date must be on or before end_date")
 
-        trading_days = self._meta.get_trading_days("SSE", start, end)
+        trading_days = self._meta.get_trading_days(exchange, start, end)
         if not trading_days and self._meta.get_last_date("trade_cal") is None:
             raise RuntimeError(
-                "DuckDB 中无 SSE trade_cal 数据，请先运行 "
+                f"DuckDB 中无 {exchange} trade_cal 数据，请先运行 "
                 "python main.py sync --table trade_cal"
             )
         if not trading_days:

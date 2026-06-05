@@ -1237,3 +1237,42 @@ def test_sync_fut_index_daily_skips_non_trading_day(pipeline, cfg):
         pipeline.sync_fut_index_daily()
     pipeline._fetcher.fetch_fut_index_daily.assert_not_called()
     pipeline._notifier.send.assert_not_called()
+
+
+def test_sync_daily_partitioned_uses_exchange_param(pipeline, cfg):
+    """Verify that _sync_daily_partitioned passes exchange to get_trading_days."""
+    dce_cal = pd.DataFrame({
+        "exchange": ["DCE"],
+        "cal_date": [date(2024, 1, 2)],
+        "is_open": [True],
+        "pretrade_date": [date(2023, 12, 29)],
+    })
+    sse_cal = pd.DataFrame({
+        "exchange": ["SSE"],
+        "cal_date": [date(2024, 1, 2)],
+        "is_open": [False],
+        "pretrade_date": [date(2024, 1, 1)],
+    })
+    write_trade_cal(cfg.data_dir, "DCE", dce_cal)
+    write_trade_cal(cfg.data_dir, "SSE", sse_cal)
+    pipeline._meta.load_trade_cal_from_parquet(cfg.data_dir)
+    pipeline._meta.update_last_date("trade_cal", date(2024, 1, 2))
+
+    pipeline._fetcher.fetch_fut_daily.return_value = pd.DataFrame({
+        "ts_code": ["CU2401.SHF"], "trade_date": [date(2024, 1, 2)],
+        "pre_close": [50000.0], "pre_settle": [50100.0], "open": [50200.0],
+        "high": [50500.0], "low": [49900.0], "close": [50300.0], "settle": [50250.0],
+        "change1": [200.0], "change2": [150.0], "vol": [10000.0], "amount": [251250.0],
+        "oi": [50000.0], "oi_chg": [500.0], "delv_settle": [None],
+    })
+    pipeline._meta.update_last_date("fut_daily", date(2024, 1, 1))
+
+    with patch("zer0share.pipeline.date") as mock_date, \
+         patch("zer0share.pipeline.time.sleep"):
+        mock_date.today.return_value = date(2024, 1, 2)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        # Default _sync_daily_partitioned uses "SSE" — SSE 1/2 is closed,
+        # so fetcher should NOT be called
+        pipeline.sync_fut_daily()
+
+    pipeline._fetcher.fetch_fut_daily.assert_not_called()
