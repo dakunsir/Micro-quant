@@ -260,7 +260,13 @@ uv run python examples/local_query_api_smoke.py
 data/
 ├── trade_cal/
 │   ├── exchange=SSE/data.parquet
-│   └── exchange=SZSE/data.parquet
+│   ├── exchange=SZSE/data.parquet
+│   ├── exchange=CFFEX/data.parquet
+│   ├── exchange=SHFE/data.parquet
+│   ├── exchange=DCE/data.parquet
+│   ├── exchange=CZCE/data.parquet
+│   ├── exchange=INE/data.parquet
+│   └── exchange=GFEX/data.parquet
 ├── basic/
 │   └── data.parquet
 ├── daily_kline/
@@ -334,7 +340,7 @@ db/
 
 | 命令 | 说明 |
 |------|------|
-| `sync --table trade_cal` | 增量同步交易日历（SSE、SZSE） |
+| `sync --table trade_cal` | 增量同步交易日历（SSE、SZSE、CFFEX、SHFE、DCE、CZCE、INE、GFEX） |
 | `sync --table basic` | 同步股票基础信息 |
 | `sync --table daily_kline` | 增量同步日线行情 |
 | `sync --table adj_factor` | 增量同步复权因子 |
@@ -426,7 +432,7 @@ config/
 
 公众号：极客投研笔记
 
-如果你对本地股票数据系统、AI 量化投研或因子研究工作流感兴趣，可以关注公众号看后续更新。
+如果你对本地量化数据系统、AI 量化投研或因子研究工作流感兴趣，可以关注公众号看后续更新。
 
 ## License
 
