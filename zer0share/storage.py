@@ -206,6 +206,13 @@ def read_basic(data_dir: Path) -> pd.DataFrame:
     return pq.read_table(path).to_pandas()
 
 
+def write_opt_basic(data_dir: Path, df: pd.DataFrame) -> None:
+    opt_basic_dir = data_dir / "opt_basic"
+    opt_basic_dir.mkdir(parents=True, exist_ok=True)
+    table = pa.Table.from_pandas(df, preserve_index=False)
+    pq.write_table(table, opt_basic_dir / "data.parquet")
+
+
 def write_trade_cal(data_dir: Path, exchange: str, df: pd.DataFrame) -> None:
     partition_dir = data_dir / "trade_cal" / f"exchange={exchange}"
     partition_dir.mkdir(parents=True, exist_ok=True)

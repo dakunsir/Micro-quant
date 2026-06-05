@@ -24,6 +24,8 @@ def run_examples(
     index_start_date: str,
     index_end_date: str,
     universe_name: str,
+    opt_exchange: str,
+    opt_code: str,
 ) -> None:
     pro = pro_api()
 
@@ -144,6 +146,29 @@ def run_examples(
     )
     _print_frame("query_universe", universe_by_query)
 
+    opt_basic = pro.opt_basic(
+        exchange=opt_exchange,
+        opt_code=opt_code,
+        fields="ts_code,exchange,name,call_put,exercise_price,s_month,maturity_date,list_price,list_date,delist_date,last_edate,last_ddate",
+    )
+    _print_frame("opt_basic", opt_basic)
+
+    opt_basic_call = pro.opt_basic(
+        exchange=opt_exchange,
+        opt_code=opt_code,
+        call_put="C",
+        fields="ts_code,name,call_put,exercise_price,maturity_date,last_edate,last_ddate",
+    )
+    _print_frame("opt_basic_call_only", opt_basic_call)
+
+    opt_basic_by_query = pro.query(
+        "opt_basic",
+        exchange=opt_exchange,
+        opt_code=opt_code,
+        fields="ts_code,exchange,name,call_put,exercise_price,maturity_date",
+    )
+    _print_frame("query_opt_basic", opt_basic_by_query)
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -157,6 +182,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--index-start-date", default="20260401")
     parser.add_argument("--index-end-date", default="20260518")
     parser.add_argument("--universe", default="univ_trade_base")
+    parser.add_argument("--opt-exchange", default="SSE")
+    parser.add_argument("--opt-code", default="OP510050")
     return parser.parse_args()
 
 
@@ -172,6 +199,8 @@ def main() -> int:
             index_start_date=args.index_start_date,
             index_end_date=args.index_end_date,
             universe_name=args.universe,
+            opt_exchange=args.opt_exchange,
+            opt_code=args.opt_code,
         )
     except FileNotFoundError as exc:
         print(f"Missing local data: {exc}", file=sys.stderr)

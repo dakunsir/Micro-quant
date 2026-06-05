@@ -96,7 +96,8 @@ OPT_BASIC_COLS = [
     "ts_code", "symbol", "exchange", "name", "per_unit",
     "opt_code", "opt_type", "call_put", "exercise_type",
     "exercise_price", "s_month", "maturity_date",
-    "list_date", "delist_date",
+    "list_price", "list_date", "delist_date",
+    "last_edate", "last_ddate", "quote_unit", "min_price_chg",
 ]
 
 OPT_DAILY_COLS = [
@@ -394,7 +395,7 @@ class TushareFetcher:
         df = self._pro.opt_basic(exchange=exchange, fields=",".join(OPT_BASIC_COLS))
         if df is None or df.empty:
             return pd.DataFrame(columns=OPT_BASIC_COLS)
-        for col in ("list_date", "delist_date", "maturity_date"):
+        for col in ("list_date", "delist_date", "maturity_date", "last_edate", "last_ddate"):
             if col in df.columns:
                 df[col] = pd.to_datetime(
                     df[col], format="%Y%m%d", errors="coerce"

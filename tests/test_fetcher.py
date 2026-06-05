@@ -987,8 +987,13 @@ def _opt_basic_row(exchange: str = "SSE", list_date: str = "20240101") -> dict:
         "exercise_price": 2.7,
         "s_month": "202404",
         "maturity_date": "20240424",
+        "list_price": 2.5,
         "list_date": list_date,
         "delist_date": "20240424",
+        "last_edate": "20240424",
+        "last_ddate": "20240426",
+        "quote_unit": None,
+        "min_price_chg": None,
     }
 
 

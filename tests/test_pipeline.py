@@ -1016,7 +1016,7 @@ def test_sync_opt_basic_writes_to_options_subdir(pipeline, cfg):
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_opt_basic()
 
-    assert (cfg.data_dir / "options" / "opt_basic" / "date=20240102" / "data.parquet").exists()
+    assert (cfg.data_dir / "options" / "opt_basic" / "data.parquet").exists()
     assert pipeline._meta.get_last_date("opt_basic") == date(2024, 1, 2)
 
 

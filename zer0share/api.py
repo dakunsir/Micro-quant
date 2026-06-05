@@ -524,8 +524,8 @@ class LocalPro:
         call_put: str | None = None,
         fields: str | list[str] | None = None,
     ) -> pd.DataFrame:
-        table_dir = self._data_dir / "options" / "opt_basic"
-        if not table_dir.exists():
+        path = self._data_dir / "options" / "opt_basic" / "data.parquet"
+        if not path.exists():
             raise FileNotFoundError(
                 "opt_basic data not found; run `python main.py sync --table opt_basic` first"
             )
@@ -546,16 +546,12 @@ class LocalPro:
         if call_put is not None:
             where.append("call_put = ?")
             params.append(call_put)
-        pattern = table_dir / "date=*" / "data.parquet"
-        sql = (
-            f"SELECT {', '.join(selected)} "
-            "FROM read_parquet(?, hive_partitioning=true, union_by_name=true)"
-        )
+        sql = f"SELECT {', '.join(selected)} FROM read_parquet(?)"
         if where:
             sql += " WHERE " + " AND ".join(where)
         sql += " ORDER BY ts_code"
-        df = duckdb.connect().execute(sql, [str(pattern), *params]).fetchdf()
-        return _format_date_columns(df, ["list_date", "delist_date", "maturity_date"])
+        df = duckdb.connect().execute(sql, [str(path), *params]).fetchdf()
+        return _format_date_columns(df, ["list_date", "delist_date", "maturity_date", "last_edate", "last_ddate"])
 
     def opt_daily(
         self,

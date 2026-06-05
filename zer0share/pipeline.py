@@ -18,6 +18,7 @@ from zer0share.storage import (
     write_adj_factor,
     write_basic,
     write_ci_member,
+    write_opt_basic,
     write_daily_partition,
     write_daily_kline,
     write_index_weight,
@@ -643,7 +644,7 @@ class Pipeline:
                 combined = pd.concat(all_frames, ignore_index=True)
             else:
                 combined = pd.DataFrame()
-            write_daily_partition(options_dir, "opt_basic", today, combined)
+            write_opt_basic(options_dir, combined)
             self._meta.update_last_date("opt_basic", today)
             logger.info(f"opt_basic 同步完成: {len(combined)} 条")
         except Exception as e:

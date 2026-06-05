@@ -10,6 +10,7 @@ from zer0share.storage import (
     write_ci_member,
     write_daily_kline,
     write_daily_partition,
+    write_opt_basic,
     write_sw_classify,
     write_sw_member,
     write_trade_cal,
@@ -1293,9 +1294,8 @@ def _write_opt_daily_data(data_dir, trade_date, ts_codes=None):
     return df
 
 
-def test_opt_basic_query_returns_data(tmp_path):
-    from datetime import date as dt
-    df = pd.DataFrame({
+def _make_opt_basic_df():
+    return pd.DataFrame({
         "ts_code": ["10004462.SH", "10004463.SH"],
         "symbol": ["10004462", "10004463"],
         "exchange": ["SSE", "SSE"],
@@ -1308,10 +1308,18 @@ def test_opt_basic_query_returns_data(tmp_path):
         "exercise_price": [2.7, 2.7],
         "s_month": ["202404", "202404"],
         "maturity_date": ["20240424", "20240424"],
+        "list_price": [2.5, 2.5],
         "list_date": ["20240101", "20240101"],
         "delist_date": ["20240424", "20240424"],
+        "last_edate": ["20240424", "20240424"],
+        "last_ddate": ["20240426", "20240426"],
+        "quote_unit": [None, None],
+        "min_price_chg": [None, None],
     })
-    write_daily_partition(tmp_path / "options", "opt_basic", dt(2024, 1, 2), df)
+
+
+def test_opt_basic_query_returns_data(tmp_path):
+    write_opt_basic(tmp_path / "options", _make_opt_basic_df())
 
     api = LocalPro(tmp_path)
     result = api.opt_basic()
@@ -1324,24 +1332,7 @@ def test_opt_basic_query_returns_data(tmp_path):
 
 
 def test_opt_basic_query_filters_by_call_put(tmp_path):
-    from datetime import date as dt
-    df = pd.DataFrame({
-        "ts_code": ["10004462.SH", "10004463.SH"],
-        "symbol": ["10004462", "10004463"],
-        "exchange": ["SSE", "SSE"],
-        "name": ["50ETF购4月2700", "50ETF沽4月2700"],
-        "per_unit": [10000.0, 10000.0],
-        "opt_code": ["OP510050", "OP510050"],
-        "opt_type": ["E", "E"],
-        "call_put": ["C", "P"],
-        "exercise_type": ["E", "E"],
-        "exercise_price": [2.7, 2.7],
-        "s_month": ["202404", "202404"],
-        "maturity_date": ["20240424", "20240424"],
-        "list_date": ["20240101", "20240101"],
-        "delist_date": ["20240424", "20240424"],
-    })
-    write_daily_partition(tmp_path / "options", "opt_basic", dt(2024, 1, 2), df)
+    write_opt_basic(tmp_path / "options", _make_opt_basic_df())
 
     api = LocalPro(tmp_path)
     result = api.opt_basic(call_put="C")
@@ -1420,24 +1411,7 @@ def test_query_dispatch_supports_options(tmp_path):
 
 
 def test_query_dispatch_supports_opt_basic(tmp_path):
-    from datetime import date as dt
-    df = pd.DataFrame({
-        "ts_code": ["10004462.SH"],
-        "symbol": ["10004462"],
-        "exchange": ["SSE"],
-        "name": ["50ETF购4月2700"],
-        "per_unit": [10000.0],
-        "opt_code": ["OP510050"],
-        "opt_type": ["E"],
-        "call_put": ["C"],
-        "exercise_type": ["E"],
-        "exercise_price": [2.7],
-        "s_month": ["202404"],
-        "maturity_date": ["20240424"],
-        "list_date": ["20240101"],
-        "delist_date": ["20240424"],
-    })
-    write_daily_partition(tmp_path / "options", "opt_basic", dt(2024, 1, 2), df)
+    write_opt_basic(tmp_path / "options", _make_opt_basic_df().head(1))
 
     api = LocalPro(tmp_path)
     result = api.query("opt_basic")
