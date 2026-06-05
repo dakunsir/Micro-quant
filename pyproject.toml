@@ -1,7 +1,7 @@
 [project]
 name = "zer0share"
 version = "0.1.0"
-description = "A-股数据本地化管道：Tushare Pro 拉取 → Parquet 分区存储 → DuckDB 本地查询，支持增量同步与定时调度"
+description = "A 股、期货、期权数据本地化管道：Tushare Pro 拉取 → Parquet 分区存储 → DuckDB 本地查询，支持增量同步与定时调度"
 requires-python = ">=3.11"
 dependencies = [
     "tushare>=1.4.0",
@@ -12,9 +12,6 @@ dependencies = [
     "loguru>=0.7.0",
     "httpx>=0.27.0",
 ]
-
-[project.optional-dependencies]
-dev = ["pytest>=8.0.0", "pytest-mock>=3.14.0"]
 
 [build-system]
 requires = ["hatchling"]

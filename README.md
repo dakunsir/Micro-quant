@@ -4,14 +4,14 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Stars](https://img.shields.io/github/stars/zer0quant/zer0share)
 
-> **zer0share** — A local data pipeline for Chinese A-share market.  
+> **zer0share** — A local data pipeline for Chinese A-shares, futures & options.  
 > Pulls data from Tushare Pro, stores as Parquet partitions,  
 > queries via DuckDB, with incremental sync & APScheduler automation.
 
 > 我在公众号「极客投研笔记」记录这个项目的设计过程、踩坑记录和后续扩展。  
 > 如果你对 AI + 量化投研、本地股票数据系统、因子研究工作流感兴趣，欢迎关注。
 
-A-股数据本地化管道，基于 [Tushare Pro](https://tushare.pro) 拉取股票数据，以 Parquet 分区存储，DuckDB 提供快速元数据查询，支持增量同步与定时调度。
+A 股、期货、期权数据本地化管道，基于 [Tushare Pro](https://tushare.pro) 拉取数据，以 Parquet 分区存储，DuckDB 提供快速本地查询，支持增量同步与定时调度。
 
 ## 为什么用 zer0share？
 
