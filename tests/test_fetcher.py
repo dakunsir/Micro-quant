@@ -1035,15 +1035,15 @@ def test_fetch_opt_basic_returns_correct_columns(mock_pro):
     assert len(df) == 1
 
 
-def test_fetch_opt_basic_converts_dates(mock_pro):
+def test_fetch_opt_basic_preserves_tushare_date_strings(mock_pro):
     mock_pro.opt_basic.return_value = pd.DataFrame([_opt_basic_row()])
     fetcher = TushareFetcher("fake_token")
 
     df = fetcher.fetch_opt_basic("SSE")
 
-    assert df.iloc[0]["list_date"] == date(2024, 1, 1)
-    assert df.iloc[0]["delist_date"] == date(2024, 4, 24)
-    assert df.iloc[0]["maturity_date"] == date(2024, 4, 24)
+    assert df.iloc[0]["list_date"] == "20240101"
+    assert df.iloc[0]["delist_date"] == "20240424"
+    assert df.iloc[0]["maturity_date"] == "20240424"
 
 
 def test_fetch_opt_basic_returns_empty_when_none(mock_pro):

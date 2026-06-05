@@ -395,11 +395,6 @@ class TushareFetcher:
         df = self._pro.opt_basic(exchange=exchange, fields=",".join(OPT_BASIC_COLS))
         if df is None or df.empty:
             return pd.DataFrame(columns=OPT_BASIC_COLS)
-        for col in ("list_date", "delist_date", "maturity_date", "last_edate", "last_ddate"):
-            if col in df.columns:
-                df[col] = pd.to_datetime(
-                    df[col], format="%Y%m%d", errors="coerce"
-                ).apply(lambda x: x.date() if not pd.isna(x) and not pd.isnull(x) else None)
         return df[OPT_BASIC_COLS]
 
     def fetch_opt_daily(self, trade_date: date) -> pd.DataFrame:

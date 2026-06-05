@@ -1367,6 +1367,38 @@ def test_opt_basic_filters_by_name_and_list_date(tmp_path):
     assert empty_result.to_dict("records") == []
 
 
+def test_opt_basic_supports_limit_and_offset(tmp_path):
+    write_opt_basic(tmp_path / "options", _make_opt_basic_df())
+
+    api = LocalPro(tmp_path)
+    result = api.opt_basic(limit=1, offset=1, fields="ts_code")
+
+    assert result.to_dict("records") == [
+        {"ts_code": "10004463.SH"}
+    ]
+
+
+def test_opt_basic_combines_new_filters_with_fields(tmp_path):
+    write_opt_basic(tmp_path / "options", _make_opt_basic_df())
+
+    api = LocalPro(tmp_path)
+    result = api.opt_basic(
+        exchange="SSE",
+        call_put="P",
+        list_date="20240101",
+        limit=1,
+        fields=["ts_code", "call_put", "list_date"],
+    )
+
+    assert result.to_dict("records") == [
+        {
+            "ts_code": "10004463.SH",
+            "call_put": "P",
+            "list_date": "20240101",
+        }
+    ]
+
+
 def test_opt_basic_query_raises_when_no_data(tmp_path):
     api = LocalPro(tmp_path)
     with pytest.raises(FileNotFoundError):

@@ -522,6 +522,10 @@ class LocalPro:
         exchange: str | None = None,
         opt_code: str | None = None,
         call_put: str | None = None,
+        name: str | None = None,
+        list_date: str | None = None,
+        offset: int | None = None,
+        limit: int | None = None,
         fields: str | list[str] | None = None,
     ) -> pd.DataFrame:
         path = self._data_dir / "options" / "opt_basic" / "data.parquet"
@@ -546,12 +550,23 @@ class LocalPro:
         if call_put is not None:
             where.append("call_put = ?")
             params.append(call_put)
+        if name is not None:
+            where.append("name = ?")
+            params.append(name)
+        if list_date is not None:
+            where.append("list_date = ?")
+            params.append(list_date)
         sql = f"SELECT {', '.join(selected)} FROM read_parquet(?)"
         if where:
             sql += " WHERE " + " AND ".join(where)
         sql += " ORDER BY ts_code"
-        df = duckdb.connect().execute(sql, [str(path), *params]).fetchdf()
-        return _format_date_columns(df, ["list_date", "delist_date", "maturity_date", "last_edate", "last_ddate"])
+        if limit is not None:
+            sql += " LIMIT ?"
+            params.append(limit)
+        if offset is not None:
+            sql += " OFFSET ?"
+            params.append(offset)
+        return duckdb.connect().execute(sql, [str(path), *params]).fetchdf()
 
     def opt_daily(
         self,
