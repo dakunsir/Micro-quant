@@ -32,6 +32,7 @@ TRADE_CAL_FIRST_DATE = date(1990, 1, 1)
 PROGRESS_INTERVAL = 50
 EXCHANGES = ["SSE", "SZSE"]
 INDEX_CODES = ["399300.SZ", "000905.SH", "000852.SH"]
+ALL_EXCHANGES = ["SSE", "SZSE", "CFFEX", "DCE", "SHFE", "CZCE", "INE", "GFEX"]
 
 
 def _merge_trade_cal(existing: pd.DataFrame, fetched: pd.DataFrame) -> pd.DataFrame:
@@ -113,6 +114,20 @@ class Pipeline:
         self._fetcher = fetcher
         self._notifier = notifier
         self._meta = MetaStore(cfg.db_path)
+
+    def _ensure_trade_cal_loaded(self) -> None:
+        """Ensure trade calendar is loaded into DuckDB. Syncs if needed."""
+        if self._meta.get_last_date("trade_cal") is None:
+            self.sync_trade_cal()
+
+    def _skip_if_not_trading(self, exchange: str) -> bool:
+        """Check if today is a trading day. Returns True if sync should be skipped."""
+        self._ensure_trade_cal_loaded()
+        today = date.today()
+        if not self._meta.is_trading_day(exchange, today):
+            logger.info(f"今日 {today} 非交易日，跳过同步")
+            return True
+        return False
 
     def sync_basic(self) -> None:
         today = date.today()
