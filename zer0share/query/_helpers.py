@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -96,8 +97,13 @@ def query_daily_partitioned(
         params.append(parsed_end.strftime("%Y%m%d"))
     if extra_filters is not None:
         for col, val in extra_filters.items():
+            if col not in columns:
+                raise ValueError(f"unknown filter column: {col}")
             where.append(f"{col} = ?")
             params.append(val)
+
+    if not re.match(r"^[\w]+(?:\s+(?:ASC|DESC))?(?:,\s*[\w]+(?:\s+(?:ASC|DESC))?)*$", order_by, re.IGNORECASE):
+        raise ValueError(f"invalid order_by: {order_by!r}")
 
     pattern = table_dir / "date=*" / "data.parquet"
     sql = (
