@@ -1,26 +1,47 @@
 import time
-from datetime import date, timedelta
-from loguru import logger
 
 import pandas as pd
+from loguru import logger
 
+import zer0share.dateutil as dateutil
+from zer0share.fetcher import INDEX_DAILY_CODES
 from zer0share.storage import (
-    daily_partition_exists, write_basic,
-    write_daily_partition, write_index_weight, index_weight_partition_exists,
+    daily_partition_exists,
+    index_weight_partition_exists,
+    write_basic,
+    write_daily_partition,
+    write_index_weight,
 )
 from zer0share.sync import SyncContext
 from zer0share.sync._helpers import (
-    FIRST_DATE, INDEX_CODES, index_weight_meta_key,
-    month_ranges, parse_tushare_date, should_log_progress, skip_if_not_trading,
+    FIRST_DATE,
+    INDEX_CODES,
+    index_weight_meta_key,
+    should_log_progress,
+    skip_if_not_trading,
     sync_daily_partitioned,
 )
-from zer0share.fetcher import INDEX_DAILY_CODES
+
+date = None
+
+
+def _date_str(value) -> str:
+    if isinstance(value, str):
+        return value
+    return format(value, "%Y%m%d")
+
+
+def _today() -> str:
+    provider = globals().get("date")
+    if provider is not None:
+        return _date_str(getattr(provider, "today")())
+    return dateutil.today()
 
 
 def sync_basic(ctx: SyncContext) -> None:
     if skip_if_not_trading(ctx, "SSE"):
         return
-    today = date.today()
+    today = _today()
     try:
         df = ctx.fetcher.fetch_basic()
         write_basic(ctx.cfg.data_dir, df)
@@ -32,32 +53,32 @@ def sync_basic(ctx: SyncContext) -> None:
         raise
 
 
-def sync_daily_kline(ctx: SyncContext, start_date: date | None = None, end_date: date | None = None) -> None:
+def sync_daily_kline(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
     sync_daily_partitioned(ctx, "daily_kline", ctx.fetcher.fetch_daily_kline, start_date, end_date)
 
 
-def sync_adj_factor(ctx: SyncContext, start_date: date | None = None, end_date: date | None = None) -> None:
+def sync_adj_factor(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
     sync_daily_partitioned(ctx, "adj_factor", ctx.fetcher.fetch_adj_factor, start_date, end_date)
 
 
-def sync_daily_basic(ctx: SyncContext, start_date: date | None = None, end_date: date | None = None) -> None:
+def sync_daily_basic(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
     sync_daily_partitioned(ctx, "daily_basic", ctx.fetcher.fetch_daily_basic, start_date, end_date)
 
 
-def sync_stock_st(ctx: SyncContext, start_date: date | None = None, end_date: date | None = None) -> None:
+def sync_stock_st(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
     sync_daily_partitioned(ctx, "stock_st", ctx.fetcher.fetch_stock_st, start_date, end_date, write_empty=True)
 
 
-def sync_suspend_d(ctx: SyncContext, start_date: date | None = None, end_date: date | None = None) -> None:
+def sync_suspend_d(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
     sync_daily_partitioned(ctx, "suspend_d", ctx.fetcher.fetch_suspend_d, start_date, end_date, write_empty=True)
 
 
-def sync_stk_limit(ctx: SyncContext, start_date: date | None = None, end_date: date | None = None) -> None:
+def sync_stk_limit(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
     sync_daily_partitioned(ctx, "stk_limit", ctx.fetcher.fetch_stk_limit, start_date, end_date)
 
 
-def sync_index_weight(ctx: SyncContext, start_date: date | None = None, end_date: date | None = None) -> None:
-    today = date.today()
+def sync_index_weight(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
+    today = _today()
     end = end_date or today
     if start_date is not None and start_date > end:
         raise ValueError("start_date must be on or before end_date")
@@ -66,18 +87,18 @@ def sync_index_weight(ctx: SyncContext, start_date: date | None = None, end_date
     skipped_existing = 0
     empty_months = 0
     requests = 0
-    coverage_dates: list[date] = []
+    coverage_dates: list[str] = []
     for index_code in INDEX_CODES:
         meta_key = index_weight_meta_key(index_code)
         last = ctx.meta.get_last_date(meta_key)
-        start = start_date or ((last + timedelta(days=1)) if last else FIRST_DATE)
+        start = start_date or (dateutil.add_days(last, 1) if last else FIRST_DATE)
         if start > end:
             logger.info(f"index_weight {index_code} 已覆盖到 {last}，无需同步")
             if last is not None:
                 coverage_dates.append(last)
             continue
 
-        ranges = month_ranges(start, end)
+        ranges = dateutil.month_ranges(start, end)
         logger.info(
             f"index_weight {index_code} 同步开始: {start} ~ {end}, "
             f"共 {len(ranges)} 个月度窗口"
@@ -91,7 +112,7 @@ def sync_index_weight(ctx: SyncContext, start_date: date | None = None, end_date
                     empty_months += 1
                 else:
                     for trade_date_value, part in df.groupby("trade_date"):
-                        trade_date = parse_tushare_date(trade_date_value)
+                        trade_date = str(trade_date_value)
                         if index_weight_partition_exists(ctx.cfg.data_dir, index_code, trade_date):
                             skipped_existing += 1
                             continue
@@ -128,12 +149,12 @@ def sync_index_weight(ctx: SyncContext, start_date: date | None = None, end_date
     ctx.notifier.send(msg)
 
 
-def sync_index_daily(ctx: SyncContext, start_date: date | None = None, end_date: date | None = None) -> None:
-    today = date.today()
+def sync_index_daily(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
+    today = _today()
     last = ctx.meta.get_last_date("index_daily")
 
     if start_date is None:
-        start = (last + timedelta(days=1)) if last else FIRST_DATE
+        start = dateutil.add_days(last, 1) if last else FIRST_DATE
         end = today
     else:
         start = start_date
@@ -170,7 +191,7 @@ def sync_index_daily(ctx: SyncContext, start_date: date | None = None, end_date:
     frontier = last
 
     for trade_date_value, part in combined.groupby("trade_date"):
-        trade_date = parse_tushare_date(trade_date_value)
+        trade_date = str(trade_date_value)
         if daily_partition_exists(ctx.cfg.data_dir, "index_daily", trade_date):
             skipped_existing += 1
             continue

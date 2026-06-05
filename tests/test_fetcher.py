@@ -1069,10 +1069,18 @@ def test_fetch_opt_basic_calls_api_correctly(mock_pro):
 
 
 def test_fetch_opt_daily_returns_correct_columns(mock_pro):
-    mock_pro.opt_daily.return_value = pd.DataFrame([_opt_daily_row()])
+    mock_pro.opt_daily.side_effect = [
+        pd.DataFrame([_opt_daily_row()]),
+        None,
+        None,
+        None,
+        None,
+        None,
+    ]
     fetcher = TushareFetcher("fake_token")
 
-    df = fetcher.fetch_opt_daily(date(2024, 1, 2))
+    with patch("zer0share.fetcher.time.sleep"):
+        df = fetcher.fetch_opt_daily(date(2024, 1, 2))
 
     assert list(df.columns) == OPT_DAILY_COLS
     assert len(df) == 1
@@ -1093,9 +1101,13 @@ def test_fetch_opt_daily_calls_api_with_date(mock_pro):
     mock_pro.opt_daily.return_value = pd.DataFrame([_opt_daily_row()])
     fetcher = TushareFetcher("fake_token")
 
-    fetcher.fetch_opt_daily(date(2024, 1, 2))
+    with patch("zer0share.fetcher.time.sleep"):
+        fetcher.fetch_opt_daily(date(2024, 1, 2))
 
-    mock_pro.opt_daily.assert_called_once_with(
-        trade_date="20240102",
-        fields=",".join(OPT_DAILY_COLS),
-    )
+    assert mock_pro.opt_daily.call_count == 6
+    for exchange in ("SSE", "SZSE", "CFFEX", "DCE", "SHFE", "CZCE"):
+        mock_pro.opt_daily.assert_any_call(
+            trade_date="20240102",
+            exchange=exchange,
+            fields=",".join(OPT_DAILY_COLS),
+        )

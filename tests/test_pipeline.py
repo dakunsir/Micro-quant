@@ -218,9 +218,9 @@ def test_sync_trade_cal_writes_all_exchanges(pipeline, cfg):
 def test_sync_trade_cal_loads_to_duckdb(pipeline, cfg):
     pipeline._fetcher.fetch_trade_cal.return_value = _trade_cal_df("SSE")
     pipeline.sync_trade_cal()
-    days = pipeline._meta.get_trading_days("SSE", date(2024, 1, 1), date(2024, 1, 5))
-    assert date(2024, 1, 2) in days
-    assert date(2024, 1, 3) not in days
+    days = pipeline._meta.get_trading_days("SSE", "20240101", "20240105")
+    assert "20240102" in days
+    assert "20240103" not in days
 
 
 def test_sync_trade_cal_updates_meta(pipeline, cfg):
@@ -267,7 +267,7 @@ def test_sync_trade_cal_uses_incremental_range(pipeline, cfg):
         def fetch_trade_cal(exchange, start, end):
             return pd.DataFrame({
                 "exchange": [exchange],
-                "cal_date": [start.strftime("%Y%m%d")],
+                "cal_date": [start],
                 "is_open": [True],
                 "pretrade_date": ["20240102"],
             })
@@ -279,12 +279,12 @@ def test_sync_trade_cal_uses_incremental_range(pipeline, cfg):
         pipeline.sync_trade_cal()
 
     pipeline._fetcher.fetch_trade_cal.assert_any_call(
-        "SSE", date(2024, 1, 3), date(2024, 12, 31)
+        "SSE", "20240103", "20241231"
     )
     pipeline._fetcher.fetch_trade_cal.assert_any_call(
-        "SZSE", date(2024, 1, 4), date(2024, 12, 31)
+        "SZSE", "20240104", "20241231"
     )
-    assert pipeline._meta.get_last_date("trade_cal") == date(2024, 1, 3)
+    assert pipeline._meta.get_last_date("trade_cal") == "20240103"
 
 
 def test_sync_trade_cal_skips_when_already_covers_year_end(pipeline, cfg):
@@ -306,7 +306,7 @@ def test_sync_trade_cal_skips_when_already_covers_year_end(pipeline, cfg):
         pipeline.sync_trade_cal()
 
     pipeline._fetcher.fetch_trade_cal.assert_not_called()
-    assert pipeline._meta.get_last_date("trade_cal") == date(2024, 12, 31)
+    assert pipeline._meta.get_last_date("trade_cal") == "20241231"
 
 
 def test_sync_trade_cal_failure_sends_alert(pipeline, cfg):
@@ -380,14 +380,14 @@ def test_sync_daily_kline_range_skips_existing_partitions(pipeline, cfg):
     write_daily_kline(cfg.data_dir, date(2024, 1, 3), existing_df)
 
     pipeline._fetcher.fetch_daily_kline.side_effect = [
-        existing_df.assign(trade_date=[date(2024, 1, 2)]),
-        existing_df.assign(trade_date=[date(2024, 1, 4)]),
+        existing_df.assign(trade_date=["20240102"]),
+        existing_df.assign(trade_date=["20240104"]),
     ]
 
-    pipeline.sync_daily_kline(start_date=date(2024, 1, 2), end_date=date(2024, 1, 4))
+    pipeline.sync_daily_kline(start_date="20240102", end_date="20240104")
 
     called_dates = [call.args[0] for call in pipeline._fetcher.fetch_daily_kline.call_args_list]
-    assert called_dates == [date(2024, 1, 2), date(2024, 1, 4)]
+    assert called_dates == ["20240102", "20240104"]
 
 
 def test_sync_daily_kline_old_range_does_not_rewind_meta(pipeline, cfg):
@@ -421,9 +421,9 @@ def test_sync_daily_kline_old_range_does_not_rewind_meta(pipeline, cfg):
     )
     pipeline._fetcher.fetch_daily_kline.return_value = kline_df
 
-    pipeline.sync_daily_kline(start_date=date(2024, 1, 2), end_date=date(2024, 1, 3))
+    pipeline.sync_daily_kline(start_date="20240102", end_date="20240103")
 
-    assert pipeline._meta.get_last_date("daily_kline") == date(2024, 2, 1)
+    assert pipeline._meta.get_last_date("daily_kline") == "20240201"
 
 
 def test_sync_daily_kline_range_defaults_end_date_to_today(pipeline, cfg):
@@ -457,10 +457,10 @@ def test_sync_daily_kline_range_defaults_end_date_to_today(pipeline, cfg):
     with patch("zer0share.sync._helpers.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 3)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
-        pipeline.sync_daily_kline(start_date=date(2024, 1, 2))
+        pipeline.sync_daily_kline(start_date="20240102")
 
     called_dates = [call.args[0] for call in pipeline._fetcher.fetch_daily_kline.call_args_list]
-    assert called_dates == [date(2024, 1, 2), date(2024, 1, 3)]
+    assert called_dates == ["20240102", "20240103"]
 
 
 def test_sync_daily_kline_sleeps_between_requests(pipeline, cfg):
@@ -550,8 +550,8 @@ def test_sync_index_weight_fetches_monthly_ranges(pipeline, cfg):
         patch("zer0share.sync.equities.time.sleep"),
     ):
         pipeline.sync_index_weight(
-            start_date=date(2024, 1, 15),
-            end_date=date(2024, 2, 10),
+            start_date="20240115",
+            end_date="20240210",
         )
 
     called_ranges = [
@@ -559,11 +559,11 @@ def test_sync_index_weight_fetches_monthly_ranges(pipeline, cfg):
         for call in pipeline._fetcher.fetch_index_weight.call_args_list
     ]
     assert called_ranges == [
-        (date(2024, 1, 15), date(2024, 1, 31)),
-        (date(2024, 2, 1), date(2024, 2, 10)),
+        ("20240115", "20240131"),
+        ("20240201", "20240210"),
     ]
-    assert pipeline._meta.get_last_date("index_weight:399300.SZ") == date(2024, 2, 10)
-    assert pipeline._meta.get_last_date("index_weight") == date(2024, 2, 10)
+    assert pipeline._meta.get_last_date("index_weight:399300.SZ") == "20240210"
+    assert pipeline._meta.get_last_date("index_weight") == "20240210"
 
 
 def test_sync_index_weight_does_not_use_global_meta_for_new_index_meta(pipeline):
@@ -572,7 +572,7 @@ def test_sync_index_weight_does_not_use_global_meta_for_new_index_meta(pipeline)
 
     with (
         patch("zer0share.sync.equities.INDEX_CODES", ["399300.SZ"]),
-        patch("zer0share.sync.equities.FIRST_DATE", date(2024, 1, 1)),
+        patch("zer0share.sync.equities.FIRST_DATE", "20240101"),
         patch("zer0share.sync.equities.date") as mock_date,
         patch("zer0share.sync.equities.time.sleep"),
     ):
@@ -581,9 +581,9 @@ def test_sync_index_weight_does_not_use_global_meta_for_new_index_meta(pipeline)
         pipeline.sync_index_weight()
 
     pipeline._fetcher.fetch_index_weight.assert_called_once_with(
-        "399300.SZ", date(2024, 1, 1), date(2024, 1, 31)
+        "399300.SZ", "20240101", "20240131"
     )
-    assert pipeline._meta.get_last_date("index_weight:399300.SZ") == date(2024, 1, 31)
+    assert pipeline._meta.get_last_date("index_weight:399300.SZ") == "20240131"
 
 
 def test_sync_industry_writes_sw_classify_and_member(pipeline, cfg):
@@ -614,8 +614,8 @@ def test_sync_industry_writes_sw_classify_and_member(pipeline, cfg):
 
     assert read_sw_classify(cfg.data_dir).equals(classify_df)
     assert read_sw_member(cfg.data_dir).equals(member_df)
-    assert pipeline._meta.get_last_date("sw_classify") == date(2024, 5, 18)
-    assert pipeline._meta.get_last_date("sw_member") == date(2024, 5, 18)
+    assert pipeline._meta.get_last_date("sw_classify") == "20240518"
+    assert pipeline._meta.get_last_date("sw_member") == "20240518"
 
 
 def test_sync_industry_failure_sends_alert_and_raises(pipeline):
@@ -645,7 +645,7 @@ def test_sync_ci_member_writes_parquet(pipeline, cfg):
         pipeline.sync_ci_member()
 
     assert read_ci_member(cfg.data_dir).equals(member_df)
-    assert pipeline._meta.get_last_date("ci_member") == date(2024, 5, 18)
+    assert pipeline._meta.get_last_date("ci_member") == "20240518"
 
 
 def test_sync_ci_member_failure_sends_alert_and_raises(pipeline):
@@ -686,8 +686,8 @@ def test_sync_index_daily_fetches_all_codes(pipeline, cfg):
     for ts_code in INDEX_DAILY_CODES:
         pipeline._fetcher.fetch_index_daily.assert_any_call(
             ts_code,
-            date(2016, 1, 1),
-            date(2024, 1, 2),
+            "20160101",
+            "20240102",
         )
 
 
@@ -761,7 +761,7 @@ def test_sync_index_daily_updates_metastore(pipeline, cfg):
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_index_daily()
 
-    assert pipeline._meta.get_last_date("index_daily") == date(2024, 1, 2)
+    assert pipeline._meta.get_last_date("index_daily") == "20240102"
 
 
 # --- Futures pipeline tests ---
@@ -798,7 +798,7 @@ def test_sync_fut_basic_writes_to_futures_subdir(pipeline, cfg):
         pipeline.sync_fut_basic()
 
     assert (cfg.data_dir / "futures" / "fut_basic" / "date=20240102" / "data.parquet").exists()
-    assert pipeline._meta.get_last_date("fut_basic") == date(2024, 1, 2)
+    assert pipeline._meta.get_last_date("fut_basic") == "20240102"
 
 
 def test_sync_fut_basic_calls_all_exchanges_and_types(pipeline, cfg):
@@ -1017,7 +1017,7 @@ def test_sync_opt_basic_writes_to_options_subdir(pipeline, cfg):
         pipeline.sync_opt_basic()
 
     assert (cfg.data_dir / "options" / "opt_basic" / "data.parquet").exists()
-    assert pipeline._meta.get_last_date("opt_basic") == date(2024, 1, 2)
+    assert pipeline._meta.get_last_date("opt_basic") == "20240102"
 
 
 def test_sync_opt_basic_calls_all_exchanges(pipeline, cfg):

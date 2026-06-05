@@ -1,15 +1,30 @@
-from datetime import date
 from loguru import logger
 
-from zer0share.storage import write_sw_classify, write_sw_member, write_ci_member
+import zer0share.dateutil as dateutil
+from zer0share.storage import write_ci_member, write_sw_classify, write_sw_member
 from zer0share.sync import SyncContext
 from zer0share.sync._helpers import skip_if_not_trading
+
+date = None
+
+
+def _date_str(value) -> str:
+    if isinstance(value, str):
+        return value
+    return format(value, "%Y%m%d")
+
+
+def _today() -> str:
+    provider = globals().get("date")
+    if provider is not None:
+        return _date_str(getattr(provider, "today")())
+    return dateutil.today()
 
 
 def sync_industry(ctx: SyncContext) -> None:
     if skip_if_not_trading(ctx, "SSE"):
         return
-    today = date.today()
+    today = _today()
     try:
         df = ctx.fetcher.fetch_sw_classify()
         write_sw_classify(ctx.cfg.data_dir, df)
@@ -29,7 +44,7 @@ def sync_industry(ctx: SyncContext) -> None:
 def sync_ci_member(ctx: SyncContext) -> None:
     if skip_if_not_trading(ctx, "SSE"):
         return
-    today = date.today()
+    today = _today()
     try:
         df = ctx.fetcher.fetch_ci_member()
         write_ci_member(ctx.cfg.data_dir, df)

@@ -1,19 +1,34 @@
 import time
-from datetime import date
-from loguru import logger
 
 import pandas as pd
+from loguru import logger
 
+import zer0share.dateutil as dateutil
+from zer0share.fetcher import OPTIONS_EXCHANGES
 from zer0share.storage import write_opt_basic
 from zer0share.sync import SyncContext
 from zer0share.sync._helpers import skip_if_not_trading, sync_daily_partitioned
-from zer0share.fetcher import OPTIONS_EXCHANGES
+
+date = None
+
+
+def _date_str(value) -> str:
+    if isinstance(value, str):
+        return value
+    return format(value, "%Y%m%d")
+
+
+def _today() -> str:
+    provider = globals().get("date")
+    if provider is not None:
+        return _date_str(getattr(provider, "today")())
+    return dateutil.today()
 
 
 def sync_opt_basic(ctx: SyncContext) -> None:
     if skip_if_not_trading(ctx, "SSE"):
         return
-    today = date.today()
+    today = _today()
     options_dir = ctx.cfg.data_dir / "options"
     all_frames = []
     try:
@@ -32,7 +47,7 @@ def sync_opt_basic(ctx: SyncContext) -> None:
         raise
 
 
-def sync_opt_daily(ctx: SyncContext, start_date: date | None = None, end_date: date | None = None) -> None:
+def sync_opt_daily(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
     sync_daily_partitioned(
         ctx, "opt_daily", ctx.fetcher.fetch_opt_daily, start_date, end_date,
         data_dir=ctx.cfg.data_dir / "options",

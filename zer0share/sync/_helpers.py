@@ -1,28 +1,34 @@
 import time
-from datetime import date, timedelta
 from pathlib import Path
 from typing import Callable
 
 from loguru import logger
 
+import zer0share.dateutil as dateutil
 from zer0share.storage import daily_partition_exists, write_daily_partition
 from zer0share.sync import SyncContext
 
 
-FIRST_DATE = date(2016, 1, 1)
-TRADE_CAL_FIRST_DATE = date(1990, 1, 1)
+FIRST_DATE = "20160101"
+TRADE_CAL_FIRST_DATE = "19900101"
 PROGRESS_INTERVAL = 50
 EXCHANGES = ["SSE", "SZSE"]
 INDEX_CODES = ["399300.SZ", "000905.SH", "000852.SH"]
 ALL_EXCHANGES = ["SSE", "SZSE", "CFFEX", "DCE", "SHFE", "CZCE", "INE", "GFEX"]
+date = None
 
 
-def parse_tushare_date(value) -> date:
-    import datetime as dt
-    if isinstance(value, dt.date):
+def _date_str(value) -> str:
+    if isinstance(value, str):
         return value
-    import pandas as pd
-    return pd.to_datetime(value, format="%Y%m%d").date()
+    return format(value, "%Y%m%d")
+
+
+def _today() -> str:
+    provider = globals().get("date")
+    if provider is not None:
+        return _date_str(getattr(provider, "today")())
+    return dateutil.today()
 
 
 def should_log_progress(processed: int, total: int) -> bool:
@@ -33,7 +39,7 @@ def log_daily_progress(
     table_name: str,
     processed: int,
     total: int,
-    trade_date: date,
+    trade_date: str,
     success: int,
     empty: int,
     skipped_existing: int,
@@ -46,51 +52,20 @@ def log_daily_progress(
     )
 
 
-def month_ranges(start: date, end: date) -> list[tuple[date, date]]:
-    ranges = []
-    current = date(start.year, start.month, 1)
-    while current <= end:
-        next_month = (
-            date(current.year + 1, 1, 1)
-            if current.month == 12
-            else date(current.year, current.month + 1, 1)
-        )
-        month_start = max(start, current)
-        month_end = min(end, next_month - timedelta(days=1))
-        ranges.append((month_start, month_end))
-        current = next_month
-    return ranges
-
-
-def week_ranges(start: date, end: date) -> list[tuple[str, date]]:
-    weeks = []
-    seen: set = set()
-    current = start
-    while current <= end:
-        iso_year, iso_week, _ = current.isocalendar()
-        week_key = (iso_year, iso_week)
-        if week_key not in seen:
-            seen.add(week_key)
-            week_num = f"{iso_year}{iso_week:02d}"
-            monday = current - timedelta(days=current.weekday())
-            weeks.append((week_num, monday))
-        current += timedelta(days=7)
-    return weeks
-
-
 def index_weight_meta_key(index_code: str) -> str:
     return f"index_weight:{index_code}"
 
 
 def ensure_trade_cal_loaded(ctx: SyncContext) -> None:
     from zer0share.sync import calendar as cal_module
+
     if ctx.meta.get_last_date("trade_cal") is None:
         cal_module.sync_trade_cal(ctx)
 
 
 def skip_if_not_trading(ctx: SyncContext, exchange: str) -> bool:
     ensure_trade_cal_loaded(ctx)
-    today = date.today()
+    today = _today()
     if not ctx.meta.is_trading_day(exchange, today):
         logger.info(f"今日 {today} 非交易日，跳过同步")
         return True
@@ -101,17 +76,17 @@ def sync_daily_partitioned(
     ctx: SyncContext,
     table_name: str,
     fetch: Callable,
-    start_date: date | None,
-    end_date: date | None,
+    start_date: str | None,
+    end_date: str | None,
     write_empty: bool = False,
     data_dir: Path | None = None,
     exchange: str = "SSE",
 ) -> None:
     base_dir = data_dir or ctx.cfg.data_dir
-    today = date.today()
+    today = _today()
     last = ctx.meta.get_last_date(table_name)
     if start_date is None:
-        start = (last + timedelta(days=1)) if last else FIRST_DATE
+        start = dateutil.add_days(last, 1) if last else FIRST_DATE
         end = today
     else:
         start = start_date

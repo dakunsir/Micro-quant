@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+import datetime as dt
 from pathlib import Path
 
 import duckdb
@@ -23,7 +23,7 @@ def parse_fields(fields, default_columns: list[str]) -> list[str]:
 
 def parse_date(value: str):
     try:
-        return datetime.strptime(value, "%Y%m%d").date()
+        return dt.datetime.strptime(value, "%Y%m%d").date()
     except ValueError as e:
         raise ValueError(f"invalid date format: {value}; expected YYYYMMDD") from e
 

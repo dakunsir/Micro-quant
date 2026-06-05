@@ -1,12 +1,25 @@
 import pandas as pd
-from datetime import date, timedelta
 from loguru import logger
 
+import zer0share.dateutil as dateutil
 from zer0share.storage import read_trade_cal, write_trade_cal
 from zer0share.sync import SyncContext
-from zer0share.sync._helpers import (
-    ALL_EXCHANGES, TRADE_CAL_FIRST_DATE, parse_tushare_date,
-)
+from zer0share.sync._helpers import ALL_EXCHANGES, TRADE_CAL_FIRST_DATE
+
+date = None
+
+
+def _date_str(value) -> str:
+    if isinstance(value, str):
+        return value
+    return format(value, "%Y%m%d")
+
+
+def _today() -> str:
+    provider = globals().get("date")
+    if provider is not None:
+        return _date_str(getattr(provider, "today")())
+    return dateutil.today()
 
 
 def _merge_trade_cal(existing: pd.DataFrame, fetched: pd.DataFrame) -> pd.DataFrame:
@@ -24,16 +37,13 @@ def _merge_trade_cal(existing: pd.DataFrame, fetched: pd.DataFrame) -> pd.DataFr
 
 def sync_trade_cal(ctx: SyncContext) -> None:
     try:
-        end = date(date.today().year, 12, 31)
-        max_dates: list[date] = []
+        today = _today()
+        end = today[:4] + "1231"
+        max_dates: list[str] = []
         for exchange in ALL_EXCHANGES:
             existing = read_trade_cal(ctx.cfg.data_dir, exchange)
-            last = (
-                parse_tushare_date(existing["cal_date"].max())
-                if not existing.empty
-                else None
-            )
-            start = (last + timedelta(days=1)) if last else TRADE_CAL_FIRST_DATE
+            last = str(existing["cal_date"].max()) if not existing.empty else None
+            start = dateutil.add_days(last, 1) if last else TRADE_CAL_FIRST_DATE
 
             if start <= end:
                 fetched = ctx.fetcher.fetch_trade_cal(exchange, start, end)
@@ -48,7 +58,7 @@ def sync_trade_cal(ctx: SyncContext) -> None:
                 logger.info(f"trade_cal {exchange} 已覆盖到 {last}，无需同步")
 
             if not df.empty:
-                max_dates.append(parse_tushare_date(df["cal_date"].max()))
+                max_dates.append(str(df["cal_date"].max()))
 
         ctx.meta.load_trade_cal_from_parquet(ctx.cfg.data_dir, ALL_EXCHANGES)
         if max_dates:

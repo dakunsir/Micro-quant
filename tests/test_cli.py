@@ -20,16 +20,16 @@ def test_sync_daily_kline_accepts_date_range():
                 "--table",
                 "daily_kline",
                 "--start-date",
-                "2016-01-01",
+                "20160101",
                 "--end-date",
-                "2016-01-31",
+                "20160131",
             ],
         )
 
     assert result.exit_code == 0
     pipeline.sync_daily_kline.assert_called_once_with(
-        start_date=date(2016, 1, 1),
-        end_date=date(2016, 1, 31),
+        start_date="20160101",
+        end_date="20160131",
     )
 
 
@@ -38,7 +38,7 @@ def test_sync_end_date_requires_start_date():
 
     result = runner.invoke(
         cli,
-        ["sync", "--table", "daily_kline", "--end-date", "2016-01-31"],
+        ["sync", "--table", "daily_kline", "--end-date", "20160131"],
     )
 
     assert result.exit_code != 0
@@ -68,9 +68,9 @@ def test_build_universe_accepts_date_range(tmp_path):
             [
                 "build-universe",
                 "--start-date",
-                "2024-01-01",
+                "20240101",
                 "--end-date",
-                "2024-01-31",
+                "20240131",
             ],
         )
 
@@ -91,9 +91,9 @@ def test_build_universe_rejects_date_with_range():
         [
             "build-universe",
             "--date",
-            "2024-01-31",
+            "20240131",
             "--start-date",
-            "2024-01-01",
+            "20240101",
         ],
     )
 
@@ -149,7 +149,7 @@ def test_sync_industry_rejects_date_range():
 
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
-            cli, ["sync", "--table", "industry", "--start-date", "2024-01-01"]
+            cli, ["sync", "--table", "industry", "--start-date", "20240101"]
         )
 
     assert result.exit_code != 0
@@ -170,16 +170,16 @@ def test_sync_index_daily_accepts_date_range():
                 "--table",
                 "index_daily",
                 "--start-date",
-                "2024-01-01",
+                "20240101",
                 "--end-date",
-                "2024-01-31",
+                "20240131",
             ],
         )
 
     assert result.exit_code == 0
     pipeline.sync_index_daily.assert_called_once_with(
-        start_date=date(2024, 1, 1),
-        end_date=date(2024, 1, 31),
+        start_date="20240101",
+        end_date="20240131",
     )
 
 
@@ -223,16 +223,16 @@ def test_sync_fut_daily_accepts_date_range():
                 "--table",
                 "fut_daily",
                 "--start-date",
-                "2024-01-01",
+                "20240101",
                 "--end-date",
-                "2024-01-31",
+                "20240131",
             ],
         )
 
     assert result.exit_code == 0
     pipeline.sync_fut_daily.assert_called_once_with(
-        start_date=date(2024, 1, 1),
-        end_date=date(2024, 1, 31),
+        start_date="20240101",
+        end_date="20240131",
     )
 
 
@@ -244,7 +244,7 @@ def test_sync_fut_basic_rejects_date_range():
 
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
-            cli, ["sync", "--table", "fut_basic", "--start-date", "2024-01-01"]
+            cli, ["sync", "--table", "fut_basic", "--start-date", "20240101"]
         )
 
     assert result.exit_code != 0
@@ -283,16 +283,16 @@ def test_sync_ft_limit_accepts_date_range():
                 "--table",
                 "ft_limit",
                 "--start-date",
-                "2024-01-01",
+                "20240101",
                 "--end-date",
-                "2024-01-31",
+                "20240131",
             ],
         )
 
     assert result.exit_code == 0
     pipeline.sync_ft_limit.assert_called_once_with(
-        start_date=date(2024, 1, 1),
-        end_date=date(2024, 1, 31),
+        start_date="20240101",
+        end_date="20240131",
     )
 
 
@@ -310,16 +310,16 @@ def test_sync_fut_weekly_detail_accepts_date_range():
                 "--table",
                 "fut_weekly_detail",
                 "--start-date",
-                "2024-01-01",
+                "20240101",
                 "--end-date",
-                "2024-01-31",
+                "20240131",
             ],
         )
 
     assert result.exit_code == 0
     pipeline.sync_fut_weekly_detail.assert_called_once_with(
-        start_date=date(2024, 1, 1),
-        end_date=date(2024, 1, 31),
+        start_date="20240101",
+        end_date="20240131",
     )
 
 
@@ -362,13 +362,13 @@ def test_sync_opt_daily_accepts_date_range():
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli,
-            ["sync", "--table", "opt_daily", "--start-date", "2024-01-01", "--end-date", "2024-01-31"],
+            ["sync", "--table", "opt_daily", "--start-date", "20240101", "--end-date", "20240131"],
         )
 
     assert result.exit_code == 0
     pipeline.sync_opt_daily.assert_called_once_with(
-        start_date=date(2024, 1, 1),
-        end_date=date(2024, 1, 31),
+        start_date="20240101",
+        end_date="20240131",
     )
 
 
@@ -380,7 +380,7 @@ def test_sync_opt_basic_rejects_date_range():
 
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
-            cli, ["sync", "--table", "opt_basic", "--start-date", "2024-01-01"]
+            cli, ["sync", "--table", "opt_basic", "--start-date", "20240101"]
         )
 
     assert result.exit_code != 0

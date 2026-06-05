@@ -1,22 +1,34 @@
 import time
-from datetime import date, timedelta
-from loguru import logger
 
 import pandas as pd
+from loguru import logger
 
+import zer0share.dateutil as dateutil
+from zer0share.fetcher import FUTURES_EXCHANGES
 from zer0share.storage import daily_partition_exists, write_daily_partition
 from zer0share.sync import SyncContext
-from zer0share.sync._helpers import (
-    FIRST_DATE, parse_tushare_date, skip_if_not_trading, sync_daily_partitioned,
-    week_ranges,
-)
-from zer0share.fetcher import FUTURES_EXCHANGES
+from zer0share.sync._helpers import FIRST_DATE, skip_if_not_trading, sync_daily_partitioned
+
+date = None
+
+
+def _date_str(value) -> str:
+    if isinstance(value, str):
+        return value
+    return format(value, "%Y%m%d")
+
+
+def _today() -> str:
+    provider = globals().get("date")
+    if provider is not None:
+        return _date_str(getattr(provider, "today")())
+    return dateutil.today()
 
 
 def sync_fut_basic(ctx: SyncContext) -> None:
     if skip_if_not_trading(ctx, "SSE"):
         return
-    today = date.today()
+    today = _today()
     futures_dir = ctx.cfg.data_dir / "futures"
     all_frames = []
     try:
@@ -36,70 +48,70 @@ def sync_fut_basic(ctx: SyncContext) -> None:
         raise
 
 
-def sync_fut_daily(ctx: SyncContext, start_date: date | None = None, end_date: date | None = None) -> None:
+def sync_fut_daily(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
     sync_daily_partitioned(
         ctx, "fut_daily", ctx.fetcher.fetch_fut_daily, start_date, end_date,
         data_dir=ctx.cfg.data_dir / "futures",
     )
 
 
-def sync_fut_holding(ctx: SyncContext, start_date: date | None = None, end_date: date | None = None) -> None:
+def sync_fut_holding(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
     sync_daily_partitioned(
         ctx, "fut_holding", ctx.fetcher.fetch_fut_holding, start_date, end_date,
         data_dir=ctx.cfg.data_dir / "futures",
     )
 
 
-def sync_fut_wsr(ctx: SyncContext, start_date: date | None = None, end_date: date | None = None) -> None:
+def sync_fut_wsr(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
     sync_daily_partitioned(
         ctx, "fut_wsr", ctx.fetcher.fetch_fut_wsr, start_date, end_date,
         data_dir=ctx.cfg.data_dir / "futures",
     )
 
 
-def sync_fut_settle(ctx: SyncContext, start_date: date | None = None, end_date: date | None = None) -> None:
+def sync_fut_settle(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
     sync_daily_partitioned(
         ctx, "fut_settle", ctx.fetcher.fetch_fut_settle, start_date, end_date,
         data_dir=ctx.cfg.data_dir / "futures",
     )
 
 
-def sync_fut_mapping(ctx: SyncContext, start_date: date | None = None, end_date: date | None = None) -> None:
+def sync_fut_mapping(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
     sync_daily_partitioned(
         ctx, "fut_mapping", ctx.fetcher.fetch_fut_mapping, start_date, end_date,
         data_dir=ctx.cfg.data_dir / "futures",
     )
 
 
-def sync_ft_limit(ctx: SyncContext, start_date: date | None = None, end_date: date | None = None) -> None:
+def sync_ft_limit(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
     sync_daily_partitioned(
         ctx, "ft_limit", ctx.fetcher.fetch_ft_limit, start_date, end_date,
         data_dir=ctx.cfg.data_dir / "futures",
     )
 
 
-def sync_fut_weekly(ctx: SyncContext, start_date: date | None = None, end_date: date | None = None) -> None:
+def sync_fut_weekly(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
     sync_daily_partitioned(
         ctx, "fut_weekly", ctx.fetcher.fetch_fut_weekly, start_date, end_date,
         data_dir=ctx.cfg.data_dir / "futures",
     )
 
 
-def sync_fut_monthly(ctx: SyncContext, start_date: date | None = None, end_date: date | None = None) -> None:
+def sync_fut_monthly(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
     sync_daily_partitioned(
         ctx, "fut_monthly", ctx.fetcher.fetch_fut_monthly, start_date, end_date,
         data_dir=ctx.cfg.data_dir / "futures",
     )
 
 
-def sync_fut_index_daily(ctx: SyncContext, start_date: date | None = None, end_date: date | None = None) -> None:
+def sync_fut_index_daily(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
     if skip_if_not_trading(ctx, "SSE"):
         return
-    today = date.today()
+    today = _today()
     last = ctx.meta.get_last_date("fut_index_daily")
 
     if start_date is None:
-        start = (last + timedelta(days=1)) if last else FIRST_DATE
+        start = dateutil.add_days(last, 1) if last else FIRST_DATE
         end = today
     else:
         start = start_date
@@ -124,7 +136,7 @@ def sync_fut_index_daily(ctx: SyncContext, start_date: date | None = None, end_d
         except Exception as e:
             logger.error(f"fut_index_daily {current} 拉取失败: {e}")
             ctx.notifier.send(f"fut_index_daily {current} 拉取失败: {e}")
-        current += timedelta(days=1)
+        current = dateutil.add_days(current, 1)
 
     if not all_frames:
         msg = "fut_index_daily 无数据，跳过"
@@ -138,7 +150,7 @@ def sync_fut_index_daily(ctx: SyncContext, start_date: date | None = None, end_d
     frontier = last
 
     for trade_date_value, part in combined.groupby("trade_date"):
-        trade_date = parse_tushare_date(trade_date_value)
+        trade_date = str(trade_date_value)
         if daily_partition_exists(futures_dir, "fut_index_daily", trade_date):
             skipped_existing += 1
             continue
@@ -156,12 +168,12 @@ def sync_fut_index_daily(ctx: SyncContext, start_date: date | None = None, end_d
     ctx.notifier.send(msg)
 
 
-def sync_fut_weekly_detail(ctx: SyncContext, start_date: date | None = None, end_date: date | None = None) -> None:
-    today = date.today()
+def sync_fut_weekly_detail(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
+    today = _today()
     last = ctx.meta.get_last_date("fut_weekly_detail")
 
     if start_date is None:
-        start = (last + timedelta(days=1)) if last else FIRST_DATE
+        start = dateutil.add_days(last, 1) if last else FIRST_DATE
         end = today
     else:
         start = start_date
@@ -174,7 +186,7 @@ def sync_fut_weekly_detail(ctx: SyncContext, start_date: date | None = None, end
     success = 0
     skipped_existing = 0
     frontier = last
-    weeks = week_ranges(start, end)
+    weeks = dateutil.week_ranges(start, end)
     logger.info(f"fut_weekly_detail 同步开始: {start} ~ {end}, 共 {len(weeks)} 个周")
 
     for week_num, week_start in weeks:

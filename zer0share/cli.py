@@ -1,4 +1,4 @@
-from datetime import datetime
+import datetime as dt
 from pathlib import Path
 
 import click
@@ -11,6 +11,20 @@ from zer0share.notifier import Notifier
 from zer0share.pipeline import Pipeline
 from zer0share.storage import MetaStore
 from zer0share.universe import build_universes, build_universes_range
+
+
+def _validate_date(ctx, param, value):
+    if value is None:
+        return None
+    try:
+        dt.datetime.strptime(value, "%Y%m%d")
+        return value
+    except ValueError:
+        raise click.BadParameter("格式应为 YYYYMMDD，例如 20240102")
+
+
+def _parse_date(s: str):
+    return dt.datetime.strptime(s, "%Y%m%d").date()
 
 
 def _make_pipeline(config_path: str = "config/settings.toml") -> Pipeline:
@@ -62,13 +76,13 @@ SYNC_TABLES = [
     default=None,
 )
 @click.option("--all", "sync_all", is_flag=True, default=False)
-@click.option("--start-date", type=click.DateTime(formats=["%Y-%m-%d"]), default=None)
-@click.option("--end-date", type=click.DateTime(formats=["%Y-%m-%d"]), default=None)
+@click.option("--start-date", default=None, callback=_validate_date)
+@click.option("--end-date", default=None, callback=_validate_date)
 def sync(
     table: str | None,
     sync_all: bool,
-    start_date: datetime | None,
-    end_date: datetime | None,
+    start_date: str | None,
+    end_date: str | None,
 ) -> None:
     """同步数据。"""
     if end_date is not None and start_date is None:
@@ -97,13 +111,7 @@ def sync(
     if (start_date is not None or end_date is not None) and table not in range_tables:
         raise click.UsageError("date range options are only supported for daily partitioned tables")
 
-    parsed_start_date = start_date.date() if start_date is not None else None
-    parsed_end_date = end_date.date() if end_date is not None else None
-    if (
-        parsed_start_date is not None
-        and parsed_end_date is not None
-        and parsed_end_date < parsed_start_date
-    ):
+    if start_date is not None and end_date is not None and end_date < start_date:
         raise click.UsageError("--end-date must be on or after --start-date")
 
     with _make_pipeline() as pipeline:
@@ -113,43 +121,43 @@ def sync(
             pipeline.sync_basic()
         if sync_all or table == "daily_kline":
             pipeline.sync_daily_kline(
-                start_date=parsed_start_date,
-                end_date=parsed_end_date,
+                start_date=start_date,
+                end_date=end_date,
             )
         if sync_all or table == "adj_factor":
             pipeline.sync_adj_factor(
-                start_date=parsed_start_date,
-                end_date=parsed_end_date,
+                start_date=start_date,
+                end_date=end_date,
             )
         if sync_all or table == "daily_basic":
             pipeline.sync_daily_basic(
-                start_date=parsed_start_date,
-                end_date=parsed_end_date,
+                start_date=start_date,
+                end_date=end_date,
             )
         if sync_all or table == "stock_st":
             pipeline.sync_stock_st(
-                start_date=parsed_start_date,
-                end_date=parsed_end_date,
+                start_date=start_date,
+                end_date=end_date,
             )
         if sync_all or table == "suspend_d":
             pipeline.sync_suspend_d(
-                start_date=parsed_start_date,
-                end_date=parsed_end_date,
+                start_date=start_date,
+                end_date=end_date,
             )
         if sync_all or table == "stk_limit":
             pipeline.sync_stk_limit(
-                start_date=parsed_start_date,
-                end_date=parsed_end_date,
+                start_date=start_date,
+                end_date=end_date,
             )
         if sync_all or table == "index_weight":
             pipeline.sync_index_weight(
-                start_date=parsed_start_date,
-                end_date=parsed_end_date,
+                start_date=start_date,
+                end_date=end_date,
             )
         if sync_all or table == "index_daily":
             pipeline.sync_index_daily(
-                start_date=parsed_start_date,
-                end_date=parsed_end_date,
+                start_date=start_date,
+                end_date=end_date,
             )
         if sync_all or table == "industry":
             pipeline.sync_industry()
@@ -159,71 +167,71 @@ def sync(
             pipeline.sync_fut_basic()
         if sync_all or table == "fut_daily":
             pipeline.sync_fut_daily(
-                start_date=parsed_start_date,
-                end_date=parsed_end_date,
+                start_date=start_date,
+                end_date=end_date,
             )
         if sync_all or table == "fut_holding":
             pipeline.sync_fut_holding(
-                start_date=parsed_start_date,
-                end_date=parsed_end_date,
+                start_date=start_date,
+                end_date=end_date,
             )
         if sync_all or table == "fut_wsr":
             pipeline.sync_fut_wsr(
-                start_date=parsed_start_date,
-                end_date=parsed_end_date,
+                start_date=start_date,
+                end_date=end_date,
             )
         if sync_all or table == "fut_settle":
             pipeline.sync_fut_settle(
-                start_date=parsed_start_date,
-                end_date=parsed_end_date,
+                start_date=start_date,
+                end_date=end_date,
             )
         if sync_all or table == "fut_mapping":
             pipeline.sync_fut_mapping(
-                start_date=parsed_start_date,
-                end_date=parsed_end_date,
+                start_date=start_date,
+                end_date=end_date,
             )
         if sync_all or table == "ft_limit":
             pipeline.sync_ft_limit(
-                start_date=parsed_start_date,
-                end_date=parsed_end_date,
+                start_date=start_date,
+                end_date=end_date,
             )
         if sync_all or table == "fut_weekly":
             pipeline.sync_fut_weekly(
-                start_date=parsed_start_date,
-                end_date=parsed_end_date,
+                start_date=start_date,
+                end_date=end_date,
             )
         if sync_all or table == "fut_monthly":
             pipeline.sync_fut_monthly(
-                start_date=parsed_start_date,
-                end_date=parsed_end_date,
+                start_date=start_date,
+                end_date=end_date,
             )
         if sync_all or table == "fut_index_daily":
             pipeline.sync_fut_index_daily(
-                start_date=parsed_start_date,
-                end_date=parsed_end_date,
+                start_date=start_date,
+                end_date=end_date,
             )
         if sync_all or table == "fut_weekly_detail":
             pipeline.sync_fut_weekly_detail(
-                start_date=parsed_start_date,
-                end_date=parsed_end_date,
+                start_date=start_date,
+                end_date=end_date,
             )
         if sync_all or table == "opt_basic":
             pipeline.sync_opt_basic()
         if sync_all or table == "opt_daily":
             pipeline.sync_opt_daily(
-                start_date=parsed_start_date,
-                end_date=parsed_end_date,
+                start_date=start_date,
+                end_date=end_date,
             )
 
 
 @cli.command("build-universe")
-@click.option("--date", "trade_date", type=click.DateTime(formats=["%Y-%m-%d", "%Y%m%d"]), default=None)
-@click.option("--start-date", type=click.DateTime(formats=["%Y-%m-%d", "%Y%m%d"]), default=None)
-@click.option("--end-date", type=click.DateTime(formats=["%Y-%m-%d", "%Y%m%d"]), default=None)
+@click.option("--date", "trade_date", default=None, callback=_validate_date)
+@click.option("--start-date", default=None, callback=_validate_date)
+@click.option("--end-date", default=None, callback=_validate_date)
 def build_universe_cmd(
-    trade_date: datetime | None,
-    start_date: datetime | None,
-    end_date: datetime | None,
+    trade_date: str | None,
+    start_date: str | None,
+    end_date: str | None,
 ) -> None:
     """构建股票池。"""
     if trade_date is not None and (start_date is not None or end_date is not None):
@@ -232,15 +240,15 @@ def build_universe_cmd(
     cfg = load_config(Path("config/settings.toml"))
     init_logger(cfg.log_path)
     if trade_date is not None:
-        counts = build_universes(cfg.data_dir, trade_date.date())
+        counts = build_universes(cfg.data_dir, _parse_date(trade_date))
         for name, count in counts.items():
             click.echo(f"{name}: {count}")
         return
 
     summary = build_universes_range(
         cfg.data_dir,
-        start_date=start_date.date() if start_date is not None else None,
-        end_date=end_date.date() if end_date is not None else None,
+        start_date=_parse_date(start_date) if start_date is not None else None,
+        end_date=_parse_date(end_date) if end_date is not None else None,
     )
     click.echo(
         f"range: {summary['start_date']} ~ {summary['end_date']}, "

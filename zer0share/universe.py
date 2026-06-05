@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+import datetime as dt
 from pathlib import Path
 
 import duckdb
@@ -8,7 +8,7 @@ from loguru import logger
 from zer0share.storage import read_trade_cal, write_universe
 
 
-FIRST_UNIVERSE_DATE = date(2016, 1, 1)
+FIRST_UNIVERSE_DATE = dt.date(2016, 1, 1)
 PROGRESS_INTERVAL = 50
 BASE_UNIVERSES = ("univ_research_base", "univ_trade_base")
 INDEX_UNIVERSES = {
@@ -21,8 +21,8 @@ UNIVERSE_NAMES = (*BASE_UNIVERSES, *INDEX_UNIVERSES.keys())
 
 def build_universes_range(
     data_dir: str | Path,
-    start_date: date | None = None,
-    end_date: date | None = None,
+    start_date: dt.date | None = None,
+    end_date: dt.date | None = None,
     incremental: bool = True,
 ) -> dict[str, object]:
     data_path = Path(data_dir)
@@ -81,7 +81,7 @@ def build_universes_range(
     }
 
 
-def build_universes(data_dir: str | Path, trade_date: date) -> dict[str, int]:
+def build_universes(data_dir: str | Path, trade_date: dt.date) -> dict[str, int]:
     data_path = Path(data_dir)
     detail = build_universe_detail(data_path, trade_date)
     outputs = {
@@ -106,7 +106,7 @@ def build_universes(data_dir: str | Path, trade_date: date) -> dict[str, int]:
     return counts
 
 
-def _open_trading_days(data_dir: Path, start: date, end: date) -> list[date]:
+def _open_trading_days(data_dir: Path, start: dt.date, end: dt.date) -> list[dt.date]:
     trade_cal = read_trade_cal(data_dir, "SSE")
     if trade_cal.empty:
         raise FileNotFoundError(
@@ -120,7 +120,7 @@ def _open_trading_days(data_dir: Path, start: date, end: date) -> list[date]:
     return sorted(trade_cal.loc[mask, "cal_date"].tolist())
 
 
-def _universe_partitions_exist(data_dir: Path, trade_date: date) -> bool:
+def _universe_partitions_exist(data_dir: Path, trade_date: dt.date) -> bool:
     date_part = f"date={trade_date.strftime('%Y%m%d')}"
     return all(
         (data_dir / "universe" / f"name={name}" / date_part / "data.parquet").exists()
@@ -128,7 +128,7 @@ def _universe_partitions_exist(data_dir: Path, trade_date: date) -> bool:
     )
 
 
-def _latest_complete_source_date(data_dir: Path) -> date:
+def _latest_complete_source_date(data_dir: Path) -> dt.date:
     required_tables = ("daily_kline", "daily_basic", "stock_st", "suspend_d", "stk_limit")
     available_dates = [_partition_dates(data_dir / table_name) for table_name in required_tables]
     if any(not dates for dates in available_dates):
@@ -150,7 +150,7 @@ def _latest_complete_source_date(data_dir: Path) -> date:
     return max(common_dates)
 
 
-def _default_range_start(data_dir: Path, end: date, incremental: bool) -> date:
+def _default_range_start(data_dir: Path, end: dt.date, incremental: bool) -> dt.date:
     if not incremental:
         return FIRST_UNIVERSE_DATE
     latest_universe_date = _latest_complete_universe_date(data_dir)
@@ -158,12 +158,12 @@ def _default_range_start(data_dir: Path, end: date, incremental: bool) -> date:
         return FIRST_UNIVERSE_DATE
 
     next_days = _open_trading_days(
-        data_dir, latest_universe_date + timedelta(days=1), end
+        data_dir, latest_universe_date + dt.timedelta(days=1), end
     )
-    return next_days[0] if next_days else end + timedelta(days=1)
+    return next_days[0] if next_days else end + dt.timedelta(days=1)
 
 
-def _latest_complete_universe_date(data_dir: Path) -> date | None:
+def _latest_complete_universe_date(data_dir: Path) -> dt.date | None:
     available_dates = [
         _partition_dates(data_dir / "universe" / f"name={name}")
         for name in UNIVERSE_NAMES
@@ -174,7 +174,7 @@ def _latest_complete_universe_date(data_dir: Path) -> date | None:
     return max(common_dates) if common_dates else None
 
 
-def _partition_dates(table_dir: Path) -> set[date]:
+def _partition_dates(table_dir: Path) -> set[dt.date]:
     if not table_dir.exists():
         return set()
     dates = set()
@@ -194,7 +194,7 @@ def _should_log_progress(processed: int, total: int) -> bool:
 def _log_range_progress(
     processed: int,
     total: int,
-    trade_date: date,
+    trade_date: dt.date,
     built_days: int,
     skipped_days: int,
 ) -> None:
@@ -205,7 +205,7 @@ def _log_range_progress(
     )
 
 
-def build_universe_detail(data_dir: str | Path, trade_date: date) -> pd.DataFrame:
+def build_universe_detail(data_dir: str | Path, trade_date: dt.date) -> pd.DataFrame:
     data_path = Path(data_dir)
     basic = _read_basic(data_path)
     daily_today = _read_daily_table(data_path, "daily_kline", trade_date)
@@ -262,7 +262,7 @@ def _read_basic(data_dir: Path) -> pd.DataFrame:
     return pd.read_parquet(path)
 
 
-def _read_daily_table(data_dir: Path, table_name: str, trade_date: date) -> pd.DataFrame:
+def _read_daily_table(data_dir: Path, table_name: str, trade_date: dt.date) -> pd.DataFrame:
     path = data_dir / table_name / f"date={trade_date.strftime('%Y%m%d')}" / "data.parquet"
     if not path.exists():
         raise FileNotFoundError(
@@ -272,12 +272,12 @@ def _read_daily_table(data_dir: Path, table_name: str, trade_date: date) -> pd.D
     return pd.read_parquet(path)
 
 
-def _rolling_avg_amount_20d(data_dir: Path, trade_date: date) -> pd.DataFrame:
+def _rolling_avg_amount_20d(data_dir: Path, trade_date: dt.date) -> pd.DataFrame:
     table_dir = data_dir / "daily_kline"
     if not table_dir.exists():
         raise FileNotFoundError("daily_kline data not found; run `python main.py sync --table daily_kline` first")
 
-    start = trade_date - timedelta(days=90)
+    start = trade_date - dt.timedelta(days=90)
     pattern = table_dir / "date=*" / "data.parquet"
     sql = """
         SELECT ts_code, trade_date, amount
@@ -294,7 +294,7 @@ def _rolling_avg_amount_20d(data_dir: Path, trade_date: date) -> pd.DataFrame:
     return stats
 
 
-def _latest_index_members(data_dir: Path, index_code: str, trade_date: date) -> set[str]:
+def _latest_index_members(data_dir: Path, index_code: str, trade_date: dt.date) -> set[str]:
     table_dir = data_dir / "index_weight"
     if not table_dir.exists():
         raise FileNotFoundError("index_weight data not found; run `python main.py sync --table index_weight` first")

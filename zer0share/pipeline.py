@@ -1,5 +1,3 @@
-from datetime import date
-
 from zer0share.config import Config
 from zer0share.fetcher import TushareFetcher
 from zer0share.notifier import Notifier
@@ -32,28 +30,28 @@ class Pipeline:
     def sync_basic(self):
         equities.sync_basic(self._ctx)
 
-    def sync_daily_kline(self, start_date: date | None = None, end_date: date | None = None):
+    def sync_daily_kline(self, start_date: str | None = None, end_date: str | None = None):
         equities.sync_daily_kline(self._ctx, start_date, end_date)
 
-    def sync_adj_factor(self, start_date: date | None = None, end_date: date | None = None):
+    def sync_adj_factor(self, start_date: str | None = None, end_date: str | None = None):
         equities.sync_adj_factor(self._ctx, start_date, end_date)
 
-    def sync_daily_basic(self, start_date: date | None = None, end_date: date | None = None):
+    def sync_daily_basic(self, start_date: str | None = None, end_date: str | None = None):
         equities.sync_daily_basic(self._ctx, start_date, end_date)
 
-    def sync_stock_st(self, start_date: date | None = None, end_date: date | None = None):
+    def sync_stock_st(self, start_date: str | None = None, end_date: str | None = None):
         equities.sync_stock_st(self._ctx, start_date, end_date)
 
-    def sync_suspend_d(self, start_date: date | None = None, end_date: date | None = None):
+    def sync_suspend_d(self, start_date: str | None = None, end_date: str | None = None):
         equities.sync_suspend_d(self._ctx, start_date, end_date)
 
-    def sync_stk_limit(self, start_date: date | None = None, end_date: date | None = None):
+    def sync_stk_limit(self, start_date: str | None = None, end_date: str | None = None):
         equities.sync_stk_limit(self._ctx, start_date, end_date)
 
-    def sync_index_weight(self, start_date: date | None = None, end_date: date | None = None):
+    def sync_index_weight(self, start_date: str | None = None, end_date: str | None = None):
         equities.sync_index_weight(self._ctx, start_date, end_date)
 
-    def sync_index_daily(self, start_date: date | None = None, end_date: date | None = None):
+    def sync_index_daily(self, start_date: str | None = None, end_date: str | None = None):
         equities.sync_index_daily(self._ctx, start_date, end_date)
 
     # Industry
@@ -67,41 +65,41 @@ class Pipeline:
     def sync_fut_basic(self):
         futures.sync_fut_basic(self._ctx)
 
-    def sync_fut_daily(self, start_date: date | None = None, end_date: date | None = None):
+    def sync_fut_daily(self, start_date: str | None = None, end_date: str | None = None):
         futures.sync_fut_daily(self._ctx, start_date, end_date)
 
-    def sync_fut_holding(self, start_date: date | None = None, end_date: date | None = None):
+    def sync_fut_holding(self, start_date: str | None = None, end_date: str | None = None):
         futures.sync_fut_holding(self._ctx, start_date, end_date)
 
-    def sync_fut_wsr(self, start_date: date | None = None, end_date: date | None = None):
+    def sync_fut_wsr(self, start_date: str | None = None, end_date: str | None = None):
         futures.sync_fut_wsr(self._ctx, start_date, end_date)
 
-    def sync_fut_settle(self, start_date: date | None = None, end_date: date | None = None):
+    def sync_fut_settle(self, start_date: str | None = None, end_date: str | None = None):
         futures.sync_fut_settle(self._ctx, start_date, end_date)
 
-    def sync_fut_mapping(self, start_date: date | None = None, end_date: date | None = None):
+    def sync_fut_mapping(self, start_date: str | None = None, end_date: str | None = None):
         futures.sync_fut_mapping(self._ctx, start_date, end_date)
 
-    def sync_ft_limit(self, start_date: date | None = None, end_date: date | None = None):
+    def sync_ft_limit(self, start_date: str | None = None, end_date: str | None = None):
         futures.sync_ft_limit(self._ctx, start_date, end_date)
 
-    def sync_fut_weekly(self, start_date: date | None = None, end_date: date | None = None):
+    def sync_fut_weekly(self, start_date: str | None = None, end_date: str | None = None):
         futures.sync_fut_weekly(self._ctx, start_date, end_date)
 
-    def sync_fut_monthly(self, start_date: date | None = None, end_date: date | None = None):
+    def sync_fut_monthly(self, start_date: str | None = None, end_date: str | None = None):
         futures.sync_fut_monthly(self._ctx, start_date, end_date)
 
-    def sync_fut_index_daily(self, start_date: date | None = None, end_date: date | None = None):
+    def sync_fut_index_daily(self, start_date: str | None = None, end_date: str | None = None):
         futures.sync_fut_index_daily(self._ctx, start_date, end_date)
 
-    def sync_fut_weekly_detail(self, start_date: date | None = None, end_date: date | None = None):
+    def sync_fut_weekly_detail(self, start_date: str | None = None, end_date: str | None = None):
         futures.sync_fut_weekly_detail(self._ctx, start_date, end_date)
 
     # Options
     def sync_opt_basic(self):
         options.sync_opt_basic(self._ctx)
 
-    def sync_opt_daily(self, start_date: date | None = None, end_date: date | None = None):
+    def sync_opt_daily(self, start_date: str | None = None, end_date: str | None = None):
         options.sync_opt_daily(self._ctx, start_date, end_date)
 
     def close(self):
