@@ -5,7 +5,7 @@ import duckdb
 import pandas as pd
 
 from zer0share.config import load_config
-from zer0share.fetcher import (
+from zer0share.schema import (
     ADJ_FACTOR_COLS,
     BASIC_COLS,
     CI_MEMBER_COLS,
