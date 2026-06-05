@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from zer0share.pipeline import Pipeline
-from zer0share.sync._helpers import EXCHANGES, ALL_EXCHANGES as NEW_ALL_EXCHANGES
+from zer0share.sync._helpers import EXCHANGES, ALL_EXCHANGES as NEW_ALL_EXCHANGES, skip_if_not_trading, ensure_trade_cal_loaded
 from zer0share.storage import read_sw_classify, read_sw_member, read_ci_member, write_basic, write_trade_cal
 from zer0share.fetcher import INDEX_DAILY_CODES, FUTURES_EXCHANGES, OPTIONS_EXCHANGES
 from zer0share.storage import daily_partition_exists
@@ -1133,7 +1133,7 @@ def test_skip_if_not_trading_returns_true_on_non_trading_day(pipeline, cfg):
     with patch("zer0share.sync._helpers.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 3)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
-        assert pipeline._skip_if_not_trading("SSE") is True
+        assert skip_if_not_trading(pipeline._ctx, "SSE") is True
 
 
 def test_skip_if_not_trading_returns_false_on_trading_day(pipeline, cfg):
@@ -1150,7 +1150,7 @@ def test_skip_if_not_trading_returns_false_on_trading_day(pipeline, cfg):
     with patch("zer0share.sync._helpers.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
-        assert pipeline._skip_if_not_trading("SSE") is False
+        assert skip_if_not_trading(pipeline._ctx, "SSE") is False
 
 
 def test_ensure_trade_cal_loaded_triggers_sync_when_no_meta(pipeline, cfg):
@@ -1163,7 +1163,7 @@ def test_ensure_trade_cal_loaded_triggers_sync_when_no_meta(pipeline, cfg):
     with patch("zer0share.sync.calendar.date") as mock_date:
         mock_date.today.return_value = date(2024, 6, 1)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
-        pipeline._ensure_trade_cal_loaded()
+        ensure_trade_cal_loaded(pipeline._ctx)
     pipeline._fetcher.fetch_trade_cal.assert_called()
 
 

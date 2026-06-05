@@ -6,7 +6,6 @@ from zer0share.notifier import Notifier
 from zer0share.storage import MetaStore
 from zer0share.sync import SyncContext
 from zer0share.sync import calendar, equities, industry, futures, options
-from zer0share.sync._helpers import EXCHANGES, ALL_EXCHANGES, skip_if_not_trading, ensure_trade_cal_loaded
 
 
 class Pipeline:
@@ -24,12 +23,6 @@ class Pipeline:
     @property
     def _notifier(self):
         return self._ctx.notifier
-
-    def _ensure_trade_cal_loaded(self) -> None:
-        ensure_trade_cal_loaded(self._ctx)
-
-    def _skip_if_not_trading(self, exchange: str) -> bool:
-        return skip_if_not_trading(self._ctx, exchange)
 
     # Calendar
     def sync_trade_cal(self):
