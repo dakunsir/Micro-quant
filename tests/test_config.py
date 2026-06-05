@@ -22,6 +22,8 @@ adj_factor_hour = 18
 adj_factor_minute = 5
 futures_hour = 17
 futures_start_minute = 0
+trade_cal_hour = 16
+trade_cal_minute = 0
 
 [notifier]
 wecom_webhook_url = "https://example.com/webhook"
@@ -46,6 +48,8 @@ def test_load_config_returns_all_fields(tmp_path):
     assert cfg.scheduler_adj_factor_minute == 5
     assert cfg.scheduler_futures_hour == 17
     assert cfg.scheduler_futures_start_minute == 0
+    assert cfg.scheduler_trade_cal_hour == 16
+    assert cfg.scheduler_trade_cal_minute == 0
     assert cfg.wecom_webhook_url == "https://example.com/webhook"
     assert cfg.notifier_enabled is False
 
@@ -80,6 +84,12 @@ def test_load_config_missing_key(tmp_path):
         "daily_kline_hour=18\n"
         "daily_kline_minute=0\n"
         "basic_hour=8\n"
+        "adj_factor_hour=18\n"
+        "adj_factor_minute=5\n"
+        "futures_hour=17\n"
+        "futures_start_minute=0\n"
+        "trade_cal_hour=16\n"
+        "trade_cal_minute=0\n"
         "[notifier]\n"
         "wecom_webhook_url='https://x.com'\n"
         "enabled=false\n",
@@ -97,3 +107,37 @@ def test_config_is_immutable(tmp_path):
 
     with pytest.raises(Exception):
         cfg.tushare_token = "hacked"
+
+
+CONFIG_WITH_TRADE_CAL = """
+[tushare]
+token = "test_token"
+
+[paths]
+data_dir = "data"
+db_path = "db/meta.duckdb"
+log_path = "logs/pipeline.log"
+
+[scheduler]
+daily_kline_hour = 18
+daily_kline_minute = 0
+basic_hour = 8
+adj_factor_hour = 18
+adj_factor_minute = 5
+futures_hour = 17
+futures_start_minute = 0
+trade_cal_hour = 16
+trade_cal_minute = 0
+
+[notifier]
+wecom_webhook_url = "https://example.com/webhook"
+enabled = false
+"""
+
+
+def test_load_config_with_trade_cal_schedule(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(CONFIG_WITH_TRADE_CAL, encoding="utf-8")
+    cfg = load_config(cfg_file)
+    assert cfg.scheduler_trade_cal_hour == 16
+    assert cfg.scheduler_trade_cal_minute == 0

@@ -21,6 +21,14 @@ def start_scheduler(config_path: str = "config/settings.toml") -> None:
     with Pipeline(cfg, fetcher, notifier) as pipeline:
         scheduler = BlockingScheduler()
         scheduler.add_job(
+            pipeline.sync_trade_cal,
+            CronTrigger(
+                hour=cfg.scheduler_trade_cal_hour,
+                minute=cfg.scheduler_trade_cal_minute,
+            ),
+            id="trade_cal",
+        )
+        scheduler.add_job(
             pipeline.sync_daily_kline,
             CronTrigger(
                 hour=cfg.scheduler_daily_kline_hour,
@@ -88,7 +96,9 @@ def start_scheduler(config_path: str = "config/settings.toml") -> None:
                 id=job_id,
             )
         logger.info(
-            f"调度器启动: daily_kline + index_daily 每天 "
+            f"调度器启动: trade_cal 每天 "
+            f"{cfg.scheduler_trade_cal_hour}:{cfg.scheduler_trade_cal_minute:02d}, "
+            f"daily_kline + index_daily 每天 "
             f"{cfg.scheduler_daily_kline_hour}:{cfg.scheduler_daily_kline_minute:02d}, "
             f"adj_factor 每天 "
             f"{cfg.scheduler_adj_factor_hour}:{cfg.scheduler_adj_factor_minute:02d}, "
