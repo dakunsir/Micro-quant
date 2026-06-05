@@ -97,6 +97,20 @@ class MetaStore:
         ).fetchall()
         return [row[0] for row in rows]
 
+    def is_trading_day(self, exchange: str, cal_date: date) -> bool:
+        """Check whether a given date is a trading day for an exchange.
+
+        Returns True when the date is not covered by the calendar
+        (conservative: don't skip syncs for dates we don't know about).
+        """
+        row = self._conn.execute(
+            "SELECT is_open FROM trade_cal WHERE exchange = ? AND cal_date = ?",
+            [exchange, cal_date]
+        ).fetchone()
+        if row is None:
+            return True
+        return bool(row[0])
+
     def close(self):
         self._conn.close()
 

@@ -511,3 +511,52 @@ def test_ci_member_overwrites_on_second_write(tmp_path):
 def test_read_ci_member_returns_empty_if_not_exists(tmp_path):
     result = read_ci_member(tmp_path)
     assert result.empty
+
+
+def test_is_trading_day_returns_true_for_open_day(tmp_path):
+    db_path = tmp_path / "meta.duckdb"
+    df = pd.DataFrame({
+        "exchange": ["SSE"],
+        "cal_date": [date(2024, 1, 2)],
+        "is_open": [True],
+        "pretrade_date": [date(2023, 12, 29)],
+    })
+    write_trade_cal(tmp_path, "SSE", df)
+    with MetaStore(db_path) as store:
+        store.load_trade_cal_from_parquet(tmp_path)
+        assert store.is_trading_day("SSE", date(2024, 1, 2)) is True
+
+
+def test_is_trading_day_returns_false_for_closed_day(tmp_path):
+    db_path = tmp_path / "meta.duckdb"
+    df = pd.DataFrame({
+        "exchange": ["SSE"],
+        "cal_date": [date(2024, 1, 3)],
+        "is_open": [False],
+        "pretrade_date": [date(2024, 1, 2)],
+    })
+    write_trade_cal(tmp_path, "SSE", df)
+    with MetaStore(db_path) as store:
+        store.load_trade_cal_from_parquet(tmp_path)
+        assert store.is_trading_day("SSE", date(2024, 1, 3)) is False
+
+
+def test_is_trading_day_returns_true_when_date_not_in_calendar(tmp_path):
+    db_path = tmp_path / "meta.duckdb"
+    df = pd.DataFrame({
+        "exchange": ["SSE"],
+        "cal_date": [date(2024, 1, 2)],
+        "is_open": [True],
+        "pretrade_date": [date(2023, 12, 29)],
+    })
+    write_trade_cal(tmp_path, "SSE", df)
+    with MetaStore(db_path) as store:
+        store.load_trade_cal_from_parquet(tmp_path)
+        # 2024-01-10 is not in the calendar — conservative default True
+        assert store.is_trading_day("SSE", date(2024, 1, 10)) is True
+
+
+def test_is_trading_day_returns_true_when_no_calendar_loaded(tmp_path):
+    db_path = tmp_path / "meta.duckdb"
+    with MetaStore(db_path) as store:
+        assert store.is_trading_day("SSE", date(2024, 1, 2)) is True
