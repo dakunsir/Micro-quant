@@ -13,6 +13,17 @@
 
 A-股数据本地化管道，基于 [Tushare Pro](https://tushare.pro) 拉取股票数据，以 Parquet 分区存储，DuckDB 提供快速元数据查询，支持增量同步与定时调度。
 
+## 为什么用 zer0share？
+
+直接调 Tushare Pro 做研究有两个痛点：每次查询消耗积分，批量回测时 API 限速拖慢迭代。zer0share 把数据落到本地，查询走 DuckDB，既省积分又快。
+
+| | 直接调 Tushare Pro | zer0share 本地查询 |
+|---|---|---|
+| 积分消耗 | 每次请求消耗 | 零消耗 |
+| 网络依赖 | 必须联网 | 离线可用 |
+| 查询速度 | 受 API 限速 | DuckDB 本地毫秒级 |
+| 数据一致性 | 取决于调用时机 | 快照固定，结果可复现 |
+
 ## 特性
 
 - **核心数据同步**：支持交易日历、股票基础信息、日线行情、复权因子、每日指标、ST、停复牌、涨跌停价格、指数成分、行业映射、期货与期权
@@ -58,6 +69,8 @@ token = "your_tushare_token_here"
 uv run python main.py sync --all
 
 # 或逐步执行（顺序不可颠倒）
+
+# ── 股票核心（必选）────────────────────────────────────────────────
 uv run python main.py sync --table trade_cal    # 交易日历（必须最先）
 uv run python main.py sync --table basic        # 股票基础信息
 uv run python main.py sync --table daily_kline  # 日线行情（依赖交易日历）
@@ -68,19 +81,23 @@ uv run python main.py sync --table suspend_d    # 每日停牌列表
 uv run python main.py sync --table stk_limit    # 每日涨跌停价格
 uv run python main.py sync --table index_weight # 沪深300/中证500/中证1000成分
 uv run python main.py sync --table index_daily  # 宽基指数日线行情
-uv run python main.py sync --table industry    # 申万行业分类 + 成分映射
-uv run python main.py sync --table ci_member   # 中信行业成分映射
-uv run python main.py sync --table fut_basic   # 期货合约基础信息
-uv run python main.py sync --table fut_daily   # 期货日线行情
-uv run python main.py sync --table fut_holding # 期货持仓排名
-uv run python main.py sync --table fut_wsr     # 期货仓单日报
-uv run python main.py sync --table fut_settle  # 期货结算参数
-uv run python main.py sync --table fut_mapping # 期货主力与连续合约映射
-uv run python main.py sync --table ft_limit    # 期货涨跌停价格
-uv run python main.py sync --table fut_weekly  # 期货周线行情
-uv run python main.py sync --table fut_monthly # 期货月线行情
+uv run python main.py sync --table industry     # 申万行业分类 + 成分映射
+uv run python main.py sync --table ci_member    # 中信行业成分映射
+
+# ── 期货扩展（可选，需积分 ≥ 5000）────────────────────────────────
+uv run python main.py sync --table fut_basic          # 期货合约基础信息
+uv run python main.py sync --table fut_daily          # 期货日线行情
+uv run python main.py sync --table fut_holding        # 期货持仓排名
+uv run python main.py sync --table fut_wsr            # 期货仓单日报
+uv run python main.py sync --table fut_settle         # 期货结算参数
+uv run python main.py sync --table fut_mapping        # 期货主力与连续合约映射
+uv run python main.py sync --table ft_limit           # 期货涨跌停价格
+uv run python main.py sync --table fut_weekly         # 期货周线行情
+uv run python main.py sync --table fut_monthly        # 期货月线行情
 uv run python main.py sync --table fut_index_daily    # 期货指数日线行情
 uv run python main.py sync --table fut_weekly_detail  # 期货交易所周度明细
+
+# ── 期权扩展（可选，需积分 ≥ 5000）────────────────────────────────
 uv run python main.py sync --table opt_basic          # 期权合约基础信息
 uv run python main.py sync --table opt_daily          # 期权日线行情
 ```
