@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Stars](https://img.shields.io/github/stars/zer0coldai/zer0share)
+![Stars](https://img.shields.io/github/stars/zer0quant/zer0share)
 
 > **zer0share** — A local data pipeline for Chinese A-share market.  
 > Pulls data from Tushare Pro, stores as Parquet partitions,  
@@ -33,7 +33,7 @@ A-股数据本地化管道，基于 [Tushare Pro](https://tushare.pro) 拉取股
 ### 1. 克隆并安装依赖
 
 ```bash
-git clone https://github.com/your-username/zer0share.git
+git clone https://github.com/zer0quant/zer0share.git
 cd zer0share
 uv sync
 ```
@@ -264,10 +264,9 @@ data/
 │   └── name=univ_trade_zz1000/date=20240131/data.parquet
 └── options/
     ├── opt_basic/
-    │   └── date=20260602/data.parquet   # 全量，每次覆盖
+    │   └── date=YYYYMMDD/data.parquet   # 全量，每次覆盖
     └── opt_daily/
-        ├── date=20160104/data.parquet
-        ├── date=20160105/data.parquet
+        ├── date=YYYYMMDD/data.parquet
         └── ...
 db/
 └── meta.duckdb                      # 同步记录 + 交易日历索引
@@ -350,7 +349,7 @@ uv run pytest tests/test_pipeline.py -v
 ## 项目结构
 
 ```
-src/
+zer0share/
 ├── config.py     # 配置加载
 ├── api.py        # 本地 Tushare-like 查询 API
 ├── fetcher.py    # Tushare API 封装
