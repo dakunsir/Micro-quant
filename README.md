@@ -233,6 +233,7 @@ opt_snapshot = pro.opt_daily(trade_date="20240102", exchange="SSE")   # 某日�
 | `index_member_all` | 查询申万股票-行业映射（支持历史变更） |
 | `ci_index_member` | 查询中信股票-行业映射（支持历史变更） |
 | `pro_bar` | 查询本地 A 股日线行情，支持不复权、前复权（qfq）和后复权（hfq） |
+| `universe` | 查询已构建的股票池（支持按池名称、ts_code、日期过滤） |
 | `fut_basic` | 查询已同步的期货合约基础信息（支持按交易所、fut_code 过滤） |
 | `fut_daily` | 查询已同步的期货日线行情 |
 | `fut_holding` | 查询已同步的期货持仓排名 |
