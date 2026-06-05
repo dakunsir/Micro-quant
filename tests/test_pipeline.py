@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 
 from zer0share.pipeline import Pipeline, EXCHANGES
+from zer0share.pipeline import ALL_EXCHANGES as NEW_ALL_EXCHANGES
 from zer0share.storage import read_sw_classify, read_sw_member, read_ci_member, write_basic, write_trade_cal
 from zer0share.fetcher import INDEX_DAILY_CODES, FUTURES_EXCHANGES, OPTIONS_EXCHANGES
 from zer0share.storage import daily_partition_exists
@@ -245,6 +246,19 @@ def test_sync_trade_cal_uses_incremental_range(pipeline, cfg):
             "pretrade_date": [date(2024, 1, 2)],
         }),
     )
+    for ex in NEW_ALL_EXCHANGES:
+        if ex in ("SSE", "SZSE"):
+            continue
+        write_trade_cal(
+            cfg.data_dir,
+            ex,
+            pd.DataFrame({
+                "exchange": [ex],
+                "cal_date": [date(2024, 1, 3)],
+                "is_open": [True],
+                "pretrade_date": [date(2024, 1, 2)],
+            }),
+        )
 
     def fetch_trade_cal(exchange, start, end):
         return pd.DataFrame({
@@ -270,7 +284,7 @@ def test_sync_trade_cal_uses_incremental_range(pipeline, cfg):
 
 
 def test_sync_trade_cal_skips_when_already_covers_year_end(pipeline, cfg):
-    for exchange in EXCHANGES:
+    for exchange in NEW_ALL_EXCHANGES:
         write_trade_cal(
             cfg.data_dir,
             exchange,
@@ -1136,3 +1150,13 @@ def test_ensure_trade_cal_loaded_triggers_sync_when_no_meta(pipeline, cfg):
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline._ensure_trade_cal_loaded()
     pipeline._fetcher.fetch_trade_cal.assert_called()
+
+
+def test_sync_trade_cal_writes_all_8_exchanges(pipeline, cfg):
+    pipeline._fetcher.fetch_trade_cal.return_value = _trade_cal_df("SSE")
+    with patch("zer0share.pipeline.date") as mock_date:
+        mock_date.today.return_value = date(2024, 5, 18)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        pipeline.sync_trade_cal()
+    for ex in NEW_ALL_EXCHANGES:
+        assert (cfg.data_dir / "trade_cal" / f"exchange={ex}" / "data.parquet").exists(), f"Missing {ex}"

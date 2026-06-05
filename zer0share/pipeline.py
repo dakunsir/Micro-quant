@@ -145,7 +145,7 @@ class Pipeline:
         try:
             end = date(date.today().year, 12, 31)
             max_dates: list[date] = []
-            for exchange in EXCHANGES:
+            for exchange in ALL_EXCHANGES:
                 existing = read_trade_cal(self._cfg.data_dir, exchange)
                 last = (
                     existing["cal_date"].max()
@@ -169,7 +169,7 @@ class Pipeline:
                 if not df.empty:
                     max_dates.append(df["cal_date"].max())
 
-            self._meta.load_trade_cal_from_parquet(self._cfg.data_dir, EXCHANGES)
+            self._meta.load_trade_cal_from_parquet(self._cfg.data_dir, ALL_EXCHANGES)
             if max_dates:
                 self._meta.update_last_date("trade_cal", min(max_dates))
             logger.info("trade_cal 全部同步完成")
