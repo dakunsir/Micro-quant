@@ -9,7 +9,7 @@
 > queries via DuckDB, with incremental sync & APScheduler automation.
 
 > 我在公众号「极客投研笔记」记录这个项目的设计过程、踩坑记录和后续扩展。  
-> 如果你对 AI + 量化投研、本地股票数据系统、因子研究工作流感兴趣，欢迎关注。
+> 如果你对 AI + 量化投研、本地量化数据系统、因子研究工作流感兴趣，欢迎关注。
 
 A 股、期货、期权数据本地化管道，基于 [Tushare Pro](https://tushare.pro) 拉取数据，以 Parquet 分区存储，DuckDB 提供快速本地查询，支持增量同步与定时调度。
 
@@ -26,7 +26,8 @@ A 股、期货、期权数据本地化管道，基于 [Tushare Pro](https://tush
 
 ## 特性
 
-- **核心数据同步**：支持交易日历、股票基础信息、日线行情、复权因子、每日指标、ST、停复牌、涨跌停价格、指数成分、行业映射、期货与期权
+- **A 股数据**：交易日历、基础信息、日线、复权因子、每日指标、ST、停复牌、涨跌停、指数成分、申万/中信行业
+- **期货 & 期权数据**：期货合约、日线、持仓排名、仓单、结算、主连映射；期权合约与日线行情
 - **本地优先存储**：Parquet 分区文件 + DuckDB 元数据，无需数据库服务
 - **Tushare-like 查询**：本地 `pro_api()` 直接返回 DataFrame，不消耗 Tushare 积分
 - **复权行情**：本地 `pro_bar()` 支持不复权、前复权（qfq）和后复权（hfq）
@@ -202,6 +203,12 @@ qfq = pro.pro_bar(
     adj="qfq",
 )
 
+# 期货数据
+fut_contracts = pro.fut_basic(exchange="SHFE")                                    # 上期所期货合约列表
+fut_bar = pro.fut_daily(ts_code="RB2410.SHFE", start_date="20240101", end_date="20240331")
+fut_holding = pro.fut_holding(trade_date="20240131", exchange="SHFE")             # 某日持仓排名
+fut_mapping = pro.fut_mapping(ts_code="RB.SHFE", start_date="20240101", end_date="20240331")  # 主连映射
+
 # 期权数据
 opt_contracts = pro.opt_basic(exchange="SSE", call_put="C")           # 上交所认购期权合约列表
 opt_bar = pro.opt_daily(ts_code="10004462.SH", start_date="20240101", end_date="20240131")
@@ -226,6 +233,17 @@ opt_snapshot = pro.opt_daily(trade_date="20240102", exchange="SSE")   # 某日�
 | `index_member_all` | 查询申万股票-行业映射（支持历史变更） |
 | `ci_index_member` | 查询中信股票-行业映射（支持历史变更） |
 | `pro_bar` | 查询本地 A 股日线行情，支持不复权、前复权（qfq）和后复权（hfq） |
+| `fut_basic` | 查询已同步的期货合约基础信息（支持按交易所、fut_code 过滤） |
+| `fut_daily` | 查询已同步的期货日线行情 |
+| `fut_holding` | 查询已同步的期货持仓排名 |
+| `fut_wsr` | 查询已同步的期货仓单日报 |
+| `fut_settle` | 查询已同步的期货结算参数 |
+| `fut_mapping` | 查询已同步的期货主力与连续合约映射 |
+| `ft_limit` | 查询已同步的期货涨跌停价格 |
+| `fut_weekly` | 查询已同步的期货周线行情 |
+| `fut_monthly` | 查询已同步的期货月线行情 |
+| `fut_index_daily` | 查询已同步的期货指数日线行情 |
+| `fut_weekly_detail` | 查询已同步的期货交易所周度明细 |
 | `opt_basic` | 查询已同步的期权合约基础信息（支持按交易所、call_put、opt_code 过滤） |
 | `opt_daily` | 查询已同步的期权日线行情（支持按交易所过滤） |
 | `query` | 按接口名分发，例如 `pro.query("daily", ...)` |
@@ -279,6 +297,29 @@ data/
 │   ├── name=univ_trade_hs300/date=20240131/data.parquet
 │   ├── name=univ_trade_zz500/date=20240131/data.parquet
 │   └── name=univ_trade_zz1000/date=20240131/data.parquet
+├── futures/
+│   ├── fut_basic/
+│   │   └── date=YYYYMMDD/data.parquet   # 全量，每次覆盖
+│   ├── fut_daily/
+│   │   └── date=YYYYMMDD/data.parquet
+│   ├── fut_holding/
+│   │   └── date=YYYYMMDD/data.parquet
+│   ├── fut_wsr/
+│   │   └── date=YYYYMMDD/data.parquet
+│   ├── fut_settle/
+│   │   └── date=YYYYMMDD/data.parquet
+│   ├── fut_mapping/
+│   │   └── date=YYYYMMDD/data.parquet
+│   ├── ft_limit/
+│   │   └── date=YYYYMMDD/data.parquet
+│   ├── fut_weekly/
+│   │   └── date=YYYYMMDD/data.parquet
+│   ├── fut_monthly/
+│   │   └── date=YYYYMMDD/data.parquet
+│   ├── fut_index_daily/
+│   │   └── date=YYYYMMDD/data.parquet
+│   └── fut_weekly_detail/
+│       └── date=YYYYMMDD/data.parquet
 └── options/
     ├── opt_basic/
     │   └── date=YYYYMMDD/data.parquet   # 全量，每次覆盖
