@@ -1340,6 +1340,33 @@ def test_opt_basic_query_filters_by_call_put(tmp_path):
     assert result.iloc[0]["ts_code"] == "10004462.SH"
 
 
+def test_opt_basic_filters_by_name_and_list_date(tmp_path):
+    write_opt_basic(tmp_path / "options", _make_opt_basic_df())
+
+    api = LocalPro(tmp_path)
+    result = api.opt_basic(
+        name="50ETF购4月2700",
+        list_date="20240101",
+        fields="ts_code,name,list_date",
+    )
+
+    assert result.to_dict("records") == [
+        {
+            "ts_code": "10004462.SH",
+            "name": "50ETF购4月2700",
+            "list_date": "20240101",
+        }
+    ]
+
+    empty_result = api.opt_basic(
+        name="50ETF购4月2700",
+        list_date="20240102",
+        fields="ts_code,name,list_date",
+    )
+
+    assert empty_result.to_dict("records") == []
+
+
 def test_opt_basic_query_raises_when_no_data(tmp_path):
     api = LocalPro(tmp_path)
     with pytest.raises(FileNotFoundError):
