@@ -4,8 +4,8 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from zer0share.pipeline import Pipeline, EXCHANGES
-from zer0share.pipeline import ALL_EXCHANGES as NEW_ALL_EXCHANGES
+from zer0share.pipeline import Pipeline
+from zer0share.sync._helpers import EXCHANGES, ALL_EXCHANGES as NEW_ALL_EXCHANGES
 from zer0share.storage import read_sw_classify, read_sw_member, read_ci_member, write_basic, write_trade_cal
 from zer0share.fetcher import INDEX_DAILY_CODES, FUTURES_EXCHANGES, OPTIONS_EXCHANGES
 from zer0share.storage import daily_partition_exists
@@ -52,17 +52,17 @@ def pipeline(cfg):
 
 def test_sync_basic_first_run_writes_parquet(pipeline, cfg):
     pipeline._fetcher.fetch_basic.return_value = _basic_df()
-    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False):
+    with patch("zer0share.sync.equities.skip_if_not_trading", return_value=False):
         pipeline.sync_basic()
     assert (cfg.data_dir / "basic" / "data.parquet").exists()
 
 
 def test_sync_basic_refreshes_even_if_recently_updated(pipeline):
     pipeline._fetcher.fetch_basic.return_value = _basic_df()
-    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False):
+    with patch("zer0share.sync.equities.skip_if_not_trading", return_value=False):
         pipeline.sync_basic()
     pipeline._fetcher.fetch_basic.reset_mock()
-    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False):
+    with patch("zer0share.sync.equities.skip_if_not_trading", return_value=False):
         pipeline.sync_basic()
     pipeline._fetcher.fetch_basic.assert_called_once()
 
@@ -101,7 +101,7 @@ def test_sync_daily_kline_writes_parquet(pipeline, cfg):
     pipeline._fetcher.fetch_daily_kline.return_value = kline_df
     pipeline._meta.update_last_date("daily_kline", date(2024, 1, 1))
 
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync._helpers.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_daily_kline()
@@ -115,7 +115,7 @@ def test_sync_daily_kline_skips_empty_dates(pipeline, cfg):
     pipeline._fetcher.fetch_daily_kline.return_value = pd.DataFrame()
     pipeline._meta.update_last_date("daily_kline", date(2024, 1, 1))
 
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync._helpers.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_daily_kline()
@@ -144,7 +144,7 @@ def test_sync_daily_kline_sends_completion_notification(pipeline, cfg):
     pipeline._fetcher.fetch_daily_kline.return_value = kline_df
     pipeline._meta.update_last_date("daily_kline", date(2024, 1, 1))
 
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync._helpers.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_daily_kline()
@@ -164,7 +164,7 @@ def test_sync_daily_kline_already_up_to_date(pipeline, cfg):
 
 def test_sync_basic_failure_sends_alert_and_raises(pipeline):
     pipeline._fetcher.fetch_basic.side_effect = RuntimeError("API error")
-    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
+    with patch("zer0share.sync.equities.skip_if_not_trading", return_value=False), \
          pytest.raises(RuntimeError):
         pipeline.sync_basic()
     pipeline._notifier.send.assert_called_once()
@@ -178,7 +178,7 @@ def test_sync_daily_kline_failure_sends_alert_and_raises(pipeline, cfg):
     pipeline._fetcher.fetch_daily_kline.side_effect = RuntimeError("API error")
     pipeline._meta.update_last_date("daily_kline", date(2024, 1, 1))
 
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync._helpers.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         with pytest.raises(RuntimeError):
@@ -273,7 +273,7 @@ def test_sync_trade_cal_uses_incremental_range(pipeline, cfg):
             })
 
     pipeline._fetcher.fetch_trade_cal.side_effect = fetch_trade_cal
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync.calendar.date") as mock_date:
         mock_date.today.return_value = date(2024, 5, 18)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_trade_cal()
@@ -300,7 +300,7 @@ def test_sync_trade_cal_skips_when_already_covers_year_end(pipeline, cfg):
             }),
         )
 
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync.calendar.date") as mock_date:
         mock_date.today.return_value = date(2024, 5, 18)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_trade_cal()
@@ -329,7 +329,7 @@ def test_sync_daily_kline_uses_trading_calendar(pipeline, cfg):
     pipeline._fetcher.fetch_daily_kline.return_value = kline_df
     pipeline._meta.update_last_date("daily_kline", date(2024, 1, 1))
 
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync._helpers.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 4)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_daily_kline()
@@ -340,7 +340,7 @@ def test_sync_daily_kline_uses_trading_calendar(pipeline, cfg):
 
 def test_sync_daily_kline_raises_if_no_trade_cal(pipeline, cfg):
     pipeline._meta.update_last_date("daily_kline", date(2024, 1, 1))
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync._helpers.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 4)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         with pytest.raises(RuntimeError, match="trade_cal"):
@@ -454,7 +454,7 @@ def test_sync_daily_kline_range_defaults_end_date_to_today(pipeline, cfg):
         }
     )
 
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync._helpers.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 3)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_daily_kline(start_date=date(2024, 1, 2))
@@ -491,7 +491,7 @@ def test_sync_daily_kline_sleeps_between_requests(pipeline, cfg):
         }
     )
 
-    with patch("zer0share.pipeline.time.sleep") as mock_sleep:
+    with patch("zer0share.sync._helpers.time.sleep") as mock_sleep:
         pipeline.sync_daily_kline(start_date=date(2024, 1, 2), end_date=date(2024, 1, 3))
 
     assert mock_sleep.call_count == 2
@@ -521,8 +521,8 @@ def test_sync_daily_partitioned_logs_progress(pipeline, cfg):
     )
 
     with (
-        patch("zer0share.pipeline.time.sleep"),
-        patch("zer0share.pipeline.logger.info") as mock_info,
+        patch("zer0share.sync._helpers.time.sleep"),
+        patch("zer0share.sync._helpers.logger.info") as mock_info,
     ):
         pipeline.sync_stock_st(start_date=days[0], end_date=days[-1])
 
@@ -546,8 +546,8 @@ def test_sync_index_weight_fetches_monthly_ranges(pipeline, cfg):
     pipeline._fetcher.fetch_index_weight.side_effect = fetch_index_weight
 
     with (
-        patch("zer0share.pipeline.INDEX_CODES", ["399300.SZ"]),
-        patch("zer0share.pipeline.time.sleep"),
+        patch("zer0share.sync.equities.INDEX_CODES", ["399300.SZ"]),
+        patch("zer0share.sync.equities.time.sleep"),
     ):
         pipeline.sync_index_weight(
             start_date=date(2024, 1, 15),
@@ -571,10 +571,10 @@ def test_sync_index_weight_does_not_use_global_meta_for_new_index_meta(pipeline)
     pipeline._fetcher.fetch_index_weight.return_value = pd.DataFrame()
 
     with (
-        patch("zer0share.pipeline.INDEX_CODES", ["399300.SZ"]),
-        patch("zer0share.pipeline.FIRST_DATE", date(2024, 1, 1)),
-        patch("zer0share.pipeline.date") as mock_date,
-        patch("zer0share.pipeline.time.sleep"),
+        patch("zer0share.sync.equities.INDEX_CODES", ["399300.SZ"]),
+        patch("zer0share.sync.equities.FIRST_DATE", date(2024, 1, 1)),
+        patch("zer0share.sync.equities.date") as mock_date,
+        patch("zer0share.sync.equities.time.sleep"),
     ):
         mock_date.today.return_value = date(2024, 1, 31)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
@@ -606,8 +606,8 @@ def test_sync_industry_writes_sw_classify_and_member(pipeline, cfg):
     pipeline._fetcher.fetch_sw_classify.return_value = classify_df
     pipeline._fetcher.fetch_sw_member.return_value = member_df
 
-    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
-         patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync.industry.skip_if_not_trading", return_value=False), \
+         patch("zer0share.sync.industry.date") as mock_date:
         mock_date.today.return_value = date(2024, 5, 18)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_industry()
@@ -620,7 +620,7 @@ def test_sync_industry_writes_sw_classify_and_member(pipeline, cfg):
 
 def test_sync_industry_failure_sends_alert_and_raises(pipeline):
     pipeline._fetcher.fetch_sw_classify.side_effect = RuntimeError("API error")
-    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
+    with patch("zer0share.sync.industry.skip_if_not_trading", return_value=False), \
          pytest.raises(RuntimeError):
         pipeline.sync_industry()
     pipeline._notifier.send.assert_called_once()
@@ -638,8 +638,8 @@ def test_sync_ci_member_writes_parquet(pipeline, cfg):
     })
     pipeline._fetcher.fetch_ci_member.return_value = member_df
 
-    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
-         patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync.industry.skip_if_not_trading", return_value=False), \
+         patch("zer0share.sync.industry.date") as mock_date:
         mock_date.today.return_value = date(2024, 5, 18)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_ci_member()
@@ -650,7 +650,7 @@ def test_sync_ci_member_writes_parquet(pipeline, cfg):
 
 def test_sync_ci_member_failure_sends_alert_and_raises(pipeline):
     pipeline._fetcher.fetch_ci_member.side_effect = RuntimeError("API error")
-    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
+    with patch("zer0share.sync.industry.skip_if_not_trading", return_value=False), \
          pytest.raises(RuntimeError):
         pipeline.sync_ci_member()
     pipeline._notifier.send.assert_called_once()
@@ -677,7 +677,7 @@ def _index_daily_df(ts_code: str = "000300.SH", trade_date: date = date(2024, 1,
 def test_sync_index_daily_fetches_all_codes(pipeline, cfg):
     pipeline._fetcher.fetch_index_daily.return_value = pd.DataFrame()
 
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync.equities.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_index_daily()
@@ -697,8 +697,8 @@ def test_sync_index_daily_writes_date_partitions(pipeline, cfg):
         for ts_code in INDEX_DAILY_CODES
     ]
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("zer0share.sync.equities.date") as mock_date, \
+         patch("zer0share.sync.equities.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_index_daily()
@@ -716,8 +716,8 @@ def test_sync_index_daily_skips_existing_partitions(pipeline, cfg):
         for ts_code in INDEX_DAILY_CODES
     ]
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("zer0share.sync.equities.date") as mock_date, \
+         patch("zer0share.sync.equities.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_index_daily()
@@ -729,7 +729,7 @@ def test_sync_index_daily_skips_existing_partitions(pipeline, cfg):
 def test_sync_index_daily_up_to_date_skips_fetch(pipeline, cfg):
     pipeline._meta.update_last_date("index_daily", date(2024, 1, 2))
 
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync.equities.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_index_daily()
@@ -740,8 +740,8 @@ def test_sync_index_daily_up_to_date_skips_fetch(pipeline, cfg):
 def test_sync_index_daily_no_data_sends_notification(pipeline, cfg):
     pipeline._fetcher.fetch_index_daily.return_value = pd.DataFrame()
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("zer0share.sync.equities.date") as mock_date, \
+         patch("zer0share.sync.equities.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_index_daily()
@@ -755,8 +755,8 @@ def test_sync_index_daily_updates_metastore(pipeline, cfg):
         for ts_code in INDEX_DAILY_CODES
     ]
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("zer0share.sync.equities.date") as mock_date, \
+         patch("zer0share.sync.equities.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_index_daily()
@@ -790,9 +790,9 @@ def test_sync_fut_basic_writes_to_futures_subdir(pipeline, cfg):
 
     pipeline._fetcher.fetch_fut_basic.side_effect = fut_basic_side_effect
 
-    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
-         patch("zer0share.pipeline.time.sleep"), \
-         patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync.futures.skip_if_not_trading", return_value=False), \
+         patch("zer0share.sync.futures.time.sleep"), \
+         patch("zer0share.sync.futures.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_fut_basic()
@@ -804,9 +804,9 @@ def test_sync_fut_basic_writes_to_futures_subdir(pipeline, cfg):
 def test_sync_fut_basic_calls_all_exchanges_and_types(pipeline, cfg):
     pipeline._fetcher.fetch_fut_basic.return_value = pd.DataFrame()
 
-    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
-         patch("zer0share.pipeline.time.sleep"), \
-         patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync.futures.skip_if_not_trading", return_value=False), \
+         patch("zer0share.sync.futures.time.sleep"), \
+         patch("zer0share.sync.futures.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_fut_basic()
@@ -819,7 +819,7 @@ def test_sync_fut_basic_calls_all_exchanges_and_types(pipeline, cfg):
 
 def test_sync_fut_basic_failure_sends_alert_and_raises(pipeline, cfg):
     pipeline._fetcher.fetch_fut_basic.side_effect = RuntimeError("API error")
-    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
+    with patch("zer0share.sync.futures.skip_if_not_trading", return_value=False), \
          pytest.raises(RuntimeError):
         pipeline.sync_fut_basic()
     pipeline._notifier.send.assert_called_once()
@@ -863,8 +863,8 @@ def test_sync_fut_daily_writes_to_futures_subdir(pipeline, cfg):
     pipeline._fetcher.fetch_fut_daily.return_value = fut_df
     pipeline._meta.update_last_date("fut_daily", date(2024, 1, 1))
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("zer0share.sync._helpers.date") as mock_date, \
+         patch("zer0share.sync._helpers.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_fut_daily()
@@ -883,8 +883,8 @@ def test_sync_fut_daily_skips_existing_partitions(pipeline, cfg):
         pd.DataFrame({"ts_code": ["CU2401.SHF"], "trade_date": ["20240102"]}),
     )
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("zer0share.sync._helpers.date") as mock_date, \
+         patch("zer0share.sync._helpers.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_fut_daily()
@@ -911,8 +911,8 @@ def test_sync_ft_limit_writes_to_futures_subdir(pipeline, cfg):
     })
     pipeline._meta.update_last_date("ft_limit", date(2024, 1, 1))
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("zer0share.sync._helpers.date") as mock_date, \
+         patch("zer0share.sync._helpers.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_ft_limit()
@@ -932,8 +932,8 @@ def test_sync_fut_weekly_writes_to_futures_subdir(pipeline, cfg):
     })
     pipeline._meta.update_last_date("fut_weekly", date(2024, 1, 1))
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("zer0share.sync._helpers.date") as mock_date, \
+         patch("zer0share.sync._helpers.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_fut_weekly()
@@ -950,9 +950,9 @@ def test_sync_fut_index_daily_writes_to_futures_subdir(pipeline, cfg):
     })
     pipeline._meta.update_last_date("fut_index_daily", date(2024, 1, 1))
 
-    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
-         patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("zer0share.sync.futures.skip_if_not_trading", return_value=False), \
+         patch("zer0share.sync.futures.date") as mock_date, \
+         patch("zer0share.sync.futures.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_fut_index_daily()
@@ -972,8 +972,8 @@ def test_sync_fut_weekly_detail_writes_to_futures_subdir(pipeline, cfg):
     })
     pipeline._meta.update_last_date("fut_weekly_detail", date(2023, 12, 31))
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("zer0share.sync.futures.date") as mock_date, \
+         patch("zer0share.sync.futures.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 7)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_fut_weekly_detail()
@@ -1009,9 +1009,9 @@ def test_sync_opt_basic_writes_to_options_subdir(pipeline, cfg):
 
     pipeline._fetcher.fetch_opt_basic.side_effect = opt_basic_side_effect
 
-    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
-         patch("zer0share.pipeline.time.sleep"), \
-         patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync.options.skip_if_not_trading", return_value=False), \
+         patch("zer0share.sync.options.time.sleep"), \
+         patch("zer0share.sync.options.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_opt_basic()
@@ -1023,9 +1023,9 @@ def test_sync_opt_basic_writes_to_options_subdir(pipeline, cfg):
 def test_sync_opt_basic_calls_all_exchanges(pipeline, cfg):
     pipeline._fetcher.fetch_opt_basic.return_value = pd.DataFrame()
 
-    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
-         patch("zer0share.pipeline.time.sleep"), \
-         patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync.options.skip_if_not_trading", return_value=False), \
+         patch("zer0share.sync.options.time.sleep"), \
+         patch("zer0share.sync.options.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_opt_basic()
@@ -1037,7 +1037,7 @@ def test_sync_opt_basic_calls_all_exchanges(pipeline, cfg):
 
 def test_sync_opt_basic_failure_sends_alert_and_raises(pipeline, cfg):
     pipeline._fetcher.fetch_opt_basic.side_effect = RuntimeError("API error")
-    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
+    with patch("zer0share.sync.options.skip_if_not_trading", return_value=False), \
          pytest.raises(RuntimeError):
         pipeline.sync_opt_basic()
     pipeline._notifier.send.assert_called_once()
@@ -1077,8 +1077,8 @@ def test_sync_opt_daily_writes_to_options_subdir(pipeline, cfg):
     pipeline._fetcher.fetch_opt_daily.return_value = opt_df
     pipeline._meta.update_last_date("opt_daily", date(2024, 1, 1))
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("zer0share.sync._helpers.date") as mock_date, \
+         patch("zer0share.sync._helpers.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_opt_daily()
@@ -1097,8 +1097,8 @@ def test_sync_opt_daily_skips_existing_partitions(pipeline, cfg):
         pd.DataFrame({"ts_code": ["10004462.SH"], "trade_date": ["20240102"]}),
     )
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("zer0share.sync._helpers.date") as mock_date, \
+         patch("zer0share.sync._helpers.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_opt_daily()
@@ -1112,7 +1112,7 @@ def test_sync_opt_daily_up_to_date(pipeline, cfg):
     pipeline._fetcher.fetch_opt_daily.assert_not_called()
 
 
-from zer0share.pipeline import ALL_EXCHANGES
+from zer0share.sync._helpers import ALL_EXCHANGES
 
 
 def test_all_exchanges_contains_all_8():
@@ -1130,7 +1130,7 @@ def test_skip_if_not_trading_returns_true_on_non_trading_day(pipeline, cfg):
     pipeline._meta.load_trade_cal_from_parquet(cfg.data_dir)
     pipeline._meta.update_last_date("trade_cal", date(2024, 1, 3))
 
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync._helpers.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 3)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         assert pipeline._skip_if_not_trading("SSE") is True
@@ -1147,7 +1147,7 @@ def test_skip_if_not_trading_returns_false_on_trading_day(pipeline, cfg):
     pipeline._meta.load_trade_cal_from_parquet(cfg.data_dir)
     pipeline._meta.update_last_date("trade_cal", date(2024, 1, 2))
 
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync._helpers.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         assert pipeline._skip_if_not_trading("SSE") is False
@@ -1160,7 +1160,7 @@ def test_ensure_trade_cal_loaded_triggers_sync_when_no_meta(pipeline, cfg):
         "is_open": [True],
         "pretrade_date": ["20231229"],
     })
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync.calendar.date") as mock_date:
         mock_date.today.return_value = date(2024, 6, 1)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline._ensure_trade_cal_loaded()
@@ -1169,7 +1169,7 @@ def test_ensure_trade_cal_loaded_triggers_sync_when_no_meta(pipeline, cfg):
 
 def test_sync_trade_cal_writes_all_8_exchanges(pipeline, cfg):
     pipeline._fetcher.fetch_trade_cal.return_value = _trade_cal_df("SSE")
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync.calendar.date") as mock_date:
         mock_date.today.return_value = date(2024, 5, 18)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_trade_cal()
@@ -1195,7 +1195,7 @@ def _setup_non_trading_day(pipeline, cfg):
 
 def test_sync_basic_skips_non_trading_day(pipeline, cfg):
     _setup_non_trading_day(pipeline, cfg)
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync._helpers.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 3)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_basic()
@@ -1205,7 +1205,7 @@ def test_sync_basic_skips_non_trading_day(pipeline, cfg):
 
 def test_sync_industry_skips_non_trading_day(pipeline, cfg):
     _setup_non_trading_day(pipeline, cfg)
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync._helpers.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 3)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_industry()
@@ -1215,7 +1215,7 @@ def test_sync_industry_skips_non_trading_day(pipeline, cfg):
 
 def test_sync_ci_member_skips_non_trading_day(pipeline, cfg):
     _setup_non_trading_day(pipeline, cfg)
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync._helpers.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 3)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_ci_member()
@@ -1225,7 +1225,7 @@ def test_sync_ci_member_skips_non_trading_day(pipeline, cfg):
 
 def test_sync_fut_basic_skips_non_trading_day(pipeline, cfg):
     _setup_non_trading_day(pipeline, cfg)
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync._helpers.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 3)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_fut_basic()
@@ -1235,7 +1235,7 @@ def test_sync_fut_basic_skips_non_trading_day(pipeline, cfg):
 
 def test_sync_opt_basic_skips_non_trading_day(pipeline, cfg):
     _setup_non_trading_day(pipeline, cfg)
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync._helpers.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 3)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_opt_basic()
@@ -1246,7 +1246,7 @@ def test_sync_opt_basic_skips_non_trading_day(pipeline, cfg):
 def test_sync_fut_index_daily_skips_non_trading_day(pipeline, cfg):
     _setup_non_trading_day(pipeline, cfg)
     pipeline._meta.update_last_date("fut_index_daily", date(2024, 1, 1))
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.sync._helpers.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 3)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_fut_index_daily()
@@ -1282,8 +1282,8 @@ def test_sync_daily_partitioned_uses_exchange_param(pipeline, cfg):
     })
     pipeline._meta.update_last_date("fut_daily", date(2024, 1, 1))
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("zer0share.sync._helpers.date") as mock_date, \
+         patch("zer0share.sync._helpers.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         # Default _sync_daily_partitioned uses "SSE" — SSE 1/2 is closed,
