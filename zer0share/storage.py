@@ -6,6 +6,10 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 
+def _parse(s: str) -> date:
+    return date(int(s[:4]), int(s[4:6]), int(s[6:]))
+
+
 class MetaStore:
     def __init__(self, db_path: Path):
         db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -30,21 +34,21 @@ class MetaStore:
             )
         """)
 
-    def get_last_date(self, table_name: str) -> date | None:
+    def get_last_date(self, table_name: str) -> str | None:
         row = self._conn.execute(
             "SELECT last_date FROM sync_meta WHERE table_name = ?",
             [table_name]
         ).fetchone()
-        return row[0] if row else None
+        return row[0].strftime("%Y%m%d") if row else None
 
-    def update_last_date(self, table_name: str, last_date: date):
+    def update_last_date(self, table_name: str, last_date: str):
         self._conn.execute("""
             INSERT INTO sync_meta (table_name, last_date, updated_at)
             VALUES (?, ?, ?)
             ON CONFLICT (table_name) DO UPDATE SET
                 last_date = excluded.last_date,
                 updated_at = excluded.updated_at
-        """, [table_name, last_date, datetime.now(timezone.utc)])
+        """, [table_name, _parse(last_date), datetime.now(timezone.utc)])
 
     def __enter__(self) -> "MetaStore":
         return self
@@ -93,8 +97,8 @@ class MetaStore:
             raise
 
     def get_trading_days(
-        self, exchange: str, start: date, end: date
-    ) -> list[date]:
+        self, exchange: str, start: str, end: str
+    ) -> list[str]:
         rows = self._conn.execute(
             """
             SELECT cal_date FROM trade_cal
@@ -104,11 +108,11 @@ class MetaStore:
               AND is_open = TRUE
             ORDER BY cal_date
             """,
-            [exchange, start, end]
+            [exchange, _parse(start), _parse(end)]
         ).fetchall()
-        return [row[0] for row in rows]
+        return [row[0].strftime("%Y%m%d") for row in rows]
 
-    def is_trading_day(self, exchange: str, cal_date: date) -> bool:
+    def is_trading_day(self, exchange: str, cal_date: str) -> bool:
         """Check whether a given date is a trading day for an exchange.
 
         Returns True when the date is not covered by the calendar
@@ -116,7 +120,7 @@ class MetaStore:
         """
         row = self._conn.execute(
             "SELECT is_open FROM trade_cal WHERE exchange = ? AND cal_date = ?",
-            [exchange, cal_date]
+            [exchange, _parse(cal_date)]
         ).fetchone()
         if row is None:
             return True
@@ -126,77 +130,77 @@ class MetaStore:
         self._conn.close()
 
 
-def write_daily_kline(data_dir: Path, trade_date: date, df: pd.DataFrame) -> None:
-    partition_dir = data_dir / "daily_kline" / f"date={trade_date.strftime('%Y%m%d')}"
+def write_daily_kline(data_dir: Path, trade_date: str, df: pd.DataFrame) -> None:
+    partition_dir = data_dir / "daily_kline" / f"date={trade_date}"
     partition_dir.mkdir(parents=True, exist_ok=True)
     table = pa.Table.from_pandas(df, preserve_index=False)
     pq.write_table(table, partition_dir / "data.parquet")
 
 
-def daily_kline_partition_exists(data_dir: Path, trade_date: date) -> bool:
-    path = data_dir / "daily_kline" / f"date={trade_date.strftime('%Y%m%d')}" / "data.parquet"
+def daily_kline_partition_exists(data_dir: Path, trade_date: str) -> bool:
+    path = data_dir / "daily_kline" / f"date={trade_date}" / "data.parquet"
     return path.exists()
 
 
-def read_daily_kline(data_dir: Path, trade_date: date) -> pd.DataFrame:
-    path = data_dir / "daily_kline" / f"date={trade_date.strftime('%Y%m%d')}" / "data.parquet"
+def read_daily_kline(data_dir: Path, trade_date: str) -> pd.DataFrame:
+    path = data_dir / "daily_kline" / f"date={trade_date}" / "data.parquet"
     if not path.exists():
         return pd.DataFrame()
     return pq.read_table(path).to_pandas()
 
 
-def write_adj_factor(data_dir: Path, trade_date: date, df: pd.DataFrame) -> None:
-    partition_dir = data_dir / "adj_factor" / f"date={trade_date.strftime('%Y%m%d')}"
+def write_adj_factor(data_dir: Path, trade_date: str, df: pd.DataFrame) -> None:
+    partition_dir = data_dir / "adj_factor" / f"date={trade_date}"
     partition_dir.mkdir(parents=True, exist_ok=True)
     table = pa.Table.from_pandas(df, preserve_index=False)
     pq.write_table(table, partition_dir / "data.parquet")
 
 
-def adj_factor_partition_exists(data_dir: Path, trade_date: date) -> bool:
-    path = data_dir / "adj_factor" / f"date={trade_date.strftime('%Y%m%d')}" / "data.parquet"
+def adj_factor_partition_exists(data_dir: Path, trade_date: str) -> bool:
+    path = data_dir / "adj_factor" / f"date={trade_date}" / "data.parquet"
     return path.exists()
 
 
 def write_daily_partition(
-    data_dir: Path, table_name: str, trade_date: date, df: pd.DataFrame
+    data_dir: Path, table_name: str, trade_date: str, df: pd.DataFrame
 ) -> None:
-    partition_dir = data_dir / table_name / f"date={trade_date.strftime('%Y%m%d')}"
+    partition_dir = data_dir / table_name / f"date={trade_date}"
     partition_dir.mkdir(parents=True, exist_ok=True)
     table = pa.Table.from_pandas(df, preserve_index=False)
     pq.write_table(table, partition_dir / "data.parquet")
 
 
-def daily_partition_exists(data_dir: Path, table_name: str, trade_date: date) -> bool:
-    path = data_dir / table_name / f"date={trade_date.strftime('%Y%m%d')}" / "data.parquet"
+def daily_partition_exists(data_dir: Path, table_name: str, trade_date: str) -> bool:
+    path = data_dir / table_name / f"date={trade_date}" / "data.parquet"
     return path.exists()
 
 
-def read_daily_partition(data_dir: Path, table_name: str, trade_date: date) -> pd.DataFrame:
-    path = data_dir / table_name / f"date={trade_date.strftime('%Y%m%d')}" / "data.parquet"
+def read_daily_partition(data_dir: Path, table_name: str, trade_date: str) -> pd.DataFrame:
+    path = data_dir / table_name / f"date={trade_date}" / "data.parquet"
     if not path.exists():
         return pd.DataFrame()
     return pq.read_table(path).to_pandas()
 
 
-def write_index_weight(data_dir: Path, index_code: str, trade_date: date, df: pd.DataFrame) -> None:
+def write_index_weight(data_dir: Path, index_code: str, trade_date: str, df: pd.DataFrame) -> None:
     partition_dir = (
-        data_dir / "index_weight" / f"index_code={index_code}" / f"date={trade_date.strftime('%Y%m%d')}"
+        data_dir / "index_weight" / f"index_code={index_code}" / f"date={trade_date}"
     )
     partition_dir.mkdir(parents=True, exist_ok=True)
     table = pa.Table.from_pandas(df, preserve_index=False)
     pq.write_table(table, partition_dir / "data.parquet")
 
 
-def index_weight_partition_exists(data_dir: Path, index_code: str, trade_date: date) -> bool:
+def index_weight_partition_exists(data_dir: Path, index_code: str, trade_date: str) -> bool:
     path = (
-        data_dir / "index_weight" / f"index_code={index_code}" / f"date={trade_date.strftime('%Y%m%d')}" / "data.parquet"
+        data_dir / "index_weight" / f"index_code={index_code}" / f"date={trade_date}" / "data.parquet"
     )
     return path.exists()
 
 
-def write_universe(data_dir: Path, universe_name: str, trade_date: date, df: pd.DataFrame) -> None:
+def write_universe(data_dir: Path, universe_name: str, trade_date: str, df: pd.DataFrame) -> None:
     partition_dir = (
-        data_dir / "universe" / f"name={universe_name}" / f"date={trade_date.strftime('%Y%m%d')}"
+        data_dir / "universe" / f"name={universe_name}" / f"date={trade_date}"
     )
     partition_dir.mkdir(parents=True, exist_ok=True)
     table = pa.Table.from_pandas(df, preserve_index=False)

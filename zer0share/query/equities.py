@@ -195,11 +195,12 @@ def universe(ctx: QueryContext, universe=None, ts_code=None, trade_date=None,
         placeholders = ", ".join("?" for _ in codes)
         where.append(f"ts_code IN ({placeholders})"); params.extend(codes)
     if trade_date is not None:
-        where.append("trade_date = ?"); params.append(parse_date(trade_date))
+        parse_date(trade_date)
+        where.append("trade_date = ?"); params.append(trade_date)
     if parsed_start is not None:
-        where.append("trade_date >= ?"); params.append(parsed_start)
+        where.append("trade_date >= ?"); params.append(start_date)
     if parsed_end is not None:
-        where.append("trade_date <= ?"); params.append(parsed_end)
+        where.append("trade_date <= ?"); params.append(end_date)
 
     pattern = table_dir / "name=*" / "date=*" / "data.parquet"
     sql = (

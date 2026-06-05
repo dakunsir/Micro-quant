@@ -1,5 +1,3 @@
-from datetime import date
-
 import pandas as pd
 import pytest
 
@@ -102,27 +100,27 @@ def test_init_creates_table(store):
 
 
 def test_update_and_get_last_date(store):
-    store.update_last_date("daily_kline", date(2024, 1, 15))
-    assert store.get_last_date("daily_kline") == date(2024, 1, 15)
+    store.update_last_date("daily_kline", "20240115")
+    assert store.get_last_date("daily_kline") == "20240115"
 
 
 def test_update_overwrites_previous(store):
-    store.update_last_date("daily_kline", date(2024, 1, 1))
-    store.update_last_date("daily_kline", date(2024, 1, 31))
-    assert store.get_last_date("daily_kline") == date(2024, 1, 31)
+    store.update_last_date("daily_kline", "20240101")
+    store.update_last_date("daily_kline", "20240131")
+    assert store.get_last_date("daily_kline") == "20240131"
 
 
 def test_different_table_names_are_independent(store):
-    store.update_last_date("daily_kline", date(2024, 1, 10))
-    store.update_last_date("basic", date(2024, 2, 20))
-    assert store.get_last_date("daily_kline") == date(2024, 1, 10)
-    assert store.get_last_date("basic") == date(2024, 2, 20)
+    store.update_last_date("daily_kline", "20240110")
+    store.update_last_date("basic", "20240220")
+    assert store.get_last_date("daily_kline") == "20240110"
+    assert store.get_last_date("basic") == "20240220"
 
 
 def test_context_manager(tmp_path):
     with MetaStore(tmp_path / "meta.duckdb") as store:
-        store.update_last_date("daily_kline", date(2024, 1, 1))
-        assert store.get_last_date("daily_kline") == date(2024, 1, 1)
+        store.update_last_date("daily_kline", "20240101")
+        assert store.get_last_date("daily_kline") == "20240101"
 
 
 def test_write_and_read_daily_kline(tmp_path):
@@ -141,8 +139,8 @@ def test_write_and_read_daily_kline(tmp_path):
             "amount": [1050000.0, 4100000.0],
         }
     )
-    write_daily_kline(tmp_path, date(2024, 1, 2), df)
-    result = read_daily_kline(tmp_path, date(2024, 1, 2))
+    write_daily_kline(tmp_path, "20240102", df)
+    result = read_daily_kline(tmp_path, "20240102")
     assert len(result) == 2
     assert set(result["ts_code"]) == {"000001.SZ", "000002.SZ"}
 
@@ -163,12 +161,12 @@ def test_daily_kline_partition_path(tmp_path):
             "amount": [1050000.0],
         }
     )
-    write_daily_kline(tmp_path, date(2024, 1, 2), df)
+    write_daily_kline(tmp_path, "20240102", df)
     assert (tmp_path / "daily_kline" / "date=20240102" / "data.parquet").exists()
 
 
 def test_daily_kline_partition_exists(tmp_path):
-    assert daily_kline_partition_exists(tmp_path, date(2024, 1, 2)) is False
+    assert daily_kline_partition_exists(tmp_path, "20240102") is False
 
     df = pd.DataFrame(
         {
@@ -185,9 +183,9 @@ def test_daily_kline_partition_exists(tmp_path):
             "amount": [1050000.0],
         }
     )
-    write_daily_kline(tmp_path, date(2024, 1, 2), df)
+    write_daily_kline(tmp_path, "20240102", df)
 
-    assert daily_kline_partition_exists(tmp_path, date(2024, 1, 2)) is True
+    assert daily_kline_partition_exists(tmp_path, "20240102") is True
 
 
 def test_write_and_read_basic(tmp_path):
@@ -210,7 +208,7 @@ def test_basic_overwrites_on_second_write(tmp_path):
 
 
 def test_read_daily_kline_returns_empty_if_not_exists(tmp_path):
-    result = read_daily_kline(tmp_path, date(2024, 1, 2))
+    result = read_daily_kline(tmp_path, "20240102")
     assert result.empty
 
 
@@ -293,14 +291,14 @@ def test_get_trading_days(tmp_path):
     write_trade_cal(tmp_path, "SSE", df)
     with MetaStore(db_path) as store:
         store.load_trade_cal_from_parquet(tmp_path)
-        days = store.get_trading_days("SSE", date(2024, 1, 1), date(2024, 1, 6))
-    assert days == [date(2024, 1, 2), date(2024, 1, 4), date(2024, 1, 6)]
+        days = store.get_trading_days("SSE", "20240101", "20240106")
+    assert days == ["20240102", "20240104", "20240106"]
 
 
 def test_get_trading_days_returns_empty_when_no_cal(tmp_path):
     db_path = tmp_path / "meta.duckdb"
     with MetaStore(db_path) as store:
-        days = store.get_trading_days("SSE", date(2024, 1, 1), date(2024, 1, 6))
+        days = store.get_trading_days("SSE", "20240101", "20240106")
     assert days == []
 
 
@@ -322,10 +320,10 @@ def test_get_trading_days_exchange_isolation(tmp_path):
     write_trade_cal(tmp_path, "SZSE", szse_df)
     with MetaStore(db_path) as store:
         store.load_trade_cal_from_parquet(tmp_path)
-        sse_days = store.get_trading_days("SSE", date(2024, 1, 1), date(2024, 1, 6))
-        szse_days = store.get_trading_days("SZSE", date(2024, 1, 1), date(2024, 1, 6))
-    assert sse_days == [date(2024, 1, 2)]
-    assert szse_days == [date(2024, 1, 3)]
+        sse_days = store.get_trading_days("SSE", "20240101", "20240106")
+        szse_days = store.get_trading_days("SZSE", "20240101", "20240106")
+    assert sse_days == ["20240102"]
+    assert szse_days == ["20240103"]
 
 
 def test_write_and_read_sw_classify(tmp_path):
@@ -522,7 +520,7 @@ def test_is_trading_day_returns_true_for_open_day(tmp_path):
     write_trade_cal(tmp_path, "SSE", df)
     with MetaStore(db_path) as store:
         store.load_trade_cal_from_parquet(tmp_path)
-        assert store.is_trading_day("SSE", date(2024, 1, 2)) is True
+        assert store.is_trading_day("SSE", "20240102") is True
 
 
 def test_is_trading_day_returns_false_for_closed_day(tmp_path):
@@ -536,7 +534,7 @@ def test_is_trading_day_returns_false_for_closed_day(tmp_path):
     write_trade_cal(tmp_path, "SSE", df)
     with MetaStore(db_path) as store:
         store.load_trade_cal_from_parquet(tmp_path)
-        assert store.is_trading_day("SSE", date(2024, 1, 3)) is False
+        assert store.is_trading_day("SSE", "20240103") is False
 
 
 def test_is_trading_day_returns_true_when_date_not_in_calendar(tmp_path):
@@ -551,10 +549,10 @@ def test_is_trading_day_returns_true_when_date_not_in_calendar(tmp_path):
     with MetaStore(db_path) as store:
         store.load_trade_cal_from_parquet(tmp_path)
         # 2024-01-10 is not in the calendar — conservative default True
-        assert store.is_trading_day("SSE", date(2024, 1, 10)) is True
+        assert store.is_trading_day("SSE", "20240110") is True
 
 
 def test_is_trading_day_returns_true_when_no_calendar_loaded(tmp_path):
     db_path = tmp_path / "meta.duckdb"
     with MetaStore(db_path) as store:
-        assert store.is_trading_day("SSE", date(2024, 1, 2)) is True
+        assert store.is_trading_day("SSE", "20240102") is True

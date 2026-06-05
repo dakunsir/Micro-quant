@@ -1,5 +1,3 @@
-from datetime import date
-
 import pandas as pd
 import pytest
 
@@ -113,11 +111,11 @@ def test_api_date_filters_reject_dash_separated_dates(tmp_path):
 def test_daily_filters_multiple_codes_by_date_range_and_formats_dates(tmp_path):
     write_daily_kline(
         tmp_path,
-        date(2024, 1, 2),
+        "20240102",
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ", "600000.SH"],
-                "trade_date": [date(2024, 1, 2), date(2024, 1, 2)],
+                "trade_date": ["20240102", "20240102"],
                 "open": [10.0, 20.0],
                 "high": [11.0, 21.0],
                 "low": [9.0, 19.0],
@@ -132,7 +130,7 @@ def test_daily_filters_multiple_codes_by_date_range_and_formats_dates(tmp_path):
     )
     write_daily_kline(
         tmp_path,
-        date(2024, 1, 3),
+        "20240103",
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ", "600000.SH"],
@@ -168,13 +166,13 @@ def test_daily_partitioned_query_handles_empty_partitions(tmp_path):
     write_daily_partition(
         tmp_path,
         "stock_st",
-        date(2024, 1, 2),
+        "20240102",
         pd.DataFrame(columns=["ts_code", "name", "trade_date", "type", "type_name"]),
     )
     write_daily_partition(
         tmp_path,
         "stock_st",
-        date(2024, 1, 3),
+        "20240103",
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
@@ -208,10 +206,10 @@ def test_universe_filters_by_name_date_and_code(tmp_path):
     write_universe(
         tmp_path,
         "univ_trade_base",
-        date(2024, 1, 2),
+        "20240102",
         pd.DataFrame(
             {
-                "trade_date": [date(2024, 1, 2), date(2024, 1, 2)],
+                "trade_date": ["20240102", "20240102"],
                 "universe": ["univ_trade_base", "univ_trade_base"],
                 "ts_code": ["000001.SZ", "600000.SH"],
             }
@@ -220,10 +218,10 @@ def test_universe_filters_by_name_date_and_code(tmp_path):
     write_universe(
         tmp_path,
         "univ_research_base",
-        date(2024, 1, 2),
+        "20240102",
         pd.DataFrame(
             {
-                "trade_date": [date(2024, 1, 2)],
+                "trade_date": ["20240102"],
                 "universe": ["univ_research_base"],
                 "ts_code": ["000001.SZ"],
             }
@@ -249,7 +247,7 @@ def test_universe_filters_by_name_date_and_code(tmp_path):
 def test_adj_factor_filters_trade_date_and_formats_dates(tmp_path):
     write_adj_factor(
         tmp_path,
-        date(2024, 1, 2),
+        "20240102",
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ", "600000.SH"],
@@ -278,7 +276,7 @@ def test_daily_rejects_ambiguous_trade_date_and_range(tmp_path):
 def test_query_dispatches_to_named_api(tmp_path):
     write_adj_factor(
         tmp_path,
-        date(2024, 1, 2),
+        "20240102",
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
@@ -363,7 +361,7 @@ def test_invalid_date_format_raises_value_error(tmp_path):
 def test_invalid_date_range_raises_value_error(tmp_path):
     write_daily_kline(
         tmp_path,
-        date(2024, 1, 2),
+        "20240102",
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
@@ -408,7 +406,7 @@ def test_trade_cal_invalid_date_range_raises_value_error(tmp_path):
 def test_pro_bar_returns_qfq_prices_using_end_date_factor(tmp_path):
     write_daily_kline(
         tmp_path,
-        date(2024, 1, 2),
+        "20240102",
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
@@ -427,7 +425,7 @@ def test_pro_bar_returns_qfq_prices_using_end_date_factor(tmp_path):
     )
     write_daily_kline(
         tmp_path,
-        date(2024, 1, 3),
+        "20240103",
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
@@ -446,7 +444,7 @@ def test_pro_bar_returns_qfq_prices_using_end_date_factor(tmp_path):
     )
     write_adj_factor(
         tmp_path,
-        date(2024, 1, 2),
+        "20240102",
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
@@ -457,7 +455,7 @@ def test_pro_bar_returns_qfq_prices_using_end_date_factor(tmp_path):
     )
     write_adj_factor(
         tmp_path,
-        date(2024, 1, 3),
+        "20240103",
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
@@ -510,7 +508,7 @@ def test_pro_bar_returns_qfq_prices_using_end_date_factor(tmp_path):
 def test_pro_bar_returns_hfq_prices(tmp_path):
     write_daily_kline(
         tmp_path,
-        date(2024, 1, 2),
+        "20240102",
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
@@ -529,7 +527,7 @@ def test_pro_bar_returns_hfq_prices(tmp_path):
     )
     write_adj_factor(
         tmp_path,
-        date(2024, 1, 2),
+        "20240102",
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
@@ -550,7 +548,7 @@ def test_pro_bar_returns_hfq_prices(tmp_path):
 def test_pro_bar_rounds_adjusted_prices_to_two_decimals(tmp_path):
     write_daily_kline(
         tmp_path,
-        date(2024, 1, 2),
+        "20240102",
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
@@ -569,7 +567,7 @@ def test_pro_bar_rounds_adjusted_prices_to_two_decimals(tmp_path):
     )
     write_adj_factor(
         tmp_path,
-        date(2024, 1, 2),
+        "20240102",
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
@@ -588,14 +586,14 @@ def test_pro_bar_rounds_adjusted_prices_to_two_decimals(tmp_path):
 def test_pro_bar_supports_multiple_codes_with_qfq_base_per_stock(tmp_path):
     for day, rows in [
         (
-            date(2024, 1, 1),
+            "20240101",
             [
                 ["000001.SZ", 10.0, 10.0],
                 ["000002.SZ", 20.0, 20.0],
             ],
         ),
         (
-            date(2024, 1, 2),
+            "20240102",
             [
                 ["000001.SZ", 12.0, 12.0],
                 ["000002.SZ", 22.0, 22.0],
@@ -608,7 +606,7 @@ def test_pro_bar_supports_multiple_codes_with_qfq_base_per_stock(tmp_path):
             pd.DataFrame(
                 {
                     "ts_code": [row[0] for row in rows],
-                    "trade_date": [day.strftime("%Y%m%d"), day.strftime("%Y%m%d")],
+                    "trade_date": [day, day],
                     "open": [row[1] for row in rows],
                     "high": [row[1] for row in rows],
                     "low": [row[1] for row in rows],
@@ -622,8 +620,8 @@ def test_pro_bar_supports_multiple_codes_with_qfq_base_per_stock(tmp_path):
             ),
         )
     for day, factors in [
-        (date(2024, 1, 1), [1.0, 10.0]),
-        (date(2024, 1, 2), [2.0, 20.0]),
+        ("20240101", [1.0, 10.0]),
+        ("20240102", [2.0, 20.0]),
     ]:
         write_adj_factor(
             tmp_path,
@@ -631,7 +629,7 @@ def test_pro_bar_supports_multiple_codes_with_qfq_base_per_stock(tmp_path):
             pd.DataFrame(
                 {
                     "ts_code": ["000001.SZ", "000002.SZ"],
-                    "trade_date": [day.strftime("%Y%m%d"), day.strftime("%Y%m%d")],
+                    "trade_date": [day, day],
                     "adj_factor": factors,
                 }
             ),
@@ -925,11 +923,11 @@ def test_ci_index_member_raises_file_not_found_with_sync_hint(tmp_path):
         pro.ci_index_member()
 
 
-def _index_daily_partition(trade_date: date, ts_codes: list[str] | None = None) -> pd.DataFrame:
+def _index_daily_partition(trade_date: str, ts_codes: list[str] | None = None) -> pd.DataFrame:
     codes = ts_codes or ["000300.SH", "000905.SH"]
     return pd.DataFrame({
         "ts_code": codes,
-        "trade_date": [trade_date.strftime("%Y%m%d")] * len(codes),
+        "trade_date": [trade_date] * len(codes),
         "open": [3500.0] * len(codes),
         "high": [3550.0] * len(codes),
         "low": [3480.0] * len(codes),
@@ -943,8 +941,8 @@ def _index_daily_partition(trade_date: date, ts_codes: list[str] | None = None) 
 
 
 def test_index_daily_returns_all_on_no_filter(tmp_path):
-    write_daily_partition(tmp_path, "index_daily", date(2024, 1, 2), _index_daily_partition(date(2024, 1, 2)))
-    write_daily_partition(tmp_path, "index_daily", date(2024, 1, 3), _index_daily_partition(date(2024, 1, 3)))
+    write_daily_partition(tmp_path, "index_daily", "20240102", _index_daily_partition("20240102"))
+    write_daily_partition(tmp_path, "index_daily", "20240103", _index_daily_partition("20240103"))
 
     pro = LocalPro(tmp_path)
     result = pro.index_daily()
@@ -953,7 +951,7 @@ def test_index_daily_returns_all_on_no_filter(tmp_path):
 
 
 def test_index_daily_filters_by_ts_code(tmp_path):
-    write_daily_partition(tmp_path, "index_daily", date(2024, 1, 2), _index_daily_partition(date(2024, 1, 2)))
+    write_daily_partition(tmp_path, "index_daily", "20240102", _index_daily_partition("20240102"))
 
     pro = LocalPro(tmp_path)
     result = pro.index_daily(ts_code="000300.SH")
@@ -963,8 +961,8 @@ def test_index_daily_filters_by_ts_code(tmp_path):
 
 
 def test_index_daily_filters_by_trade_date(tmp_path):
-    write_daily_partition(tmp_path, "index_daily", date(2024, 1, 2), _index_daily_partition(date(2024, 1, 2)))
-    write_daily_partition(tmp_path, "index_daily", date(2024, 1, 3), _index_daily_partition(date(2024, 1, 3)))
+    write_daily_partition(tmp_path, "index_daily", "20240102", _index_daily_partition("20240102"))
+    write_daily_partition(tmp_path, "index_daily", "20240103", _index_daily_partition("20240103"))
 
     pro = LocalPro(tmp_path)
     result = pro.index_daily(trade_date="20240102")
@@ -974,9 +972,9 @@ def test_index_daily_filters_by_trade_date(tmp_path):
 
 
 def test_index_daily_filters_by_date_range(tmp_path):
-    write_daily_partition(tmp_path, "index_daily", date(2024, 1, 2), _index_daily_partition(date(2024, 1, 2)))
-    write_daily_partition(tmp_path, "index_daily", date(2024, 1, 3), _index_daily_partition(date(2024, 1, 3)))
-    write_daily_partition(tmp_path, "index_daily", date(2024, 1, 4), _index_daily_partition(date(2024, 1, 4)))
+    write_daily_partition(tmp_path, "index_daily", "20240102", _index_daily_partition("20240102"))
+    write_daily_partition(tmp_path, "index_daily", "20240103", _index_daily_partition("20240103"))
+    write_daily_partition(tmp_path, "index_daily", "20240104", _index_daily_partition("20240104"))
 
     pro = LocalPro(tmp_path)
     result = pro.index_daily(start_date="20240102", end_date="20240103")
@@ -994,7 +992,7 @@ def test_index_daily_raises_when_data_missing(tmp_path):
 
 
 def test_index_daily_fields_filter(tmp_path):
-    write_daily_partition(tmp_path, "index_daily", date(2024, 1, 2), _index_daily_partition(date(2024, 1, 2)))
+    write_daily_partition(tmp_path, "index_daily", "20240102", _index_daily_partition("20240102"))
 
     pro = LocalPro(tmp_path)
     result = pro.index_daily(ts_code="000300.SH", fields="ts_code,trade_date,close")
@@ -1003,7 +1001,7 @@ def test_index_daily_fields_filter(tmp_path):
 
 
 def test_index_daily_in_query_dispatch(tmp_path):
-    write_daily_partition(tmp_path, "index_daily", date(2024, 1, 2), _index_daily_partition(date(2024, 1, 2)))
+    write_daily_partition(tmp_path, "index_daily", "20240102", _index_daily_partition("20240102"))
 
     pro = LocalPro(tmp_path)
     result = pro.query("index_daily", ts_code="000300.SH")
@@ -1026,7 +1024,7 @@ def _write_fut_daily_data(data_dir, trade_date, ts_codes=None):
     for ts_code in ts_codes:
         rows.append({
             "ts_code": ts_code,
-            "trade_date": trade_date.strftime("%Y%m%d"),
+            "trade_date": trade_date,
             "pre_close": 50000.0,
             "pre_settle": 50100.0,
             "open": 50200.0,
@@ -1054,7 +1052,6 @@ def futures_api(tmp_path):
 
 
 def test_fut_basic_query_returns_data(tmp_path, futures_api):
-    from datetime import date as dt
     df = pd.DataFrame({
         "ts_code": ["CU2401.SHF", "AG2401.SHF"],
         "symbol": ["CU2401", "AG2401"],
@@ -1073,7 +1070,7 @@ def test_fut_basic_query_returns_data(tmp_path, futures_api):
         "last_ddate": ["20240115", "20240115"],
         "trade_time_desc": [None, None],
     })
-    write_daily_partition(tmp_path / "futures", "fut_basic", dt(2024, 1, 2), df)
+    write_daily_partition(tmp_path / "futures", "fut_basic", "20240102", df)
 
     result = futures_api.fut_basic()
     assert len(result) == 2
@@ -1081,7 +1078,6 @@ def test_fut_basic_query_returns_data(tmp_path, futures_api):
 
 
 def test_fut_basic_query_filters_by_exchange(tmp_path, futures_api):
-    from datetime import date as dt
     df = pd.DataFrame({
         "ts_code": ["CU2401.SHF", "A2505.DCE"],
         "symbol": ["CU2401", "A2505"],
@@ -1100,7 +1096,7 @@ def test_fut_basic_query_filters_by_exchange(tmp_path, futures_api):
         "last_ddate": ["20240115", "20240515"],
         "trade_time_desc": [None, None],
     })
-    write_daily_partition(tmp_path / "futures", "fut_basic", dt(2024, 1, 2), df)
+    write_daily_partition(tmp_path / "futures", "fut_basic", "20240102", df)
 
     result = futures_api.fut_basic(exchange="DCE")
     assert len(result) == 1
@@ -1108,18 +1104,16 @@ def test_fut_basic_query_filters_by_exchange(tmp_path, futures_api):
 
 
 def test_fut_daily_query_returns_data(tmp_path):
-    from datetime import date as dt
     api = LocalPro(tmp_path)
-    _write_fut_daily_data(tmp_path, dt(2024, 1, 2))
+    _write_fut_daily_data(tmp_path, "20240102")
 
     result = api.fut_daily(trade_date="20240102")
     assert len(result) == 2
 
 
 def test_fut_daily_query_filters_by_ts_code(tmp_path):
-    from datetime import date as dt
     api = LocalPro(tmp_path)
-    _write_fut_daily_data(tmp_path, dt(2024, 1, 2))
+    _write_fut_daily_data(tmp_path, "20240102")
 
     result = api.fut_daily(ts_code="CU2401.SHF", trade_date="20240102")
     assert len(result) == 1
@@ -1133,7 +1127,6 @@ def test_fut_daily_query_raises_when_no_data(tmp_path):
 
 
 def test_fut_holding_query_returns_data(tmp_path):
-    from datetime import date as dt
     api = LocalPro(tmp_path)
     df = pd.DataFrame({
         "trade_date": ["20240102", "20240102"],
@@ -1147,30 +1140,28 @@ def test_fut_holding_query_returns_data(tmp_path):
         "short_chg": [-100, 300],
         "exchange": ["SHFE", "SHFE"],
     })
-    write_daily_partition(tmp_path / "futures", "fut_holding", dt(2024, 1, 2), df)
+    write_daily_partition(tmp_path / "futures", "fut_holding", "20240102", df)
 
     result = api.fut_holding(trade_date="20240102")
     assert len(result) == 2
 
 
 def test_fut_mapping_query_returns_data(tmp_path):
-    from datetime import date as dt
     api = LocalPro(tmp_path)
     df = pd.DataFrame({
         "ts_code": ["CU.SHF", "AG.SHF"],
         "trade_date": ["20240102", "20240102"],
         "mapping_ts_code": ["CU2401.SHF", "AG2401.SHF"],
     })
-    write_daily_partition(tmp_path / "futures", "fut_mapping", dt(2024, 1, 2), df)
+    write_daily_partition(tmp_path / "futures", "fut_mapping", "20240102", df)
 
     result = api.fut_mapping(trade_date="20240102")
     assert len(result) == 2
 
 
 def test_query_dispatch_supports_futures(tmp_path):
-    from datetime import date as dt
     api = LocalPro(tmp_path)
-    _write_fut_daily_data(tmp_path, dt(2024, 1, 2))
+    _write_fut_daily_data(tmp_path, "20240102")
 
     result = api.query("fut_daily", trade_date="20240102")
     assert len(result) == 2
@@ -1180,7 +1171,6 @@ def test_query_dispatch_supports_futures(tmp_path):
 
 
 def test_ft_limit_query_returns_data(tmp_path):
-    from datetime import date as dt
     api = LocalPro(tmp_path)
     df = pd.DataFrame({
         "trade_date": ["20240102"],
@@ -1188,14 +1178,13 @@ def test_ft_limit_query_returns_data(tmp_path):
         "up_limit": [51000.0], "down_limit": [49000.0],
         "m_ratio": [0.10], "cont": ["CU"], "exchange": ["SHFE"],
     })
-    write_daily_partition(tmp_path / "futures", "ft_limit", dt(2024, 1, 2), df)
+    write_daily_partition(tmp_path / "futures", "ft_limit", "20240102", df)
 
     result = api.ft_limit(trade_date="20240102")
     assert len(result) == 1
 
 
 def test_fut_weekly_query_returns_data(tmp_path):
-    from datetime import date as dt
     api = LocalPro(tmp_path)
     df = pd.DataFrame({
         "ts_code": ["CU2401.SHF"], "trade_date": ["20240102"],
@@ -1205,14 +1194,13 @@ def test_fut_weekly_query_returns_data(tmp_path):
         "amount": [251250.0], "oi": [50000.0], "oi_chg": [500.0],
         "exchange": ["SHFE"], "change1": [200.0], "change2": [150.0],
     })
-    write_daily_partition(tmp_path / "futures", "fut_weekly", dt(2024, 1, 2), df)
+    write_daily_partition(tmp_path / "futures", "fut_weekly", "20240102", df)
 
     result = api.fut_weekly(trade_date="20240102")
     assert len(result) == 1
 
 
 def test_fut_monthly_query_returns_data(tmp_path):
-    from datetime import date as dt
     api = LocalPro(tmp_path)
     df = pd.DataFrame({
         "ts_code": ["CU2401.SHF"], "trade_date": ["20240102"],
@@ -1222,14 +1210,13 @@ def test_fut_monthly_query_returns_data(tmp_path):
         "amount": [251250.0], "oi": [50000.0], "oi_chg": [500.0],
         "exchange": ["SHFE"], "change1": [200.0], "change2": [150.0],
     })
-    write_daily_partition(tmp_path / "futures", "fut_monthly", dt(2024, 1, 2), df)
+    write_daily_partition(tmp_path / "futures", "fut_monthly", "20240102", df)
 
     result = api.fut_monthly(trade_date="20240102")
     assert len(result) == 1
 
 
 def test_fut_index_daily_query_returns_data(tmp_path):
-    from datetime import date as dt
     api = LocalPro(tmp_path)
     df = pd.DataFrame({
         "ts_code": ["NHAI.NH", "NHCI.NH"],
@@ -1240,14 +1227,13 @@ def test_fut_index_daily_query_returns_data(tmp_path):
         "pct_chg": [0.2, 0.25], "vol": [50000.0, 30000.0],
         "amount": [50000000.0, 24000000.0],
     })
-    write_daily_partition(tmp_path / "futures", "fut_index_daily", dt(2024, 1, 2), df)
+    write_daily_partition(tmp_path / "futures", "fut_index_daily", "20240102", df)
 
     result = api.fut_index_daily(trade_date="20240102")
     assert len(result) == 2
 
 
 def test_fut_weekly_detail_query_returns_data(tmp_path):
-    from datetime import date as dt
     api = LocalPro(tmp_path)
     df = pd.DataFrame({
         "exchange": ["SHFE", "DCE"],
@@ -1259,23 +1245,22 @@ def test_fut_weekly_detail_query_returns_data(tmp_path):
         "cumamt": [12500.0, 20000.0], "cumamt_yoy": [2.0, 1.0],
         "open_interest": [200000, 150000], "interest_wow": [1.0, -0.5],
         "mc_close": [50300.0, 5000.0], "close_wow": [0.5, -0.3],
-        "week": ["202401", "202401"], "week_date": [dt(2024, 1, 1), dt(2024, 1, 1)],
+        "week": ["202401", "202401"], "week_date": ["20240101", "20240101"],
     })
-    write_daily_partition(tmp_path / "futures", "fut_weekly_detail", dt(2024, 1, 1), df)
+    write_daily_partition(tmp_path / "futures", "fut_weekly_detail", "20240101", df)
 
     result = api.fut_weekly_detail()
     assert len(result) == 2
 
 
 def test_batch2_query_dispatch(tmp_path):
-    from datetime import date as dt
     api = LocalPro(tmp_path)
     df = pd.DataFrame({
         "trade_date": ["20240102"], "ts_code": ["CU2401.SHF"],
         "name": ["沪铜2401"], "up_limit": [51000.0], "down_limit": [49000.0],
         "m_ratio": [0.10], "cont": ["CU"], "exchange": ["SHFE"],
     })
-    write_daily_partition(tmp_path / "futures", "ft_limit", dt(2024, 1, 2), df)
+    write_daily_partition(tmp_path / "futures", "ft_limit", "20240102", df)
 
     result = api.query("ft_limit", trade_date="20240102")
     assert len(result) == 1
@@ -1292,7 +1277,7 @@ def _write_opt_daily_data(data_dir, trade_date, ts_codes=None):
     for ts_code in ts_codes:
         rows.append({
             "ts_code": ts_code,
-            "trade_date": trade_date.strftime("%Y%m%d"),
+            "trade_date": trade_date,
             "exchange": "SSE",
             "pre_settle": 0.15,
             "pre_close": 0.148,
@@ -1422,8 +1407,7 @@ def test_opt_basic_query_raises_when_no_data(tmp_path):
 
 
 def test_opt_daily_query_returns_data(tmp_path):
-    from datetime import date as dt
-    _write_opt_daily_data(tmp_path, dt(2024, 1, 2))
+    _write_opt_daily_data(tmp_path, "20240102")
 
     api = LocalPro(tmp_path)
     result = api.opt_daily(trade_date="20240102")
@@ -1432,8 +1416,7 @@ def test_opt_daily_query_returns_data(tmp_path):
 
 
 def test_opt_daily_query_filters_by_ts_code(tmp_path):
-    from datetime import date as dt
-    _write_opt_daily_data(tmp_path, dt(2024, 1, 2))
+    _write_opt_daily_data(tmp_path, "20240102")
 
     api = LocalPro(tmp_path)
     result = api.opt_daily(ts_code="10004462.SH", trade_date="20240102")
@@ -1448,7 +1431,6 @@ def test_opt_daily_query_raises_when_no_data(tmp_path):
 
 
 def test_opt_daily_query_filters_by_exchange(tmp_path):
-    from datetime import date as dt
     rows = []
     for ts_code in ["10004462.SH", "10004463.SH"]:
         rows.append({
@@ -1469,7 +1451,7 @@ def test_opt_daily_query_filters_by_exchange(tmp_path):
         "close": 0.205, "settle": 0.204,
         "vol": 3000.0, "amount": 6120000.0, "oi": 10000.0,
     })
-    write_daily_partition(tmp_path / "options", "opt_daily", dt(2024, 1, 2), pd.DataFrame(rows))
+    write_daily_partition(tmp_path / "options", "opt_daily", "20240102", pd.DataFrame(rows))
 
     api = LocalPro(tmp_path)
     result = api.opt_daily(trade_date="20240102", exchange="SSE")
@@ -1478,10 +1460,9 @@ def test_opt_daily_query_filters_by_exchange(tmp_path):
 
 
 def test_opt_daily_supports_limit_and_offset(tmp_path):
-    from datetime import date as dt
     _write_opt_daily_data(
         tmp_path,
-        dt(2024, 1, 2),
+        "20240102",
         ts_codes=["10004462.SH", "10004463.SH", "10004464.SH"],
     )
 
@@ -1494,8 +1475,7 @@ def test_opt_daily_supports_limit_and_offset(tmp_path):
 
 
 def test_query_dispatch_supports_options(tmp_path):
-    from datetime import date as dt
-    _write_opt_daily_data(tmp_path, dt(2024, 1, 2))
+    _write_opt_daily_data(tmp_path, "20240102")
 
     api = LocalPro(tmp_path)
     result = api.query("opt_daily", trade_date="20240102")
