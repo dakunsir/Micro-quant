@@ -52,15 +52,18 @@ def pipeline(cfg):
 
 def test_sync_basic_first_run_writes_parquet(pipeline, cfg):
     pipeline._fetcher.fetch_basic.return_value = _basic_df()
-    pipeline.sync_basic()
+    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False):
+        pipeline.sync_basic()
     assert (cfg.data_dir / "basic" / "data.parquet").exists()
 
 
 def test_sync_basic_refreshes_even_if_recently_updated(pipeline):
     pipeline._fetcher.fetch_basic.return_value = _basic_df()
-    pipeline.sync_basic()
+    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False):
+        pipeline.sync_basic()
     pipeline._fetcher.fetch_basic.reset_mock()
-    pipeline.sync_basic()
+    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False):
+        pipeline.sync_basic()
     pipeline._fetcher.fetch_basic.assert_called_once()
 
 
@@ -161,7 +164,8 @@ def test_sync_daily_kline_already_up_to_date(pipeline, cfg):
 
 def test_sync_basic_failure_sends_alert_and_raises(pipeline):
     pipeline._fetcher.fetch_basic.side_effect = RuntimeError("API error")
-    with pytest.raises(RuntimeError):
+    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
+         pytest.raises(RuntimeError):
         pipeline.sync_basic()
     pipeline._notifier.send.assert_called_once()
     msg = pipeline._notifier.send.call_args[0][0]
@@ -602,7 +606,8 @@ def test_sync_industry_writes_sw_classify_and_member(pipeline, cfg):
     pipeline._fetcher.fetch_sw_classify.return_value = classify_df
     pipeline._fetcher.fetch_sw_member.return_value = member_df
 
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
+         patch("zer0share.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 5, 18)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_industry()
@@ -615,7 +620,8 @@ def test_sync_industry_writes_sw_classify_and_member(pipeline, cfg):
 
 def test_sync_industry_failure_sends_alert_and_raises(pipeline):
     pipeline._fetcher.fetch_sw_classify.side_effect = RuntimeError("API error")
-    with pytest.raises(RuntimeError):
+    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
+         pytest.raises(RuntimeError):
         pipeline.sync_industry()
     pipeline._notifier.send.assert_called_once()
     msg = pipeline._notifier.send.call_args[0][0]
@@ -632,7 +638,8 @@ def test_sync_ci_member_writes_parquet(pipeline, cfg):
     })
     pipeline._fetcher.fetch_ci_member.return_value = member_df
 
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
+         patch("zer0share.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 5, 18)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_ci_member()
@@ -643,7 +650,8 @@ def test_sync_ci_member_writes_parquet(pipeline, cfg):
 
 def test_sync_ci_member_failure_sends_alert_and_raises(pipeline):
     pipeline._fetcher.fetch_ci_member.side_effect = RuntimeError("API error")
-    with pytest.raises(RuntimeError):
+    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
+         pytest.raises(RuntimeError):
         pipeline.sync_ci_member()
     pipeline._notifier.send.assert_called_once()
     msg = pipeline._notifier.send.call_args[0][0]
@@ -782,7 +790,8 @@ def test_sync_fut_basic_writes_to_futures_subdir(pipeline, cfg):
 
     pipeline._fetcher.fetch_fut_basic.side_effect = fut_basic_side_effect
 
-    with patch("zer0share.pipeline.time.sleep"), \
+    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
+         patch("zer0share.pipeline.time.sleep"), \
          patch("zer0share.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
@@ -795,7 +804,8 @@ def test_sync_fut_basic_writes_to_futures_subdir(pipeline, cfg):
 def test_sync_fut_basic_calls_all_exchanges_and_types(pipeline, cfg):
     pipeline._fetcher.fetch_fut_basic.return_value = pd.DataFrame()
 
-    with patch("zer0share.pipeline.time.sleep"), \
+    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
+         patch("zer0share.pipeline.time.sleep"), \
          patch("zer0share.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
@@ -809,7 +819,8 @@ def test_sync_fut_basic_calls_all_exchanges_and_types(pipeline, cfg):
 
 def test_sync_fut_basic_failure_sends_alert_and_raises(pipeline, cfg):
     pipeline._fetcher.fetch_fut_basic.side_effect = RuntimeError("API error")
-    with pytest.raises(RuntimeError):
+    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
+         pytest.raises(RuntimeError):
         pipeline.sync_fut_basic()
     pipeline._notifier.send.assert_called_once()
     msg = pipeline._notifier.send.call_args[0][0]
@@ -939,7 +950,8 @@ def test_sync_fut_index_daily_writes_to_futures_subdir(pipeline, cfg):
     })
     pipeline._meta.update_last_date("fut_index_daily", date(2024, 1, 1))
 
-    with patch("zer0share.pipeline.date") as mock_date, \
+    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
+         patch("zer0share.pipeline.date") as mock_date, \
          patch("zer0share.pipeline.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
@@ -997,7 +1009,8 @@ def test_sync_opt_basic_writes_to_options_subdir(pipeline, cfg):
 
     pipeline._fetcher.fetch_opt_basic.side_effect = opt_basic_side_effect
 
-    with patch("zer0share.pipeline.time.sleep"), \
+    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
+         patch("zer0share.pipeline.time.sleep"), \
          patch("zer0share.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
@@ -1010,7 +1023,8 @@ def test_sync_opt_basic_writes_to_options_subdir(pipeline, cfg):
 def test_sync_opt_basic_calls_all_exchanges(pipeline, cfg):
     pipeline._fetcher.fetch_opt_basic.return_value = pd.DataFrame()
 
-    with patch("zer0share.pipeline.time.sleep"), \
+    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
+         patch("zer0share.pipeline.time.sleep"), \
          patch("zer0share.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
@@ -1023,7 +1037,8 @@ def test_sync_opt_basic_calls_all_exchanges(pipeline, cfg):
 
 def test_sync_opt_basic_failure_sends_alert_and_raises(pipeline, cfg):
     pipeline._fetcher.fetch_opt_basic.side_effect = RuntimeError("API error")
-    with pytest.raises(RuntimeError):
+    with patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False), \
+         pytest.raises(RuntimeError):
         pipeline.sync_opt_basic()
     pipeline._notifier.send.assert_called_once()
     msg = pipeline._notifier.send.call_args[0][0]
