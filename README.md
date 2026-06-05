@@ -203,6 +203,9 @@ qfq = pro.pro_bar(
     adj="qfq",
 )
 
+# 股票池
+pool = pro.universe("univ_trade_hs300", trade_date="20240131")   # 某日沪深300交易池
+
 # 期货数据
 fut_contracts = pro.fut_basic(exchange="SHFE")                                    # 上期所期货合约列表
 fut_bar = pro.fut_daily(ts_code="RB2410.SHFE", start_date="20240101", end_date="20240331")
