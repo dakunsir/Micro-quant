@@ -1,7 +1,5 @@
 import duckdb
 import pandas as pd
-from pathlib import Path
-from datetime import timedelta
 
 from zer0share.query import QueryContext
 from zer0share.query._helpers import (
@@ -232,7 +230,6 @@ def pro_bar(ctx: QueryContext, ts_code: str, start_date=None, end_date=None,
     if adj not in (None, "qfq", "hfq"):
         raise ValueError("adj must be one of None, 'qfq', or 'hfq'")
 
-    import pandas as pd
     daily_df = daily(ctx, ts_code=ts_code, trade_date=trade_date,
                      start_date=start_date, end_date=end_date)
     if adj is None or daily_df.empty:
