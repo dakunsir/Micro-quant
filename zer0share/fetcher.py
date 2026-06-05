@@ -180,12 +180,6 @@ class TushareFetcher:
             list_status="L,D,P,G",
             fields=",".join(BASIC_COLS)
         )
-        df["list_date"] = pd.to_datetime(
-            df["list_date"], format="%Y%m%d", errors="coerce"
-        ).dt.date
-        df["delist_date"] = pd.to_datetime(
-            df["delist_date"], format="%Y%m%d", errors="coerce"
-        ).apply(lambda x: x.date() if not pd.isnull(x) else None)
         return df[BASIC_COLS]
 
     def fetch_daily_kline(self, trade_date: date) -> pd.DataFrame:
@@ -194,9 +188,6 @@ class TushareFetcher:
         df = self._pro.daily(trade_date=date_str, fields=",".join(DAILY_COLS))
         if df is None or df.empty:
             return pd.DataFrame(columns=DAILY_COLS)
-        df["trade_date"] = pd.to_datetime(
-            df["trade_date"], format="%Y%m%d"
-        ).dt.date
         return df[DAILY_COLS]
 
     def fetch_adj_factor(self, trade_date: date) -> pd.DataFrame:
@@ -205,9 +196,6 @@ class TushareFetcher:
         df = self._pro.adj_factor(trade_date=date_str, fields=",".join(ADJ_FACTOR_COLS))
         if df is None or df.empty:
             return pd.DataFrame(columns=ADJ_FACTOR_COLS)
-        df["trade_date"] = pd.to_datetime(
-            df["trade_date"], format="%Y%m%d"
-        ).dt.date
         return df[ADJ_FACTOR_COLS]
 
     def fetch_daily_basic(self, trade_date: date) -> pd.DataFrame:
@@ -218,13 +206,13 @@ class TushareFetcher:
             trade_date=date_str,
             fields=",".join(DAILY_BASIC_COLS),
         )
-        return _format_trade_date(df, DAILY_BASIC_COLS)
+        return _select_columns_or_empty(df, DAILY_BASIC_COLS)
 
     def fetch_stock_st(self, trade_date: date) -> pd.DataFrame:
         date_str = trade_date.strftime("%Y%m%d")
         logger.debug(f"拉取ST股票列表: {date_str}")
         df = self._pro.stock_st(trade_date=date_str, fields=",".join(STOCK_ST_COLS))
-        return _format_trade_date(df, STOCK_ST_COLS)
+        return _select_columns_or_empty(df, STOCK_ST_COLS)
 
     def fetch_suspend_d(self, trade_date: date) -> pd.DataFrame:
         date_str = trade_date.strftime("%Y%m%d")
@@ -234,13 +222,13 @@ class TushareFetcher:
             suspend_type="S",
             fields=",".join(SUSPEND_D_COLS),
         )
-        return _format_trade_date(df, SUSPEND_D_COLS)
+        return _select_columns_or_empty(df, SUSPEND_D_COLS)
 
     def fetch_stk_limit(self, trade_date: date) -> pd.DataFrame:
         date_str = trade_date.strftime("%Y%m%d")
         logger.debug(f"拉取每日涨跌停价格: {date_str}")
         df = self._pro.stk_limit(trade_date=date_str, fields=",".join(STK_LIMIT_COLS))
-        return _format_trade_date(df, STK_LIMIT_COLS)
+        return _select_columns_or_empty(df, STK_LIMIT_COLS)
 
     def fetch_index_weight(
         self, index_code: str, start_date: date, end_date: date
@@ -255,7 +243,7 @@ class TushareFetcher:
             end_date=end_date.strftime("%Y%m%d"),
             fields=",".join(INDEX_WEIGHT_COLS),
         )
-        return _format_trade_date(df, INDEX_WEIGHT_COLS)
+        return _select_columns_or_empty(df, INDEX_WEIGHT_COLS)
 
     def fetch_index_daily(
         self, ts_code: str, start_date: date, end_date: date
@@ -270,7 +258,7 @@ class TushareFetcher:
             end_date=end_date.strftime("%Y%m%d"),
             fields=",".join(INDEX_DAILY_COLS),
         )
-        return _format_trade_date(df, INDEX_DAILY_COLS)
+        return _select_columns_or_empty(df, INDEX_DAILY_COLS)
 
     def fetch_trade_cal(
         self,
@@ -292,12 +280,6 @@ class TushareFetcher:
         )
         if df is None or df.empty:
             return pd.DataFrame(columns=TRADE_CAL_COLS)
-        df["cal_date"] = pd.to_datetime(
-            df["cal_date"], format="%Y%m%d", errors="coerce"
-        ).dt.date
-        df["pretrade_date"] = pd.to_datetime(
-            df["pretrade_date"], format="%Y%m%d", errors="coerce"
-        ).apply(lambda x: x.date() if not pd.isnull(x) else None)
         df["is_open"] = df["is_open"].astype(str).map({"1": True, "0": False}).astype(object)
         return df[TRADE_CAL_COLS]
 
@@ -310,48 +292,43 @@ class TushareFetcher:
         )
         if df is None or df.empty:
             return pd.DataFrame(columns=FUT_BASIC_COLS)
-        for col in ("list_date", "delist_date", "last_ddate"):
-            if col in df.columns:
-                df[col] = pd.to_datetime(
-                    df[col], format="%Y%m%d", errors="coerce"
-                ).apply(lambda x: x.date() if not pd.isna(x) and not pd.isnull(x) else None)
         return df[FUT_BASIC_COLS]
 
     def fetch_fut_daily(self, trade_date: date) -> pd.DataFrame:
         date_str = trade_date.strftime("%Y%m%d")
         logger.debug(f"拉取期货日线: {date_str}")
         df = self._pro.fut_daily(trade_date=date_str, fields=",".join(FUT_DAILY_COLS))
-        return _format_trade_date(df, FUT_DAILY_COLS)
+        return _select_columns_or_empty(df, FUT_DAILY_COLS)
 
     def fetch_fut_holding(self, trade_date: date) -> pd.DataFrame:
         date_str = trade_date.strftime("%Y%m%d")
         logger.debug(f"拉取期货持仓排名: {date_str}")
         df = self._pro.fut_holding(trade_date=date_str, fields=",".join(FUT_HOLDING_COLS))
-        return _format_trade_date(df, FUT_HOLDING_COLS)
+        return _select_columns_or_empty(df, FUT_HOLDING_COLS)
 
     def fetch_fut_wsr(self, trade_date: date) -> pd.DataFrame:
         date_str = trade_date.strftime("%Y%m%d")
         logger.debug(f"拉取期货仓单: {date_str}")
         df = self._pro.fut_wsr(trade_date=date_str, fields=",".join(FUT_WSR_COLS))
-        return _format_trade_date(df, FUT_WSR_COLS)
+        return _select_columns_or_empty(df, FUT_WSR_COLS)
 
     def fetch_fut_settle(self, trade_date: date) -> pd.DataFrame:
         date_str = trade_date.strftime("%Y%m%d")
         logger.debug(f"拉取期货结算参数: {date_str}")
         df = self._pro.fut_settle(trade_date=date_str, fields=",".join(FUT_SETTLE_COLS))
-        return _format_trade_date(df, FUT_SETTLE_COLS)
+        return _select_columns_or_empty(df, FUT_SETTLE_COLS)
 
     def fetch_fut_mapping(self, trade_date: date) -> pd.DataFrame:
         date_str = trade_date.strftime("%Y%m%d")
         logger.debug(f"拉取期货主力映射: {date_str}")
         df = self._pro.fut_mapping(trade_date=date_str, fields=",".join(FUT_MAPPING_COLS))
-        return _format_trade_date(df, FUT_MAPPING_COLS)
+        return _select_columns_or_empty(df, FUT_MAPPING_COLS)
 
     def fetch_ft_limit(self, trade_date: date) -> pd.DataFrame:
         date_str = trade_date.strftime("%Y%m%d")
         logger.debug(f"拉取期货涨跌停: {date_str}")
         df = self._pro.ft_limit(trade_date=date_str, fields=",".join(FT_LIMIT_COLS))
-        return _format_trade_date(df, FT_LIMIT_COLS)
+        return _select_columns_or_empty(df, FT_LIMIT_COLS)
 
     def fetch_fut_weekly(self, trade_date: date) -> pd.DataFrame:
         date_str = trade_date.strftime("%Y%m%d")
@@ -359,7 +336,7 @@ class TushareFetcher:
         df = self._pro.fut_weekly_monthly(
             trade_date=date_str, freq="week", fields=",".join(FUT_WEEKLY_COLS),
         )
-        return _format_trade_date(df, FUT_WEEKLY_COLS)
+        return _select_columns_or_empty(df, FUT_WEEKLY_COLS)
 
     def fetch_fut_monthly(self, trade_date: date) -> pd.DataFrame:
         date_str = trade_date.strftime("%Y%m%d")
@@ -367,7 +344,7 @@ class TushareFetcher:
         df = self._pro.fut_weekly_monthly(
             trade_date=date_str, freq="month", fields=",".join(FUT_MONTHLY_COLS),
         )
-        return _format_trade_date(df, FUT_MONTHLY_COLS)
+        return _select_columns_or_empty(df, FUT_MONTHLY_COLS)
 
     def fetch_fut_index_daily(self, trade_date: date) -> pd.DataFrame:
         date_str = trade_date.strftime("%Y%m%d")
@@ -375,7 +352,7 @@ class TushareFetcher:
         df = self._pro.fut_index_daily(
             trade_date=date_str, fields=",".join(FUT_INDEX_DAILY_COLS),
         )
-        return _format_trade_date(df, FUT_INDEX_DAILY_COLS)
+        return _select_columns_or_empty(df, FUT_INDEX_DAILY_COLS)
 
     def fetch_fut_weekly_detail(self, week: str) -> pd.DataFrame:
         logger.debug(f"拉取期货品种周报: {week}")
@@ -384,10 +361,6 @@ class TushareFetcher:
         )
         if df is None or df.empty:
             return pd.DataFrame(columns=FUT_WEEKLY_DETAIL_COLS)
-        if "week_date" in df.columns:
-            df["week_date"] = pd.to_datetime(
-                df["week_date"], format="%Y%m%d", errors="coerce"
-            ).apply(lambda x: x.date() if not pd.isna(x) and not pd.isnull(x) else None)
         return df[FUT_WEEKLY_DETAIL_COLS]
 
     def fetch_opt_basic(self, exchange: str) -> pd.DataFrame:
@@ -401,7 +374,7 @@ class TushareFetcher:
         date_str = trade_date.strftime("%Y%m%d")
         logger.debug(f"拉取期权日线: {date_str}")
         df = self._pro.opt_daily(trade_date=date_str, fields=",".join(OPT_DAILY_COLS))
-        return _format_trade_date(df, OPT_DAILY_COLS)
+        return _select_columns_or_empty(df, OPT_DAILY_COLS)
 
     SW_VERSIONS = ("SW2014", "SW2021")
 
@@ -440,7 +413,7 @@ class TushareFetcher:
             .drop_duplicates(subset=["ts_code", "l3_code", "in_date"], keep="last")
             .reset_index(drop=True)
         )
-        return _format_industry_dates(result, SW_MEMBER_COLS)
+        return _select_columns_or_empty(result, SW_MEMBER_COLS)
 
     def fetch_ci_member(self) -> pd.DataFrame:
         initial_df = self._pro.ci_index_member()
@@ -462,23 +435,10 @@ class TushareFetcher:
             .drop_duplicates(subset=["ts_code", "l3_code", "in_date"], keep="last")
             .reset_index(drop=True)
         )
-        return _format_industry_dates(result, CI_MEMBER_COLS)
+        return _select_columns_or_empty(result, CI_MEMBER_COLS)
 
 
-def _format_trade_date(df: pd.DataFrame | None, columns: list[str]) -> pd.DataFrame:
+def _select_columns_or_empty(df: pd.DataFrame | None, columns: list[str]) -> pd.DataFrame:
     if df is None or df.empty:
         return pd.DataFrame(columns=columns)
-    df["trade_date"] = pd.to_datetime(
-        df["trade_date"], format="%Y%m%d", errors="coerce"
-    ).dt.date
-    return df[columns]
-
-
-def _format_industry_dates(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
-    if df is None or df.empty:
-        return pd.DataFrame(columns=columns)
-    for col in ("in_date", "out_date"):
-        df[col] = pd.to_datetime(df[col], format="%Y%m%d", errors="coerce").apply(
-            lambda x: x.date() if not pd.isna(x) and not pd.isnull(x) else None
-        )
     return df[columns]

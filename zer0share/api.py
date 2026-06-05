@@ -83,8 +83,7 @@ class LocalPro:
             sql += " WHERE " + " AND ".join(where)
         sql += " ORDER BY ts_code"
 
-        df = duckdb.connect().execute(sql, [str(path), *params]).fetchdf()
-        return _format_date_columns(df, ["list_date", "delist_date"])
+        return duckdb.connect().execute(sql, [str(path), *params]).fetchdf()
 
     def trade_cal(
         self,
@@ -109,10 +108,10 @@ class LocalPro:
             raise ValueError("end_date must be on or after start_date")
         if parsed_start is not None:
             where.append("cal_date >= ?")
-            params.append(parsed_start)
+            params.append(parsed_start.strftime("%Y%m%d"))
         if parsed_end is not None:
             where.append("cal_date <= ?")
-            params.append(parsed_end)
+            params.append(parsed_end.strftime("%Y%m%d"))
         if is_open is not None:
             where.append("is_open = ?")
             params.append(_parse_is_open(is_open))
@@ -122,8 +121,7 @@ class LocalPro:
             f"SELECT {', '.join(columns)} FROM read_parquet(?, hive_partitioning=true) "
             f"WHERE {' AND '.join(where)} ORDER BY exchange, cal_date"
         )
-        df = duckdb.connect().execute(sql, [str(pattern), *params]).fetchdf()
-        return _format_date_columns(df, ["cal_date", "pretrade_date"])
+        return duckdb.connect().execute(sql, [str(pattern), *params]).fetchdf()
 
     def daily(
         self,
@@ -287,13 +285,13 @@ class LocalPro:
             params.append(index_code)
         if trade_date is not None:
             where.append("trade_date = ?")
-            params.append(_parse_date(trade_date))
+            params.append(_parse_date(trade_date).strftime("%Y%m%d"))
         if parsed_start is not None:
             where.append("trade_date >= ?")
-            params.append(parsed_start)
+            params.append(parsed_start.strftime("%Y%m%d"))
         if parsed_end is not None:
             where.append("trade_date <= ?")
-            params.append(parsed_end)
+            params.append(parsed_end.strftime("%Y%m%d"))
 
         pattern = table_dir / "index_code=*" / "date=*" / "data.parquet"
         sql = (
@@ -304,8 +302,7 @@ class LocalPro:
             sql += " WHERE " + " AND ".join(where)
         sql += " ORDER BY index_code, con_code, trade_date"
 
-        df = duckdb.connect().execute(sql, [str(pattern), *params]).fetchdf()
-        return _format_date_columns(df, ["trade_date"])
+        return duckdb.connect().execute(sql, [str(pattern), *params]).fetchdf()
 
     def universe(
         self,
@@ -420,7 +417,7 @@ class LocalPro:
             sql += " WHERE " + " AND ".join(where)
         sql += " ORDER BY ts_code, l1_code"
         df = duckdb.connect().execute(sql, [str(path), *params]).fetchdf()
-        return _format_date_columns(df, ["in_date", "out_date"])
+        return df
 
     def ci_index_member(
         self,
@@ -453,7 +450,7 @@ class LocalPro:
             sql += " WHERE " + " AND ".join(where)
         sql += " ORDER BY ts_code, l1_code"
         df = duckdb.connect().execute(sql, [str(path), *params]).fetchdf()
-        return _format_date_columns(df, ["in_date", "out_date"])
+        return df
 
     def fut_basic(
         self,
@@ -493,8 +490,7 @@ class LocalPro:
             sql += " WHERE " + " AND ".join(where)
         sql += " ORDER BY ts_code"
 
-        df = duckdb.connect().execute(sql, [str(pattern), *params]).fetchdf()
-        return _format_date_columns(df, ["list_date", "delist_date", "last_ddate"])
+        return duckdb.connect().execute(sql, [str(pattern), *params]).fetchdf()
 
     def fut_daily(
         self,
@@ -575,6 +571,8 @@ class LocalPro:
         start_date: str | None = None,
         end_date: str | None = None,
         exchange: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
         fields: str | list[str] | None = None,
     ) -> pd.DataFrame:
         extra = {}
@@ -591,6 +589,8 @@ class LocalPro:
             fields=fields,
             extra_filters=extra or None,
             data_dir_override=self._data_dir / "options",
+            limit=limit,
+            offset=offset,
         )
 
     def fut_holding(
@@ -930,6 +930,8 @@ class LocalPro:
         extra_filters: dict[str, str] | None = None,
         data_dir_override: Path | None = None,
         order_by: str = "ts_code, trade_date",
+        limit: int | None = None,
+        offset: int | None = None,
     ) -> pd.DataFrame:
         if trade_date is not None and (start_date is not None or end_date is not None):
             raise ValueError("trade_date cannot be combined with start_date or end_date")
@@ -955,13 +957,13 @@ class LocalPro:
             params.extend(codes)
         if trade_date is not None:
             where.append("trade_date = ?")
-            params.append(_parse_date(trade_date))
+            params.append(_parse_date(trade_date).strftime("%Y%m%d"))
         if parsed_start is not None:
             where.append("trade_date >= ?")
-            params.append(parsed_start)
+            params.append(parsed_start.strftime("%Y%m%d"))
         if parsed_end is not None:
             where.append("trade_date <= ?")
-            params.append(parsed_end)
+            params.append(parsed_end.strftime("%Y%m%d"))
         if extra_filters is not None:
             for column, value in extra_filters.items():
                 where.append(f"{column} = ?")
@@ -975,9 +977,14 @@ class LocalPro:
         if where:
             sql += " WHERE " + " AND ".join(where)
         sql += f" ORDER BY {order_by}"
+        if limit is not None:
+            sql += " LIMIT ?"
+            params.append(limit)
+        if offset is not None:
+            sql += " OFFSET ?"
+            params.append(offset)
 
-        df = duckdb.connect().execute(sql, [str(pattern), *params]).fetchdf()
-        return _format_date_columns(df, ["trade_date"])
+        return duckdb.connect().execute(sql, [str(pattern), *params]).fetchdf()
 
 
 def pro_api(config_path: str | Path = "config/settings.toml") -> LocalPro:
@@ -999,12 +1006,10 @@ def _parse_fields(fields: str | list[str] | None, default_columns: list[str]) ->
 
 
 def _parse_date(value: str):
-    for fmt in ("%Y%m%d", "%Y-%m-%d"):
-        try:
-            return datetime.strptime(value, fmt).date()
-        except ValueError:
-            continue
-    raise ValueError(f"invalid date format: {value}")
+    try:
+        return datetime.strptime(value, "%Y%m%d").date()
+    except ValueError as e:
+        raise ValueError(f"invalid date format: {value}; expected YYYYMMDD") from e
 
 
 def _parse_is_open(value: str | int | bool) -> bool:

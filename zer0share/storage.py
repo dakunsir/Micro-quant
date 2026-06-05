@@ -73,7 +73,18 @@ class MetaStore:
                 if not parquet_path.exists():
                     continue
                 self._conn.execute(
-                    "INSERT INTO trade_cal SELECT * FROM read_parquet(?)",
+                    """
+                    INSERT INTO trade_cal
+                    SELECT
+                        exchange,
+                        strptime(CAST(cal_date AS VARCHAR), '%Y%m%d')::DATE AS cal_date,
+                        is_open,
+                        CASE
+                            WHEN pretrade_date IS NULL THEN NULL
+                            ELSE strptime(CAST(pretrade_date AS VARCHAR), '%Y%m%d')::DATE
+                        END AS pretrade_date
+                    FROM read_parquet(?)
+                    """,
                     [str(parquet_path)]
                 )
             self._conn.execute("COMMIT")

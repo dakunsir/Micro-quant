@@ -120,7 +120,7 @@ def test_fetch_basic_requests_all_statuses_and_fields(mock_pro):
     )
 
 
-def test_fetch_basic_converts_only_date_fields(mock_pro):
+def test_fetch_basic_preserves_date_strings(mock_pro):
     mock_pro.stock_basic.return_value = pd.DataFrame(
         [_basic_row(list_status="D", delist_date="20240131")]
     )
@@ -128,8 +128,8 @@ def test_fetch_basic_converts_only_date_fields(mock_pro):
 
     df = fetcher.fetch_basic()
 
-    assert df.iloc[0]["list_date"] == date(1991, 4, 3)
-    assert df.iloc[0]["delist_date"] == date(2024, 1, 31)
+    assert df.iloc[0]["list_date"] == "19910403"
+    assert df.iloc[0]["delist_date"] == "20240131"
     assert df.iloc[0]["fullname"] == "平安银行股份有限公司"
     assert df.iloc[0]["act_ent_type"] == "地方国企"
 
@@ -154,7 +154,7 @@ def test_fetch_daily_kline_returns_correct_data(mock_pro):
     df = fetcher.fetch_daily_kline(date(2024, 1, 2))
     assert len(df) == 1
     assert df.iloc[0]["ts_code"] == "000001.SZ"
-    assert df.iloc[0]["trade_date"] == date(2024, 1, 2)
+    assert df.iloc[0]["trade_date"] == "20240102"
 
 
 def test_fetch_daily_kline_returns_empty_on_no_data(mock_pro):
@@ -203,7 +203,7 @@ def test_fetch_trade_cal_uses_date_range(mock_pro):
     )
 
 
-def test_fetch_trade_cal_converts_types(mock_pro):
+def test_fetch_trade_cal_preserves_date_strings_and_converts_is_open(mock_pro):
     mock_pro.trade_cal.return_value = pd.DataFrame({
         "exchange": ["SSE", "SSE"],
         "cal_date": ["20240102", "20240103"],
@@ -212,10 +212,10 @@ def test_fetch_trade_cal_converts_types(mock_pro):
     })
     fetcher = TushareFetcher("fake_token")
     df = fetcher.fetch_trade_cal("SSE")
-    assert df.iloc[0]["cal_date"] == date(2024, 1, 2)
+    assert df.iloc[0]["cal_date"] == "20240102"
     assert df.iloc[0]["is_open"] is True
     assert df.iloc[1]["is_open"] is False
-    assert df.iloc[0]["pretrade_date"] == date(2023, 12, 29)
+    assert df.iloc[0]["pretrade_date"] == "20231229"
 
 
 def test_fetch_trade_cal_returns_empty_when_none(mock_pro):
@@ -366,7 +366,7 @@ def test_fetch_sw_member_iterates_l1_codes(mock_pro):
     mock_pro.index_member_all.assert_any_call(l1_code="801011.SI", is_new="N")
 
 
-def test_fetch_sw_member_converts_dates(mock_pro):
+def test_fetch_sw_member_preserves_date_strings(mock_pro):
     sw2014_l1 = pd.DataFrame({"index_code": ["801010.SI"], "industry_name": ["农林牧渔"], "level": ["L1"]})
     sw2021_l1 = pd.DataFrame({"index_code": ["801011.SI"], "industry_name": ["农林牧渔"], "level": ["L1"]})
     mock_pro.index_classify.side_effect = [sw2014_l1, sw2021_l1]
@@ -408,10 +408,10 @@ def test_fetch_sw_member_converts_dates(mock_pro):
     # Two versions with different l3_codes don't deduplicate
     assert len(df) == 2
     for row in df.itertuples():
-        assert row.in_date == date(2021, 12, 13)
+        assert row.in_date == "20211213"
     # SW2014 row kept last (has out_date from is_new="N")
     sw2014_row = df[df["l3_code"] == "850111.SI"].iloc[0]
-    assert sw2014_row["out_date"] == date(2022, 6, 30)
+    assert sw2014_row["out_date"] == "20220630"
     # SW2021 row (is_new="Y", no out_date)
     sw2021_row = df[df["l3_code"] == "850112.SI"].iloc[0]
     assert sw2021_row["out_date"] is None
@@ -463,7 +463,7 @@ def test_fetch_ci_member_iterates_l1_codes(mock_pro):
     mock_pro.ci_index_member.assert_any_call(l1_code="CI005002.CI", is_new="N")
 
 
-def test_fetch_ci_member_converts_dates(mock_pro):
+def test_fetch_ci_member_preserves_date_strings(mock_pro):
     initial_df = pd.DataFrame({
         "l1_code": ["CI005001.CI"], "l1_name": ["农林牧渔"],
     })
@@ -492,8 +492,8 @@ def test_fetch_ci_member_converts_dates(mock_pro):
         df = fetcher.fetch_ci_member()
 
     assert len(df) == 1
-    assert df.iloc[0]["in_date"] == date(2020, 1, 1)
-    assert df.iloc[0]["out_date"] == date(2023, 12, 31)
+    assert df.iloc[0]["in_date"] == "20200101"
+    assert df.iloc[0]["out_date"] == "20231231"
 
 
 def test_fetch_index_daily_returns_correct_columns(mock_pro):
@@ -520,13 +520,13 @@ def test_fetch_index_daily_calls_api_with_correct_params(mock_pro):
     )
 
 
-def test_fetch_index_daily_converts_trade_date(mock_pro):
+def test_fetch_index_daily_preserves_trade_date_string(mock_pro):
     mock_pro.index_daily.return_value = pd.DataFrame([_index_daily_row()])
     fetcher = TushareFetcher("fake_token")
 
     df = fetcher.fetch_index_daily("000300.SH", date(2024, 1, 1), date(2024, 1, 31))
 
-    assert df.iloc[0]["trade_date"] == date(2024, 1, 2)
+    assert df.iloc[0]["trade_date"] == "20240102"
 
 
 def test_fetch_index_daily_returns_empty_when_none(mock_pro):
@@ -619,16 +619,16 @@ def test_fetch_fut_basic_returns_correct_columns(mock_pro):
     assert len(df) == 1
 
 
-def test_fetch_fut_basic_converts_dates(mock_pro):
+def test_fetch_fut_basic_preserves_date_strings(mock_pro):
     mock_pro.fut_basic.return_value = pd.DataFrame([_fut_basic_row()])
     fetcher = TushareFetcher("fake_token")
 
     df = fetcher.fetch_fut_basic("SHFE", "1")
 
-    assert df.iloc[0]["list_date"] == date(2024, 1, 1)
-    assert df.iloc[0]["delist_date"] == date(2024, 1, 15)
+    assert df.iloc[0]["list_date"] == "20240101"
+    assert df.iloc[0]["delist_date"] == "20240115"
     assert df.iloc[0]["d_month"] == "202401"  # kept as string, not converted to date
-    assert df.iloc[0]["last_ddate"] == date(2024, 1, 15)
+    assert df.iloc[0]["last_ddate"] == "20240115"
 
 
 def test_fetch_fut_basic_returns_empty_when_none(mock_pro):
@@ -662,7 +662,7 @@ def test_fetch_fut_daily_returns_correct_columns(mock_pro):
 
     assert list(df.columns) == FUT_DAILY_COLS
     assert len(df) == 1
-    assert df.iloc[0]["trade_date"] == date(2024, 1, 2)
+    assert df.iloc[0]["trade_date"] == "20240102"
 
 
 def test_fetch_fut_daily_returns_empty_when_none(mock_pro):
@@ -771,7 +771,7 @@ def test_fetch_fut_mapping_returns_correct_columns(mock_pro):
 
     assert list(df.columns) == FUT_MAPPING_COLS
     assert len(df) == 1
-    assert df.iloc[0]["trade_date"] == date(2024, 1, 2)
+    assert df.iloc[0]["trade_date"] == "20240102"
 
 
 # --- Futures batch 2 tests ---
@@ -799,7 +799,7 @@ def test_fetch_ft_limit_returns_correct_columns(mock_pro):
 
     assert list(df.columns) == FT_LIMIT_COLS
     assert len(df) == 1
-    assert df.iloc[0]["trade_date"] == date(2024, 1, 2)
+    assert df.iloc[0]["trade_date"] == "20240102"
 
 
 def test_fetch_ft_limit_calls_api_correctly(mock_pro):
@@ -847,7 +847,7 @@ def test_fetch_fut_weekly_returns_correct_columns(mock_pro):
     df = fetcher.fetch_fut_weekly(date(2024, 1, 2))
 
     assert list(df.columns) == FUT_WEEKLY_COLS
-    assert df.iloc[0]["trade_date"] == date(2024, 1, 2)
+    assert df.iloc[0]["trade_date"] == "20240102"
 
 
 def test_fetch_fut_weekly_calls_api_with_freq_week(mock_pro):
@@ -899,7 +899,7 @@ def test_fetch_fut_index_daily_returns_correct_columns(mock_pro):
     df = fetcher.fetch_fut_index_daily(date(2024, 1, 2))
 
     assert list(df.columns) == FUT_INDEX_DAILY_COLS
-    assert df.iloc[0]["trade_date"] == date(2024, 1, 2)
+    assert df.iloc[0]["trade_date"] == "20240102"
 
 
 def test_fetch_fut_index_daily_calls_api_with_trade_date(mock_pro):
@@ -934,7 +934,7 @@ def test_fetch_fut_weekly_detail_returns_correct_columns(mock_pro):
 
     assert list(df.columns) == FUT_WEEKLY_DETAIL_COLS
     assert len(df) == 1
-    assert df.iloc[0]["week_date"] == date(2024, 1, 5)
+    assert df.iloc[0]["week_date"] == "20240105"
 
 
 def test_fetch_fut_weekly_detail_calls_api_correctly(mock_pro):
@@ -1076,7 +1076,7 @@ def test_fetch_opt_daily_returns_correct_columns(mock_pro):
 
     assert list(df.columns) == OPT_DAILY_COLS
     assert len(df) == 1
-    assert df.iloc[0]["trade_date"] == date(2024, 1, 2)
+    assert df.iloc[0]["trade_date"] == "20240102"
 
 
 def test_fetch_opt_daily_returns_empty_when_none(mock_pro):

@@ -26,7 +26,7 @@ def _basic_df() -> pd.DataFrame:
             "exchange": ["SZSE"],
             "curr_type": ["CNY"],
             "list_status": ["L"],
-            "list_date": [date(1991, 4, 3)],
+            "list_date": ["19910403"],
             "delist_date": [None],
             "is_hs": ["S"],
             "act_name": ["深圳市投资控股有限公司"],
@@ -71,9 +71,9 @@ def _setup_trade_cal_sse(pipeline, cfg) -> None:
     """Load SSE trade_cal with 2024-01-02 as open into DuckDB."""
     trade_cal = pd.DataFrame({
         "exchange": ["SSE"],
-        "cal_date": [date(2024, 1, 2)],
+        "cal_date": ["20240102"],
         "is_open": [True],
-        "pretrade_date": [date(2023, 12, 29)],
+        "pretrade_date": ["20231229"],
     })
     write_trade_cal(cfg.data_dir, "SSE", trade_cal)
     pipeline._meta.load_trade_cal_from_parquet(cfg.data_dir)
@@ -86,7 +86,7 @@ def test_sync_daily_kline_writes_parquet(pipeline, cfg):
     kline_df = pd.DataFrame(
         {
             "ts_code": ["000001.SZ"],
-            "trade_date": [date(2024, 1, 2)],
+            "trade_date": ["20240102"],
             "open": [10.0],
             "high": [11.0],
             "low": [9.5],
@@ -129,7 +129,7 @@ def test_sync_daily_kline_sends_completion_notification(pipeline, cfg):
     kline_df = pd.DataFrame(
         {
             "ts_code": ["000001.SZ"],
-            "trade_date": [date(2024, 1, 2)],
+            "trade_date": ["20240102"],
             "open": [10.0],
             "high": [11.0],
             "low": [9.5],
@@ -202,9 +202,9 @@ def test_pipeline_context_manager(cfg):
 def _trade_cal_df(exchange: str) -> pd.DataFrame:
     return pd.DataFrame({
         "exchange": [exchange] * 3,
-        "cal_date": [date(2024, 1, 2), date(2024, 1, 3), date(2024, 1, 4)],
+        "cal_date": ["20240102", "20240103", "20240104"],
         "is_open": [True, False, True],
-        "pretrade_date": [date(2023, 12, 29), date(2024, 1, 2), date(2024, 1, 2)],
+        "pretrade_date": ["20231229", "20240102", "20240102"],
     })
 
 
@@ -235,9 +235,9 @@ def test_sync_trade_cal_uses_incremental_range(pipeline, cfg):
         "SSE",
         pd.DataFrame({
             "exchange": ["SSE", "SSE"],
-            "cal_date": [date(2024, 1, 1), date(2024, 1, 2)],
+            "cal_date": ["20240101", "20240102"],
             "is_open": [True, True],
-            "pretrade_date": [date(2023, 12, 29), date(2024, 1, 1)],
+            "pretrade_date": ["20231229", "20240101"],
         }),
     )
     write_trade_cal(
@@ -245,9 +245,9 @@ def test_sync_trade_cal_uses_incremental_range(pipeline, cfg):
         "SZSE",
         pd.DataFrame({
             "exchange": ["SZSE"],
-            "cal_date": [date(2024, 1, 3)],
+            "cal_date": ["20240103"],
             "is_open": [True],
-            "pretrade_date": [date(2024, 1, 2)],
+            "pretrade_date": ["20240102"],
         }),
     )
     for ex in NEW_ALL_EXCHANGES:
@@ -258,19 +258,19 @@ def test_sync_trade_cal_uses_incremental_range(pipeline, cfg):
             ex,
             pd.DataFrame({
                 "exchange": [ex],
-                "cal_date": [date(2024, 1, 3)],
+                "cal_date": ["20240103"],
                 "is_open": [True],
-                "pretrade_date": [date(2024, 1, 2)],
+                "pretrade_date": ["20240102"],
             }),
         )
 
-    def fetch_trade_cal(exchange, start, end):
-        return pd.DataFrame({
-            "exchange": [exchange],
-            "cal_date": [start],
-            "is_open": [True],
-            "pretrade_date": [date(2024, 1, 2)],
-        })
+        def fetch_trade_cal(exchange, start, end):
+            return pd.DataFrame({
+                "exchange": [exchange],
+                "cal_date": [start.strftime("%Y%m%d")],
+                "is_open": [True],
+                "pretrade_date": ["20240102"],
+            })
 
     pipeline._fetcher.fetch_trade_cal.side_effect = fetch_trade_cal
     with patch("zer0share.pipeline.date") as mock_date:
@@ -294,9 +294,9 @@ def test_sync_trade_cal_skips_when_already_covers_year_end(pipeline, cfg):
             exchange,
             pd.DataFrame({
                 "exchange": [exchange],
-                "cal_date": [date(2024, 12, 31)],
+                "cal_date": ["20241231"],
                 "is_open": [False],
-                "pretrade_date": [date(2024, 12, 30)],
+                "pretrade_date": ["20241230"],
             }),
         )
 
@@ -321,7 +321,7 @@ def test_sync_daily_kline_uses_trading_calendar(pipeline, cfg):
     pipeline._meta.load_trade_cal_from_parquet(cfg.data_dir)
 
     kline_df = pd.DataFrame({
-        "ts_code": ["000001.SZ"], "trade_date": [date(2024, 1, 2)],
+        "ts_code": ["000001.SZ"], "trade_date": ["20240102"],
         "open": [10.0], "high": [11.0], "low": [9.5], "close": [10.5],
         "pre_close": [10.0], "change": [0.5], "pct_chg": [5.0],
         "vol": [100000.0], "amount": [1050000.0],
@@ -352,9 +352,9 @@ def test_sync_daily_kline_range_skips_existing_partitions(pipeline, cfg):
     trade_cal = pd.DataFrame(
         {
             "exchange": ["SSE", "SSE", "SSE"],
-            "cal_date": [date(2024, 1, 2), date(2024, 1, 3), date(2024, 1, 4)],
+            "cal_date": ["20240102", "20240103", "20240104"],
             "is_open": [True, True, True],
-            "pretrade_date": [date(2023, 12, 29), date(2024, 1, 2), date(2024, 1, 3)],
+            "pretrade_date": ["20231229", "20240102", "20240103"],
         }
     )
     write_trade_cal(cfg.data_dir, "SSE", trade_cal)
@@ -363,7 +363,7 @@ def test_sync_daily_kline_range_skips_existing_partitions(pipeline, cfg):
     existing_df = pd.DataFrame(
         {
             "ts_code": ["000001.SZ"],
-            "trade_date": [date(2024, 1, 3)],
+            "trade_date": ["20240103"],
             "open": [10.0],
             "high": [11.0],
             "low": [9.5],
@@ -395,9 +395,9 @@ def test_sync_daily_kline_old_range_does_not_rewind_meta(pipeline, cfg):
     trade_cal = pd.DataFrame(
         {
             "exchange": ["SSE", "SSE"],
-            "cal_date": [date(2024, 1, 2), date(2024, 1, 3)],
+            "cal_date": ["20240102", "20240103"],
             "is_open": [True, True],
-            "pretrade_date": [date(2023, 12, 29), date(2024, 1, 2)],
+            "pretrade_date": ["20231229", "20240102"],
         }
     )
     write_trade_cal(cfg.data_dir, "SSE", trade_cal)
@@ -407,7 +407,7 @@ def test_sync_daily_kline_old_range_does_not_rewind_meta(pipeline, cfg):
     kline_df = pd.DataFrame(
         {
             "ts_code": ["000001.SZ"],
-            "trade_date": [date(2024, 1, 2)],
+            "trade_date": ["20240102"],
             "open": [10.0],
             "high": [11.0],
             "low": [9.5],
@@ -431,9 +431,9 @@ def test_sync_daily_kline_range_defaults_end_date_to_today(pipeline, cfg):
     trade_cal = pd.DataFrame(
         {
             "exchange": ["SSE", "SSE"],
-            "cal_date": [date(2024, 1, 2), date(2024, 1, 3)],
+            "cal_date": ["20240102", "20240103"],
             "is_open": [True, True],
-            "pretrade_date": [date(2023, 12, 29), date(2024, 1, 2)],
+            "pretrade_date": ["20231229", "20240102"],
         }
     )
     write_trade_cal(cfg.data_dir, "SSE", trade_cal)
@@ -441,7 +441,7 @@ def test_sync_daily_kline_range_defaults_end_date_to_today(pipeline, cfg):
     pipeline._fetcher.fetch_daily_kline.return_value = pd.DataFrame(
         {
             "ts_code": ["000001.SZ"],
-            "trade_date": [date(2024, 1, 2)],
+            "trade_date": ["20240102"],
             "open": [10.0],
             "high": [11.0],
             "low": [9.5],
@@ -468,9 +468,9 @@ def test_sync_daily_kline_sleeps_between_requests(pipeline, cfg):
     trade_cal = pd.DataFrame(
         {
             "exchange": ["SSE", "SSE"],
-            "cal_date": [date(2024, 1, 2), date(2024, 1, 3)],
+            "cal_date": ["20240102", "20240103"],
             "is_open": [True, True],
-            "pretrade_date": [date(2023, 12, 29), date(2024, 1, 2)],
+            "pretrade_date": ["20231229", "20240102"],
         }
     )
     write_trade_cal(cfg.data_dir, "SSE", trade_cal)
@@ -478,7 +478,7 @@ def test_sync_daily_kline_sleeps_between_requests(pipeline, cfg):
     pipeline._fetcher.fetch_daily_kline.return_value = pd.DataFrame(
         {
             "ts_code": ["000001.SZ"],
-            "trade_date": [date(2024, 1, 2)],
+            "trade_date": ["20240102"],
             "open": [10.0],
             "high": [11.0],
             "low": [9.5],
@@ -503,7 +503,7 @@ def test_sync_daily_partitioned_logs_progress(pipeline, cfg):
     trade_cal = pd.DataFrame(
         {
             "exchange": ["SSE"] * len(days),
-            "cal_date": days,
+            "cal_date": [day.strftime("%Y%m%d") for day in days],
             "is_open": [True] * len(days),
             "pretrade_date": [None] * len(days),
         }
@@ -601,7 +601,7 @@ def test_sync_industry_writes_sw_classify_and_member(pipeline, cfg):
         "l2_code": ["801016.SI"], "l2_name": ["种植业"],
         "l3_code": ["850111.SI"], "l3_name": ["种子"],
         "ts_code": ["002041.SZ"], "name": ["登海种业"],
-        "in_date": [date(2021, 12, 13)], "out_date": [None], "is_new": ["Y"],
+        "in_date": ["20211213"], "out_date": [None], "is_new": ["Y"],
     })
     pipeline._fetcher.fetch_sw_classify.return_value = classify_df
     pipeline._fetcher.fetch_sw_member.return_value = member_df
@@ -634,7 +634,7 @@ def test_sync_ci_member_writes_parquet(pipeline, cfg):
         "l2_code": ["CI005005.CI"], "l2_name": ["农产品加工"],
         "l3_code": ["CI005006.CI"], "l3_name": ["粮油加工"],
         "ts_code": ["000876.SZ"], "name": ["新 希 望"],
-        "in_date": [date(2020, 1, 1)], "out_date": [None], "is_new": ["Y"],
+        "in_date": ["20200101"], "out_date": [None], "is_new": ["Y"],
     })
     pipeline._fetcher.fetch_ci_member.return_value = member_df
 
@@ -661,7 +661,7 @@ def test_sync_ci_member_failure_sends_alert_and_raises(pipeline):
 def _index_daily_df(ts_code: str = "000300.SH", trade_date: date = date(2024, 1, 2)) -> pd.DataFrame:
     return pd.DataFrame({
         "ts_code": [ts_code],
-        "trade_date": [trade_date],
+        "trade_date": [trade_date.strftime("%Y%m%d")],
         "open": [3500.0],
         "high": [3550.0],
         "low": [3480.0],
@@ -781,8 +781,8 @@ def test_sync_fut_basic_writes_to_futures_subdir(pipeline, cfg):
             "quote_unit": ["元/吨"],
             "quote_unit_desc": ["10元/吨"],
             "d_mode_desc": ["实物交割"],
-            "list_date": [date(2024, 1, 1)],
-            "delist_date": [date(2024, 1, 15)],
+            "list_date": ["20240101"],
+            "delist_date": ["20240115"],
             "d_month": [None],
             "last_ddate": [None],
             "trade_time_desc": [None],
@@ -831,9 +831,9 @@ def _setup_futures_trade_cal(pipeline, cfg):
     """Load SSE trade_cal with 2024-01-02 as open into DuckDB."""
     trade_cal = pd.DataFrame({
         "exchange": ["SSE"],
-        "cal_date": [date(2024, 1, 2)],
+        "cal_date": ["20240102"],
         "is_open": [True],
-        "pretrade_date": [date(2023, 12, 29)],
+        "pretrade_date": ["20231229"],
     })
     write_trade_cal(cfg.data_dir, "SSE", trade_cal)
     pipeline._meta.load_trade_cal_from_parquet(cfg.data_dir)
@@ -844,7 +844,7 @@ def test_sync_fut_daily_writes_to_futures_subdir(pipeline, cfg):
     _setup_futures_trade_cal(pipeline, cfg)
     fut_df = pd.DataFrame({
         "ts_code": ["CU2401.SHF"],
-        "trade_date": [date(2024, 1, 2)],
+        "trade_date": ["20240102"],
         "pre_close": [50000.0],
         "pre_settle": [50100.0],
         "open": [50200.0],
@@ -880,7 +880,7 @@ def test_sync_fut_daily_skips_existing_partitions(pipeline, cfg):
     from zer0share.storage import write_daily_partition
     write_daily_partition(
         cfg.data_dir / "futures", "fut_daily", date(2024, 1, 2),
-        pd.DataFrame({"ts_code": ["CU2401.SHF"], "trade_date": [date(2024, 1, 2)]}),
+        pd.DataFrame({"ts_code": ["CU2401.SHF"], "trade_date": ["20240102"]}),
     )
 
     with patch("zer0share.pipeline.date") as mock_date, \
@@ -904,7 +904,7 @@ def test_sync_fut_daily_up_to_date(pipeline, cfg):
 def test_sync_ft_limit_writes_to_futures_subdir(pipeline, cfg):
     _setup_futures_trade_cal(pipeline, cfg)
     pipeline._fetcher.fetch_ft_limit.return_value = pd.DataFrame({
-        "trade_date": [date(2024, 1, 2)],
+        "trade_date": ["20240102"],
         "ts_code": ["CU2401.SHF"], "name": ["沪铜2401"],
         "up_limit": [51000.0], "down_limit": [49000.0],
         "m_ratio": [0.10], "cont": ["CU"], "exchange": ["SHFE"],
@@ -923,7 +923,7 @@ def test_sync_ft_limit_writes_to_futures_subdir(pipeline, cfg):
 def test_sync_fut_weekly_writes_to_futures_subdir(pipeline, cfg):
     _setup_futures_trade_cal(pipeline, cfg)
     pipeline._fetcher.fetch_fut_weekly.return_value = pd.DataFrame({
-        "ts_code": ["CU2401.SHF"], "trade_date": [date(2024, 1, 2)],
+        "ts_code": ["CU2401.SHF"], "trade_date": ["20240102"],
         "freq": ["week"], "open": [50000.0], "high": [50500.0],
         "low": [49900.0], "close": [50300.0], "pre_close": [50000.0],
         "settle": [50250.0], "pre_settle": [50100.0], "vol": [10000.0],
@@ -943,7 +943,7 @@ def test_sync_fut_weekly_writes_to_futures_subdir(pipeline, cfg):
 
 def test_sync_fut_index_daily_writes_to_futures_subdir(pipeline, cfg):
     pipeline._fetcher.fetch_fut_index_daily.return_value = pd.DataFrame({
-        "ts_code": ["NHAI.NH"], "trade_date": [date(2024, 1, 2)],
+        "ts_code": ["NHAI.NH"], "trade_date": ["20240102"],
         "close": [1000.0], "open": [998.0], "high": [1005.0], "low": [995.0],
         "pre_close": [998.0], "change": [2.0], "pct_chg": [0.2],
         "vol": [50000.0], "amount": [50000000.0],
@@ -968,7 +968,7 @@ def test_sync_fut_weekly_detail_writes_to_futures_subdir(pipeline, cfg):
         "cumamt": [12500.0], "cumamt_yoy": [2.0],
         "open_interest": [200000], "interest_wow": [1.0],
         "mc_close": [50300.0], "close_wow": [0.5],
-        "week": ["202401"], "week_date": [date(2024, 1, 1)],
+        "week": ["202401"], "week_date": ["20240101"],
     })
     pipeline._meta.update_last_date("fut_weekly_detail", date(2023, 12, 31))
 
@@ -1002,9 +1002,9 @@ def test_sync_opt_basic_writes_to_options_subdir(pipeline, cfg):
             "exercise_type": ["E"],
             "exercise_price": [2.7],
             "s_month": ["202404"],
-            "maturity_date": [date(2024, 4, 24)],
-            "list_date": [date(2024, 1, 1)],
-            "delist_date": [date(2024, 4, 24)],
+            "maturity_date": ["20240424"],
+            "list_date": ["20240101"],
+            "delist_date": ["20240424"],
         })
 
     pipeline._fetcher.fetch_opt_basic.side_effect = opt_basic_side_effect
@@ -1048,9 +1048,9 @@ def test_sync_opt_basic_failure_sends_alert_and_raises(pipeline, cfg):
 def _setup_options_trade_cal(pipeline, cfg):
     trade_cal = pd.DataFrame({
         "exchange": ["SSE"],
-        "cal_date": [date(2024, 1, 2)],
+        "cal_date": ["20240102"],
         "is_open": [True],
-        "pretrade_date": [date(2023, 12, 29)],
+        "pretrade_date": ["20231229"],
     })
     write_trade_cal(cfg.data_dir, "SSE", trade_cal)
     pipeline._meta.load_trade_cal_from_parquet(cfg.data_dir)
@@ -1061,7 +1061,7 @@ def test_sync_opt_daily_writes_to_options_subdir(pipeline, cfg):
     _setup_options_trade_cal(pipeline, cfg)
     opt_df = pd.DataFrame({
         "ts_code": ["10004462.SH"],
-        "trade_date": [date(2024, 1, 2)],
+        "trade_date": ["20240102"],
         "exchange": ["SSE"],
         "pre_settle": [0.15],
         "pre_close": [0.148],
@@ -1094,7 +1094,7 @@ def test_sync_opt_daily_skips_existing_partitions(pipeline, cfg):
 
     write_daily_partition(
         cfg.data_dir / "options", "opt_daily", date(2024, 1, 2),
-        pd.DataFrame({"ts_code": ["10004462.SH"], "trade_date": [date(2024, 1, 2)]}),
+        pd.DataFrame({"ts_code": ["10004462.SH"], "trade_date": ["20240102"]}),
     )
 
     with patch("zer0share.pipeline.date") as mock_date, \
@@ -1122,9 +1122,9 @@ def test_all_exchanges_contains_all_8():
 def test_skip_if_not_trading_returns_true_on_non_trading_day(pipeline, cfg):
     trade_cal = pd.DataFrame({
         "exchange": ["SSE"],
-        "cal_date": [date(2024, 1, 3)],
+        "cal_date": ["20240103"],
         "is_open": [False],
-        "pretrade_date": [date(2024, 1, 2)],
+        "pretrade_date": ["20240102"],
     })
     write_trade_cal(cfg.data_dir, "SSE", trade_cal)
     pipeline._meta.load_trade_cal_from_parquet(cfg.data_dir)
@@ -1139,9 +1139,9 @@ def test_skip_if_not_trading_returns_true_on_non_trading_day(pipeline, cfg):
 def test_skip_if_not_trading_returns_false_on_trading_day(pipeline, cfg):
     trade_cal = pd.DataFrame({
         "exchange": ["SSE"],
-        "cal_date": [date(2024, 1, 2)],
+        "cal_date": ["20240102"],
         "is_open": [True],
-        "pretrade_date": [date(2023, 12, 29)],
+        "pretrade_date": ["20231229"],
     })
     write_trade_cal(cfg.data_dir, "SSE", trade_cal)
     pipeline._meta.load_trade_cal_from_parquet(cfg.data_dir)
@@ -1156,9 +1156,9 @@ def test_skip_if_not_trading_returns_false_on_trading_day(pipeline, cfg):
 def test_ensure_trade_cal_loaded_triggers_sync_when_no_meta(pipeline, cfg):
     pipeline._fetcher.fetch_trade_cal.return_value = pd.DataFrame({
         "exchange": ["SSE"],
-        "cal_date": [date(2024, 1, 2)],
+        "cal_date": ["20240102"],
         "is_open": [True],
-        "pretrade_date": [date(2023, 12, 29)],
+        "pretrade_date": ["20231229"],
     })
     with patch("zer0share.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 6, 1)
@@ -1184,9 +1184,9 @@ def _setup_non_trading_day(pipeline, cfg):
     """Set up a non-trading day (2024-01-03, SSE) in the calendar."""
     trade_cal = pd.DataFrame({
         "exchange": ["SSE"],
-        "cal_date": [date(2024, 1, 3)],
+        "cal_date": ["20240103"],
         "is_open": [False],
-        "pretrade_date": [date(2024, 1, 2)],
+        "pretrade_date": ["20240102"],
     })
     write_trade_cal(cfg.data_dir, "SSE", trade_cal)
     pipeline._meta.load_trade_cal_from_parquet(cfg.data_dir)
@@ -1258,15 +1258,15 @@ def test_sync_daily_partitioned_uses_exchange_param(pipeline, cfg):
     """Verify that _sync_daily_partitioned passes exchange to get_trading_days."""
     dce_cal = pd.DataFrame({
         "exchange": ["DCE"],
-        "cal_date": [date(2024, 1, 2)],
+        "cal_date": ["20240102"],
         "is_open": [True],
-        "pretrade_date": [date(2023, 12, 29)],
+        "pretrade_date": ["20231229"],
     })
     sse_cal = pd.DataFrame({
         "exchange": ["SSE"],
-        "cal_date": [date(2024, 1, 2)],
+        "cal_date": ["20240102"],
         "is_open": [False],
-        "pretrade_date": [date(2024, 1, 1)],
+        "pretrade_date": ["20240101"],
     })
     write_trade_cal(cfg.data_dir, "DCE", dce_cal)
     write_trade_cal(cfg.data_dir, "SSE", sse_cal)
@@ -1274,7 +1274,7 @@ def test_sync_daily_partitioned_uses_exchange_param(pipeline, cfg):
     pipeline._meta.update_last_date("trade_cal", date(2024, 1, 2))
 
     pipeline._fetcher.fetch_fut_daily.return_value = pd.DataFrame({
-        "ts_code": ["CU2401.SHF"], "trade_date": [date(2024, 1, 2)],
+        "ts_code": ["CU2401.SHF"], "trade_date": ["20240102"],
         "pre_close": [50000.0], "pre_settle": [50100.0], "open": [50200.0],
         "high": [50500.0], "low": [49900.0], "close": [50300.0], "settle": [50250.0],
         "change1": [200.0], "change2": [150.0], "vol": [10000.0], "amount": [251250.0],

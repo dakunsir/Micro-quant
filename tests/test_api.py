@@ -33,7 +33,7 @@ def test_stock_basic_filters_and_formats_dates(tmp_path):
             "exchange": ["SZSE", "SSE"],
             "curr_type": ["CNY", "CNY"],
             "list_status": ["L", "L"],
-            "list_date": [date(1991, 4, 3), date(1999, 11, 10)],
+            "list_date": ["19910403", "19991110"],
             "delist_date": [None, None],
             "is_hs": ["S", "H"],
             "act_name": ["Shenzhen Investment Holdings", "Shanghai SASAC"],
@@ -62,9 +62,9 @@ def test_trade_cal_filters_open_days_and_formats_dates(tmp_path):
     df = pd.DataFrame(
         {
             "exchange": ["SSE", "SSE", "SSE"],
-            "cal_date": [date(2024, 1, 1), date(2024, 1, 2), date(2024, 1, 3)],
+            "cal_date": ["20240101", "20240102", "20240103"],
             "is_open": [False, True, True],
-            "pretrade_date": [date(2023, 12, 29), date(2023, 12, 29), date(2024, 1, 2)],
+            "pretrade_date": ["20231229", "20231229", "20240102"],
         }
     )
     write_trade_cal(tmp_path, "SSE", df)
@@ -72,7 +72,7 @@ def test_trade_cal_filters_open_days_and_formats_dates(tmp_path):
     pro = LocalPro(tmp_path)
     result = pro.trade_cal(
         exchange="SSE",
-        start_date="2024-01-02",
+        start_date="20240102",
         end_date="20240103",
         is_open="1",
         fields=["exchange", "cal_date", "is_open", "pretrade_date"],
@@ -92,6 +92,22 @@ def test_trade_cal_filters_open_days_and_formats_dates(tmp_path):
             "pretrade_date": "20240102",
         },
     ]
+
+
+def test_api_date_filters_reject_dash_separated_dates(tmp_path):
+    df = pd.DataFrame(
+        {
+            "exchange": ["SSE"],
+            "cal_date": ["20240102"],
+            "is_open": [True],
+            "pretrade_date": ["20240101"],
+        }
+    )
+    write_trade_cal(tmp_path, "SSE", df)
+
+    pro = LocalPro(tmp_path)
+    with pytest.raises(ValueError, match="YYYYMMDD"):
+        pro.trade_cal(exchange="SSE", start_date="2024-01-02")
 
 
 def test_daily_filters_multiple_codes_by_date_range_and_formats_dates(tmp_path):
@@ -120,7 +136,7 @@ def test_daily_filters_multiple_codes_by_date_range_and_formats_dates(tmp_path):
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ", "600000.SH"],
-                "trade_date": [date(2024, 1, 3), date(2024, 1, 3)],
+                "trade_date": ["20240103", "20240103"],
                 "open": [11.0, 21.0],
                 "high": [12.0, 22.0],
                 "low": [10.0, 20.0],
@@ -163,7 +179,7 @@ def test_daily_partitioned_query_handles_empty_partitions(tmp_path):
             {
                 "ts_code": ["000001.SZ"],
                 "name": ["ST Test"],
-                "trade_date": [date(2024, 1, 3)],
+                "trade_date": ["20240103"],
                 "type": ["ST"],
                 "type_name": ["Risk"],
             }
@@ -237,7 +253,7 @@ def test_adj_factor_filters_trade_date_and_formats_dates(tmp_path):
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ", "600000.SH"],
-                "trade_date": [date(2024, 1, 2), date(2024, 1, 2)],
+                "trade_date": ["20240102", "20240102"],
                 "adj_factor": [100.1, 200.2],
             }
         ),
@@ -266,7 +282,7 @@ def test_query_dispatches_to_named_api(tmp_path):
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
-                "trade_date": [date(2024, 1, 2)],
+                "trade_date": ["20240102"],
                 "adj_factor": [100.1],
             }
         ),
@@ -304,7 +320,7 @@ def test_unknown_field_raises_value_error(tmp_path):
                 "exchange": ["SZSE"],
                 "curr_type": ["CNY"],
                 "list_status": ["L"],
-                "list_date": [date(1991, 4, 3)],
+                "list_date": ["19910403"],
                 "delist_date": [None],
                 "is_hs": ["S"],
                 "act_name": ["Shenzhen Investment Holdings"],
@@ -332,9 +348,9 @@ def test_invalid_date_format_raises_value_error(tmp_path):
         pd.DataFrame(
             {
                 "exchange": ["SSE"],
-                "cal_date": [date(2024, 1, 2)],
+                "cal_date": ["20240102"],
                 "is_open": [True],
-                "pretrade_date": [date(2023, 12, 29)],
+                "pretrade_date": ["20231229"],
             }
         ),
     )
@@ -351,7 +367,7 @@ def test_invalid_date_range_raises_value_error(tmp_path):
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
-                "trade_date": [date(2024, 1, 2)],
+                "trade_date": ["20240102"],
                 "open": [10.0],
                 "high": [11.0],
                 "low": [9.0],
@@ -377,9 +393,9 @@ def test_trade_cal_invalid_date_range_raises_value_error(tmp_path):
         pd.DataFrame(
             {
                 "exchange": ["SSE"],
-                "cal_date": [date(2024, 1, 2)],
+                "cal_date": ["20240102"],
                 "is_open": [True],
-                "pretrade_date": [date(2023, 12, 29)],
+                "pretrade_date": ["20231229"],
             }
         ),
     )
@@ -396,7 +412,7 @@ def test_pro_bar_returns_qfq_prices_using_end_date_factor(tmp_path):
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
-                "trade_date": [date(2024, 1, 2)],
+                "trade_date": ["20240102"],
                 "open": [10.0],
                 "high": [12.0],
                 "low": [9.0],
@@ -415,7 +431,7 @@ def test_pro_bar_returns_qfq_prices_using_end_date_factor(tmp_path):
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
-                "trade_date": [date(2024, 1, 3)],
+                "trade_date": ["20240103"],
                 "open": [20.0],
                 "high": [22.0],
                 "low": [19.0],
@@ -434,7 +450,7 @@ def test_pro_bar_returns_qfq_prices_using_end_date_factor(tmp_path):
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
-                "trade_date": [date(2024, 1, 2)],
+                "trade_date": ["20240102"],
                 "adj_factor": [2.0],
             }
         ),
@@ -445,7 +461,7 @@ def test_pro_bar_returns_qfq_prices_using_end_date_factor(tmp_path):
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
-                "trade_date": [date(2024, 1, 3)],
+                "trade_date": ["20240103"],
                 "adj_factor": [4.0],
             }
         ),
@@ -498,7 +514,7 @@ def test_pro_bar_returns_hfq_prices(tmp_path):
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
-                "trade_date": [date(2024, 1, 2)],
+                "trade_date": ["20240102"],
                 "open": [10.0],
                 "high": [12.0],
                 "low": [9.0],
@@ -517,7 +533,7 @@ def test_pro_bar_returns_hfq_prices(tmp_path):
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
-                "trade_date": [date(2024, 1, 2)],
+                "trade_date": ["20240102"],
                 "adj_factor": [2.0],
             }
         ),
@@ -538,7 +554,7 @@ def test_pro_bar_rounds_adjusted_prices_to_two_decimals(tmp_path):
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
-                "trade_date": [date(2024, 1, 2)],
+                "trade_date": ["20240102"],
                 "open": [10.0],
                 "high": [10.0],
                 "low": [10.0],
@@ -557,7 +573,7 @@ def test_pro_bar_rounds_adjusted_prices_to_two_decimals(tmp_path):
         pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
-                "trade_date": [date(2024, 1, 2)],
+                "trade_date": ["20240102"],
                 "adj_factor": [1.234],
             }
         ),
@@ -592,7 +608,7 @@ def test_pro_bar_supports_multiple_codes_with_qfq_base_per_stock(tmp_path):
             pd.DataFrame(
                 {
                     "ts_code": [row[0] for row in rows],
-                    "trade_date": [day, day],
+                    "trade_date": [day.strftime("%Y%m%d"), day.strftime("%Y%m%d")],
                     "open": [row[1] for row in rows],
                     "high": [row[1] for row in rows],
                     "low": [row[1] for row in rows],
@@ -615,7 +631,7 @@ def test_pro_bar_supports_multiple_codes_with_qfq_base_per_stock(tmp_path):
             pd.DataFrame(
                 {
                     "ts_code": ["000001.SZ", "000002.SZ"],
-                    "trade_date": [day, day],
+                    "trade_date": [day.strftime("%Y%m%d"), day.strftime("%Y%m%d")],
                     "adj_factor": factors,
                 }
             ),
@@ -703,7 +719,7 @@ def test_index_member_all_filters_by_ts_code(tmp_path):
         "l3_name": ["种子", "纯碱"],
         "ts_code": ["002041.SZ", "600291.SH"],
         "name": ["登海种业", "西水股份"],
-        "in_date": [date(2021, 12, 13), date(2021, 12, 13)],
+        "in_date": ["20211213", "20211213"],
         "out_date": [None, None],
         "is_new": ["Y", "Y"],
     }))
@@ -723,8 +739,8 @@ def test_index_member_all_filters_by_is_new(tmp_path):
         "l3_name": ["种子", "种子"],
         "ts_code": ["002041.SZ", "600313.SH"],
         "name": ["登海种业", "农发种业"],
-        "in_date": [date(2021, 12, 13), date(2021, 12, 13)],
-        "out_date": [date(2022, 6, 30), None],
+        "in_date": ["20211213", "20211213"],
+        "out_date": ["20220630", None],
         "is_new": ["N", "Y"],
     }))
     pro = LocalPro(tmp_path)
@@ -743,7 +759,7 @@ def test_index_member_all_filters_by_l1_code(tmp_path):
         "l3_name": ["种子", "纯碱"],
         "ts_code": ["002041.SZ", "600291.SH"],
         "name": ["登海种业", "西水股份"],
-        "in_date": [date(2021, 12, 13), date(2021, 12, 13)],
+        "in_date": ["20211213", "20211213"],
         "out_date": [None, None],
         "is_new": ["Y", "Y"],
     }))
@@ -762,7 +778,7 @@ def test_index_member_all_supports_multi_ts_code(tmp_path):
         "l3_name": ["种子", "纯碱", "铁矿石"],
         "ts_code": ["002041.SZ", "600291.SH", "000002.SZ"],
         "name": ["登海种业", "西水股份", "万科A"],
-        "in_date": [date(2021, 12, 13), date(2021, 12, 13), date(2021, 12, 13)],
+        "in_date": ["20211213", "20211213", "20211213"],
         "out_date": [None, None, None],
         "is_new": ["Y", "Y", "Y"],
     }))
@@ -781,8 +797,8 @@ def test_index_member_all_formats_dates(tmp_path):
         "l3_name": ["种子"],
         "ts_code": ["002041.SZ"],
         "name": ["登海种业"],
-        "in_date": [date(2021, 12, 13)],
-        "out_date": [date(2022, 6, 30)],
+        "in_date": ["20211213"],
+        "out_date": ["20220630"],
         "is_new": ["N"],
     }))
     pro = LocalPro(tmp_path)
@@ -801,7 +817,7 @@ def test_ci_index_member_filters_by_ts_code(tmp_path):
         "l3_name": ["粮油加工", "动力煤"],
         "ts_code": ["000876.SZ", "601088.SH"],
         "name": ["新 希 望", "中国神华"],
-        "in_date": [date(2020, 1, 1), date(2020, 1, 1)],
+        "in_date": ["20200101", "20200101"],
         "out_date": [None, None],
         "is_new": ["Y", "Y"],
     }))
@@ -821,8 +837,8 @@ def test_ci_index_member_filters_by_is_new(tmp_path):
         "l3_name": ["粮油加工", "粮油加工"],
         "ts_code": ["000876.SZ", "000877.SZ"],
         "name": ["新 希 望", "天山股份"],
-        "in_date": [date(2020, 1, 1), date(2020, 1, 1)],
-        "out_date": [date(2023, 12, 31), None],
+        "in_date": ["20200101", "20200101"],
+        "out_date": ["20231231", None],
         "is_new": ["N", "Y"],
     }))
     pro = LocalPro(tmp_path)
@@ -840,8 +856,8 @@ def test_ci_index_member_formats_dates(tmp_path):
         "l3_name": ["粮油加工"],
         "ts_code": ["000876.SZ"],
         "name": ["新 希 望"],
-        "in_date": [date(2020, 1, 1)],
-        "out_date": [date(2023, 12, 31)],
+        "in_date": ["20200101"],
+        "out_date": ["20231231"],
         "is_new": ["N"],
     }))
     pro = LocalPro(tmp_path)
@@ -871,7 +887,7 @@ def test_query_dispatches_index_member_all(tmp_path):
         "l2_code": ["801016.SI"], "l2_name": ["种植业"],
         "l3_code": ["850111.SI"], "l3_name": ["种子"],
         "ts_code": ["002041.SZ"], "name": ["登海种业"],
-        "in_date": [date(2021, 12, 13)], "out_date": [None], "is_new": ["Y"],
+        "in_date": ["20211213"], "out_date": [None], "is_new": ["Y"],
     }))
     pro = LocalPro(tmp_path)
     result = pro.query("index_member_all", ts_code="002041.SZ")
@@ -884,7 +900,7 @@ def test_query_dispatches_ci_index_member(tmp_path):
         "l2_code": ["CI005005.CI"], "l2_name": ["农产品加工"],
         "l3_code": ["CI005006.CI"], "l3_name": ["粮油加工"],
         "ts_code": ["000876.SZ"], "name": ["新 希 望"],
-        "in_date": [date(2020, 1, 1)], "out_date": [None], "is_new": ["Y"],
+        "in_date": ["20200101"], "out_date": [None], "is_new": ["Y"],
     }))
     pro = LocalPro(tmp_path)
     result = pro.query("ci_index_member", ts_code="000876.SZ")
@@ -913,7 +929,7 @@ def _index_daily_partition(trade_date: date, ts_codes: list[str] | None = None) 
     codes = ts_codes or ["000300.SH", "000905.SH"]
     return pd.DataFrame({
         "ts_code": codes,
-        "trade_date": [trade_date] * len(codes),
+        "trade_date": [trade_date.strftime("%Y%m%d")] * len(codes),
         "open": [3500.0] * len(codes),
         "high": [3550.0] * len(codes),
         "low": [3480.0] * len(codes),
@@ -1010,7 +1026,7 @@ def _write_fut_daily_data(data_dir, trade_date, ts_codes=None):
     for ts_code in ts_codes:
         rows.append({
             "ts_code": ts_code,
-            "trade_date": trade_date,
+            "trade_date": trade_date.strftime("%Y%m%d"),
             "pre_close": 50000.0,
             "pre_settle": 50100.0,
             "open": 50200.0,
@@ -1120,7 +1136,7 @@ def test_fut_holding_query_returns_data(tmp_path):
     from datetime import date as dt
     api = LocalPro(tmp_path)
     df = pd.DataFrame({
-        "trade_date": [dt(2024, 1, 2), dt(2024, 1, 2)],
+        "trade_date": ["20240102", "20240102"],
         "symbol": ["CU", "CU"],
         "broker": ["中信期货", "国泰君安"],
         "vol": [10000, 8000],
@@ -1142,7 +1158,7 @@ def test_fut_mapping_query_returns_data(tmp_path):
     api = LocalPro(tmp_path)
     df = pd.DataFrame({
         "ts_code": ["CU.SHF", "AG.SHF"],
-        "trade_date": [dt(2024, 1, 2), dt(2024, 1, 2)],
+        "trade_date": ["20240102", "20240102"],
         "mapping_ts_code": ["CU2401.SHF", "AG2401.SHF"],
     })
     write_daily_partition(tmp_path / "futures", "fut_mapping", dt(2024, 1, 2), df)
@@ -1167,7 +1183,7 @@ def test_ft_limit_query_returns_data(tmp_path):
     from datetime import date as dt
     api = LocalPro(tmp_path)
     df = pd.DataFrame({
-        "trade_date": [dt(2024, 1, 2)],
+        "trade_date": ["20240102"],
         "ts_code": ["CU2401.SHF"], "name": ["沪铜2401"],
         "up_limit": [51000.0], "down_limit": [49000.0],
         "m_ratio": [0.10], "cont": ["CU"], "exchange": ["SHFE"],
@@ -1182,7 +1198,7 @@ def test_fut_weekly_query_returns_data(tmp_path):
     from datetime import date as dt
     api = LocalPro(tmp_path)
     df = pd.DataFrame({
-        "ts_code": ["CU2401.SHF"], "trade_date": [dt(2024, 1, 2)],
+        "ts_code": ["CU2401.SHF"], "trade_date": ["20240102"],
         "freq": ["week"], "open": [50000.0], "high": [50500.0],
         "low": [49900.0], "close": [50300.0], "pre_close": [50000.0],
         "settle": [50250.0], "pre_settle": [50100.0], "vol": [10000.0],
@@ -1199,7 +1215,7 @@ def test_fut_monthly_query_returns_data(tmp_path):
     from datetime import date as dt
     api = LocalPro(tmp_path)
     df = pd.DataFrame({
-        "ts_code": ["CU2401.SHF"], "trade_date": [dt(2024, 1, 2)],
+        "ts_code": ["CU2401.SHF"], "trade_date": ["20240102"],
         "freq": ["month"], "open": [50000.0], "high": [50500.0],
         "low": [49900.0], "close": [50300.0], "pre_close": [50000.0],
         "settle": [50250.0], "pre_settle": [50100.0], "vol": [10000.0],
@@ -1217,7 +1233,7 @@ def test_fut_index_daily_query_returns_data(tmp_path):
     api = LocalPro(tmp_path)
     df = pd.DataFrame({
         "ts_code": ["NHAI.NH", "NHCI.NH"],
-        "trade_date": [dt(2024, 1, 2), dt(2024, 1, 2)],
+        "trade_date": ["20240102", "20240102"],
         "close": [1000.0, 800.0], "open": [998.0, 798.0],
         "high": [1005.0, 805.0], "low": [995.0, 795.0],
         "pre_close": [998.0, 798.0], "change": [2.0, 2.0],
@@ -1255,7 +1271,7 @@ def test_batch2_query_dispatch(tmp_path):
     from datetime import date as dt
     api = LocalPro(tmp_path)
     df = pd.DataFrame({
-        "trade_date": [dt(2024, 1, 2)], "ts_code": ["CU2401.SHF"],
+        "trade_date": ["20240102"], "ts_code": ["CU2401.SHF"],
         "name": ["沪铜2401"], "up_limit": [51000.0], "down_limit": [49000.0],
         "m_ratio": [0.10], "cont": ["CU"], "exchange": ["SHFE"],
     })
@@ -1276,7 +1292,7 @@ def _write_opt_daily_data(data_dir, trade_date, ts_codes=None):
     for ts_code in ts_codes:
         rows.append({
             "ts_code": ts_code,
-            "trade_date": trade_date,
+            "trade_date": trade_date.strftime("%Y%m%d"),
             "exchange": "SSE",
             "pre_settle": 0.15,
             "pre_close": 0.148,
@@ -1412,6 +1428,7 @@ def test_opt_daily_query_returns_data(tmp_path):
     api = LocalPro(tmp_path)
     result = api.opt_daily(trade_date="20240102")
     assert len(result) == 2
+    assert result.iloc[0]["trade_date"] == "20240102"
 
 
 def test_opt_daily_query_filters_by_ts_code(tmp_path):
@@ -1436,7 +1453,7 @@ def test_opt_daily_query_filters_by_exchange(tmp_path):
     for ts_code in ["10004462.SH", "10004463.SH"]:
         rows.append({
             "ts_code": ts_code,
-            "trade_date": dt(2024, 1, 2),
+            "trade_date": "20240102",
             "exchange": "SSE",
             "pre_settle": 0.15, "pre_close": 0.148,
             "open": 0.152, "high": 0.16, "low": 0.148,
@@ -1445,7 +1462,7 @@ def test_opt_daily_query_filters_by_exchange(tmp_path):
         })
     rows.append({
         "ts_code": "90000001.SZ",
-        "trade_date": dt(2024, 1, 2),
+        "trade_date": "20240102",
         "exchange": "SZSE",
         "pre_settle": 0.2, "pre_close": 0.19,
         "open": 0.21, "high": 0.22, "low": 0.19,
@@ -1458,6 +1475,22 @@ def test_opt_daily_query_filters_by_exchange(tmp_path):
     result = api.opt_daily(trade_date="20240102", exchange="SSE")
     assert len(result) == 2
     assert all(result["exchange"] == "SSE")
+
+
+def test_opt_daily_supports_limit_and_offset(tmp_path):
+    from datetime import date as dt
+    _write_opt_daily_data(
+        tmp_path,
+        dt(2024, 1, 2),
+        ts_codes=["10004462.SH", "10004463.SH", "10004464.SH"],
+    )
+
+    api = LocalPro(tmp_path)
+    result = api.opt_daily(trade_date="20240102", limit=1, offset=1, fields="ts_code,trade_date")
+
+    assert result.to_dict("records") == [
+        {"ts_code": "10004463.SH", "trade_date": "20240102"}
+    ]
 
 
 def test_query_dispatch_supports_options(tmp_path):

@@ -1,3 +1,4 @@
+import datetime as datetime_module
 from datetime import date, timedelta
 from pathlib import Path
 import time
@@ -51,6 +52,12 @@ def _merge_trade_cal(existing: pd.DataFrame, fetched: pd.DataFrame) -> pd.DataFr
 
 def _should_log_progress(processed: int, total: int) -> bool:
     return processed == total or processed % PROGRESS_INTERVAL == 0
+
+
+def _parse_tushare_date(value: str | date) -> date:
+    if isinstance(value, datetime_module.date):
+        return value
+    return pd.to_datetime(value, format="%Y%m%d").date()
 
 
 def _log_daily_progress(
@@ -151,7 +158,7 @@ class Pipeline:
             for exchange in ALL_EXCHANGES:
                 existing = read_trade_cal(self._cfg.data_dir, exchange)
                 last = (
-                    existing["cal_date"].max()
+                    _parse_tushare_date(existing["cal_date"].max())
                     if not existing.empty
                     else None
                 )
@@ -170,7 +177,7 @@ class Pipeline:
                     logger.info(f"trade_cal {exchange} 已覆盖到 {last}，无需同步")
 
                 if not df.empty:
-                    max_dates.append(df["cal_date"].max())
+                    max_dates.append(_parse_tushare_date(df["cal_date"].max()))
 
             self._meta.load_trade_cal_from_parquet(self._cfg.data_dir, ALL_EXCHANGES)
             if max_dates:
@@ -451,7 +458,8 @@ class Pipeline:
                     if df.empty:
                         empty_months += 1
                     else:
-                        for trade_date, part in df.groupby("trade_date"):
+                        for trade_date_value, part in df.groupby("trade_date"):
+                            trade_date = _parse_tushare_date(trade_date_value)
                             if index_weight_partition_exists(
                                 self._cfg.data_dir, index_code, trade_date
                             ):
@@ -538,7 +546,8 @@ class Pipeline:
         skipped_existing = 0
         frontier = last
 
-        for trade_date, part in combined.groupby("trade_date"):
+        for trade_date_value, part in combined.groupby("trade_date"):
+            trade_date = _parse_tushare_date(trade_date_value)
             if daily_partition_exists(self._cfg.data_dir, "index_daily", trade_date):
                 skipped_existing += 1
                 continue
@@ -806,7 +815,8 @@ class Pipeline:
         frontier = last
         futures_dir = self._cfg.data_dir / "futures"
 
-        for trade_date, part in combined.groupby("trade_date"):
+        for trade_date_value, part in combined.groupby("trade_date"):
+            trade_date = _parse_tushare_date(trade_date_value)
             if daily_partition_exists(futures_dir, "fut_index_daily", trade_date):
                 skipped_existing += 1
                 continue
