@@ -4,7 +4,7 @@ from loguru import logger
 
 import pandas as pd
 
-from zer0share.storage import write_opt_basic, write_daily_partition
+from zer0share.storage import write_opt_basic
 from zer0share.sync import SyncContext
 from zer0share.sync._helpers import skip_if_not_trading, sync_daily_partitioned
 from zer0share.fetcher import OPTIONS_EXCHANGES

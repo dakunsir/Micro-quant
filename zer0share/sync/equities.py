@@ -10,7 +10,7 @@ from zer0share.storage import (
 )
 from zer0share.sync import SyncContext
 from zer0share.sync._helpers import (
-    FIRST_DATE, INDEX_CODES, index_weight_meta_key, log_daily_progress,
+    FIRST_DATE, INDEX_CODES, index_weight_meta_key,
     month_ranges, parse_tushare_date, should_log_progress, skip_if_not_trading,
     sync_daily_partitioned,
 )
