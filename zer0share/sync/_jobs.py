@@ -131,18 +131,16 @@ class DailySyncJob(SyncJob):
 
             if df is not None and not df.empty:
                 self.store.write(trade_date, df)
-                if current_meta is None or trade_date > current_meta:
-                    rt.meta.update_last_date(self.spec.name, trade_date)
-                    current_meta = trade_date
                 success += 1
             elif self.write_empty:
                 self.store.write(trade_date, df if df is not None else pd.DataFrame())
-                if current_meta is None or trade_date > current_meta:
-                    rt.meta.update_last_date(self.spec.name, trade_date)
-                    current_meta = trade_date
                 empty += 1
             else:
                 empty += 1
+
+            if current_meta is None or trade_date > current_meta:
+                rt.meta.update_last_date(self.spec.name, trade_date)
+                current_meta = trade_date
 
             if (i + 1) % PROGRESS_INTERVAL == 0:
                 processed = i + 1
