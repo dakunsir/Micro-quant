@@ -18,13 +18,11 @@ class FutBasicSyncJob(SyncJob):
     table_name = "fut_basic"
     supports_date_range = False
 
-    def __init__(self, fetch, store: DailyPartitionStore):
+    def __init__(self, fetch, store: SnapshotStore):
         self._fetch = fetch
         self._store = store
 
     def run(self, rt: SyncRuntime, start_date=None, end_date=None) -> None:
-        if rt.calendar.skip_if_not_trading("SSE"):
-            return
         today = rt.calendar.today()
         all_frames = []
         try:
@@ -35,7 +33,7 @@ class FutBasicSyncJob(SyncJob):
                     if not df.empty:
                         all_frames.append(df)
             combined = pd.concat(all_frames, ignore_index=True) if all_frames else pd.DataFrame()
-            self._store.write(today, combined)
+            self._store.write(combined)
             rt.meta.update_last_date("fut_basic", today)
             logger.info(f"fut_basic 同步完成: {len(combined)} 条")
         except Exception as e:
@@ -172,7 +170,7 @@ class FutWeeklyDetailSyncJob(SyncJob):
 def build_jobs(cfg, fetcher) -> list[SyncJob]:
     fd = cfg.data_dir / "futures"
     return [
-        FutBasicSyncJob(fetch=fetcher.fetch_fut_basic, store=DailyPartitionStore(fd / "fut_basic")),
+        FutBasicSyncJob(fetch=fetcher.fetch_fut_basic, store=SnapshotStore(fd / "fut_basic" / "data.parquet")),
         DailySyncJob(
             table_name=FUT_DAILY_SPEC.name, spec=FUT_DAILY_SPEC,
             fetch=fetcher.fetch_fut_daily, store=DailyPartitionStore(fd / "fut_daily"),

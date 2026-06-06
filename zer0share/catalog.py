@@ -187,11 +187,9 @@ FUT_BASIC_SPEC = TableSpec(
     name="fut_basic",
     path_parts=("futures", "fut_basic"),
     columns=FUT_BASIC_COLS,
-    parquet_pattern="date=*/data.parquet",
+    parquet_pattern="data.parquet",
     sync_table="fut_basic",
     order_by="ts_code",
-    hive_partitioning=True,
-    union_by_name=True,
 )
 
 FUT_DAILY_SPEC = DailyTableSpec(
