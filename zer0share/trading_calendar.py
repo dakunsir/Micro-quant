@@ -36,6 +36,7 @@ class TradingCalendar:
         return False
 
     def ensure_loaded(self, rt: "SyncRuntime") -> None:
+        # Lazy import: TradeCalSyncJob is created in sync/calendar.py (Task 6)
         if self._meta.get_last_date("trade_cal") is None:
             from zer0share.sync.calendar import TradeCalSyncJob
             job = TradeCalSyncJob()
