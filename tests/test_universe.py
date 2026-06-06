@@ -6,7 +6,6 @@ import pandas as pd
 from zer0share.storage import (
     write_basic,
     write_daily_partition,
-    write_daily_kline,
     write_index_weight,
     write_trade_cal,
     write_universe,
@@ -68,7 +67,7 @@ def test_build_universe_detail_applies_core_filters(tmp_path):
         if day == trade_date:
             df.loc[df["ts_code"] == "000004.SZ", ["open", "high", "low", "close"]] = 12.0
             df.loc[df["ts_code"] == "000007.SZ", ["open", "high", "low", "close"]] = 8.0
-        write_daily_kline(tmp_path, day, df)
+        write_daily_partition(tmp_path, "daily_kline", day, df)
 
     daily_basic = pd.DataFrame(
         {
@@ -152,7 +151,7 @@ def test_build_universes_writes_index_intersections(tmp_path):
     write_basic(tmp_path, _basic(codes, trade_date))
     for offset in range(20):
         day = trade_date - timedelta(days=19 - offset)
-        write_daily_kline(tmp_path, day, _daily(codes, day))
+        write_daily_partition(tmp_path, "daily_kline", day, _daily(codes, day))
 
     daily_basic = pd.DataFrame(
         {
@@ -237,7 +236,7 @@ def test_build_universes_range_skips_existing_partitions(tmp_path):
 
     for offset in range(21):
         day = second_date - timedelta(days=20 - offset)
-        write_daily_kline(tmp_path, day, _daily(codes, day))
+        write_daily_partition(tmp_path, "daily_kline", day, _daily(codes, day))
 
     for trade_date in [first_date, second_date]:
         write_daily_partition(
@@ -386,8 +385,8 @@ def test_build_universes_range_defaults_end_to_latest_complete_source_date(tmp_p
     )
     for offset in range(20):
         day = complete_date - timedelta(days=19 - offset)
-        write_daily_kline(tmp_path, day, _daily(codes, day))
-    write_daily_kline(tmp_path, incomplete_date, _daily(codes, incomplete_date))
+        write_daily_partition(tmp_path, "daily_kline", day, _daily(codes, day))
+    write_daily_partition(tmp_path, "daily_kline", incomplete_date, _daily(codes, incomplete_date))
 
     write_daily_partition(
         tmp_path,

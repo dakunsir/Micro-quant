@@ -3,10 +3,8 @@ import pytest
 
 from zer0share.api import LocalPro
 from zer0share.storage import (
-    write_adj_factor,
     write_basic,
     write_ci_member,
-    write_daily_kline,
     write_daily_partition,
     write_opt_basic,
     write_sw_classify,
@@ -109,10 +107,8 @@ def test_api_date_filters_reject_dash_separated_dates(tmp_path):
 
 
 def test_daily_filters_multiple_codes_by_date_range_and_formats_dates(tmp_path):
-    write_daily_kline(
-        tmp_path,
-        "20240102",
-        pd.DataFrame(
+    write_daily_partition(
+        tmp_path, "daily_kline", "20240102", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ", "600000.SH"],
                 "trade_date": ["20240102", "20240102"],
@@ -128,10 +124,8 @@ def test_daily_filters_multiple_codes_by_date_range_and_formats_dates(tmp_path):
             }
         ),
     )
-    write_daily_kline(
-        tmp_path,
-        "20240103",
-        pd.DataFrame(
+    write_daily_partition(
+        tmp_path, "daily_kline", "20240103", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ", "600000.SH"],
                 "trade_date": ["20240103", "20240103"],
@@ -245,10 +239,8 @@ def test_universe_filters_by_name_date_and_code(tmp_path):
 
 
 def test_adj_factor_filters_trade_date_and_formats_dates(tmp_path):
-    write_adj_factor(
-        tmp_path,
-        "20240102",
-        pd.DataFrame(
+    write_daily_partition(
+        tmp_path, "adj_factor", "20240102", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ", "600000.SH"],
                 "trade_date": ["20240102", "20240102"],
@@ -274,10 +266,8 @@ def test_daily_rejects_ambiguous_trade_date_and_range(tmp_path):
 
 
 def test_query_dispatches_to_named_api(tmp_path):
-    write_adj_factor(
-        tmp_path,
-        "20240102",
-        pd.DataFrame(
+    write_daily_partition(
+        tmp_path, "adj_factor", "20240102", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "trade_date": ["20240102"],
@@ -359,10 +349,8 @@ def test_invalid_date_format_raises_value_error(tmp_path):
 
 
 def test_invalid_date_range_raises_value_error(tmp_path):
-    write_daily_kline(
-        tmp_path,
-        "20240102",
-        pd.DataFrame(
+    write_daily_partition(
+        tmp_path, "daily_kline", "20240102", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "trade_date": ["20240102"],
@@ -404,10 +392,8 @@ def test_trade_cal_invalid_date_range_raises_value_error(tmp_path):
 
 
 def test_pro_bar_returns_qfq_prices_using_end_date_factor(tmp_path):
-    write_daily_kline(
-        tmp_path,
-        "20240102",
-        pd.DataFrame(
+    write_daily_partition(
+        tmp_path, "daily_kline", "20240102", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "trade_date": ["20240102"],
@@ -423,10 +409,8 @@ def test_pro_bar_returns_qfq_prices_using_end_date_factor(tmp_path):
             }
         ),
     )
-    write_daily_kline(
-        tmp_path,
-        "20240103",
-        pd.DataFrame(
+    write_daily_partition(
+        tmp_path, "daily_kline", "20240103", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "trade_date": ["20240103"],
@@ -442,10 +426,8 @@ def test_pro_bar_returns_qfq_prices_using_end_date_factor(tmp_path):
             }
         ),
     )
-    write_adj_factor(
-        tmp_path,
-        "20240102",
-        pd.DataFrame(
+    write_daily_partition(
+        tmp_path, "adj_factor", "20240102", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "trade_date": ["20240102"],
@@ -453,10 +435,8 @@ def test_pro_bar_returns_qfq_prices_using_end_date_factor(tmp_path):
             }
         ),
     )
-    write_adj_factor(
-        tmp_path,
-        "20240103",
-        pd.DataFrame(
+    write_daily_partition(
+        tmp_path, "adj_factor", "20240103", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "trade_date": ["20240103"],
@@ -506,10 +486,8 @@ def test_pro_bar_returns_qfq_prices_using_end_date_factor(tmp_path):
 
 
 def test_pro_bar_returns_hfq_prices(tmp_path):
-    write_daily_kline(
-        tmp_path,
-        "20240102",
-        pd.DataFrame(
+    write_daily_partition(
+        tmp_path, "daily_kline", "20240102", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "trade_date": ["20240102"],
@@ -525,10 +503,8 @@ def test_pro_bar_returns_hfq_prices(tmp_path):
             }
         ),
     )
-    write_adj_factor(
-        tmp_path,
-        "20240102",
-        pd.DataFrame(
+    write_daily_partition(
+        tmp_path, "adj_factor", "20240102", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "trade_date": ["20240102"],
@@ -546,10 +522,8 @@ def test_pro_bar_returns_hfq_prices(tmp_path):
 
 
 def test_pro_bar_rounds_adjusted_prices_to_two_decimals(tmp_path):
-    write_daily_kline(
-        tmp_path,
-        "20240102",
-        pd.DataFrame(
+    write_daily_partition(
+        tmp_path, "daily_kline", "20240102", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "trade_date": ["20240102"],
@@ -565,10 +539,8 @@ def test_pro_bar_rounds_adjusted_prices_to_two_decimals(tmp_path):
             }
         ),
     )
-    write_adj_factor(
-        tmp_path,
-        "20240102",
-        pd.DataFrame(
+    write_daily_partition(
+        tmp_path, "adj_factor", "20240102", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "trade_date": ["20240102"],
@@ -600,10 +572,8 @@ def test_pro_bar_supports_multiple_codes_with_qfq_base_per_stock(tmp_path):
             ],
         ),
     ]:
-        write_daily_kline(
-            tmp_path,
-            day,
-            pd.DataFrame(
+        write_daily_partition(
+            tmp_path, "daily_kline", day, pd.DataFrame(
                 {
                     "ts_code": [row[0] for row in rows],
                     "trade_date": [day, day],
@@ -623,10 +593,8 @@ def test_pro_bar_supports_multiple_codes_with_qfq_base_per_stock(tmp_path):
         ("20240101", [1.0, 10.0]),
         ("20240102", [2.0, 20.0]),
     ]:
-        write_adj_factor(
-            tmp_path,
-            day,
-            pd.DataFrame(
+        write_daily_partition(
+            tmp_path, "adj_factor", day, pd.DataFrame(
                 {
                     "ts_code": ["000001.SZ", "000002.SZ"],
                     "trade_date": [day, day],

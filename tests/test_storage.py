@@ -3,16 +3,13 @@ import pytest
 
 from zer0share.storage import (
     MetaStore,
-    daily_kline_partition_exists,
     read_basic,
     read_ci_member,
-    read_daily_kline,
     read_sw_classify,
     read_sw_member,
     read_trade_cal,
     write_basic,
     write_ci_member,
-    write_daily_kline,
     write_sw_classify,
     write_sw_member,
     write_trade_cal,
@@ -123,71 +120,6 @@ def test_context_manager(tmp_path):
         assert store.get_last_date("daily_kline") == "20240101"
 
 
-def test_write_and_read_daily_kline(tmp_path):
-    df = pd.DataFrame(
-        {
-            "ts_code": ["000001.SZ", "000002.SZ"],
-            "trade_date": ["20240102", "20240102"],
-            "open": [10.0, 20.0],
-            "high": [11.0, 21.0],
-            "low": [9.5, 19.5],
-            "close": [10.5, 20.5],
-            "pre_close": [10.0, 20.0],
-            "change": [0.5, 0.5],
-            "pct_chg": [5.0, 2.5],
-            "vol": [100000.0, 200000.0],
-            "amount": [1050000.0, 4100000.0],
-        }
-    )
-    write_daily_kline(tmp_path, "20240102", df)
-    result = read_daily_kline(tmp_path, "20240102")
-    assert len(result) == 2
-    assert set(result["ts_code"]) == {"000001.SZ", "000002.SZ"}
-
-
-def test_daily_kline_partition_path(tmp_path):
-    df = pd.DataFrame(
-        {
-            "ts_code": ["000001.SZ"],
-            "trade_date": ["20240102"],
-            "open": [10.0],
-            "high": [11.0],
-            "low": [9.5],
-            "close": [10.5],
-            "pre_close": [10.0],
-            "change": [0.5],
-            "pct_chg": [5.0],
-            "vol": [100000.0],
-            "amount": [1050000.0],
-        }
-    )
-    write_daily_kline(tmp_path, "20240102", df)
-    assert (tmp_path / "daily_kline" / "date=20240102" / "data.parquet").exists()
-
-
-def test_daily_kline_partition_exists(tmp_path):
-    assert daily_kline_partition_exists(tmp_path, "20240102") is False
-
-    df = pd.DataFrame(
-        {
-            "ts_code": ["000001.SZ"],
-            "trade_date": ["20240102"],
-            "open": [10.0],
-            "high": [11.0],
-            "low": [9.5],
-            "close": [10.5],
-            "pre_close": [10.0],
-            "change": [0.5],
-            "pct_chg": [5.0],
-            "vol": [100000.0],
-            "amount": [1050000.0],
-        }
-    )
-    write_daily_kline(tmp_path, "20240102", df)
-
-    assert daily_kline_partition_exists(tmp_path, "20240102") is True
-
-
 def test_write_and_read_basic(tmp_path):
     df = _basic_df()
     write_basic(tmp_path, df)
@@ -205,11 +137,6 @@ def test_basic_overwrites_on_second_write(tmp_path):
     assert len(result) == 2
     assert list(result.columns) == FULL_BASIC_COLUMNS
     assert set(result["ts_code"]) == {"000001.SZ", "000002.SZ"}
-
-
-def test_read_daily_kline_returns_empty_if_not_exists(tmp_path):
-    result = read_daily_kline(tmp_path, "20240102")
-    assert result.empty
 
 
 def test_read_basic_returns_empty_if_not_exists(tmp_path):

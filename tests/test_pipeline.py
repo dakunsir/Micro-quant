@@ -22,7 +22,6 @@ from zer0share.storage import (
     write_trade_cal,
     daily_partition_exists,
     DailyPartitionStore,
-    write_daily_kline,
     write_daily_partition,
 )
 from zer0share.fetcher import INDEX_DAILY_CODES, FUTURES_EXCHANGES, OPTIONS_EXCHANGES
@@ -362,7 +361,7 @@ def test_sync_daily_kline_range_skips_existing_partitions(pipeline, cfg, fetcher
     pipeline._runtime.meta.update_last_date("trade_cal", "20240104")
 
     existing_df = _kline_df("20240103")
-    write_daily_kline(cfg.data_dir, "20240103", existing_df)
+    write_daily_partition(cfg.data_dir, "daily_kline", "20240103", existing_df)
 
     fetcher.fetch_daily_kline.side_effect = [
         _kline_df("20240102"),

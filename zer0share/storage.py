@@ -137,42 +137,6 @@ class MetaStore:
         self._conn.close()
 
 
-def write_daily_kline(data_dir: Path, trade_date: str, df: pd.DataFrame) -> None:
-    trade_date = _date_str(trade_date)
-    partition_dir = data_dir / "daily_kline" / f"date={trade_date}"
-    partition_dir.mkdir(parents=True, exist_ok=True)
-    table = pa.Table.from_pandas(df, preserve_index=False)
-    pq.write_table(table, partition_dir / "data.parquet")
-
-
-def daily_kline_partition_exists(data_dir: Path, trade_date: str) -> bool:
-    trade_date = _date_str(trade_date)
-    path = data_dir / "daily_kline" / f"date={trade_date}" / "data.parquet"
-    return path.exists()
-
-
-def read_daily_kline(data_dir: Path, trade_date: str) -> pd.DataFrame:
-    trade_date = _date_str(trade_date)
-    path = data_dir / "daily_kline" / f"date={trade_date}" / "data.parquet"
-    if not path.exists():
-        return pd.DataFrame()
-    return pq.read_table(path).to_pandas()
-
-
-def write_adj_factor(data_dir: Path, trade_date: str, df: pd.DataFrame) -> None:
-    trade_date = _date_str(trade_date)
-    partition_dir = data_dir / "adj_factor" / f"date={trade_date}"
-    partition_dir.mkdir(parents=True, exist_ok=True)
-    table = pa.Table.from_pandas(df, preserve_index=False)
-    pq.write_table(table, partition_dir / "data.parquet")
-
-
-def adj_factor_partition_exists(data_dir: Path, trade_date: str) -> bool:
-    trade_date = _date_str(trade_date)
-    path = data_dir / "adj_factor" / f"date={trade_date}" / "data.parquet"
-    return path.exists()
-
-
 def write_daily_partition(
     data_dir: Path, table_name: str, trade_date: str, df: pd.DataFrame
 ) -> None:
