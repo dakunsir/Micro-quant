@@ -20,6 +20,21 @@ from zer0share.sync import SyncRuntime
 PROGRESS_INTERVAL = 50
 
 
+def _format_duration(seconds: float) -> str:
+    total_seconds = max(0, int(seconds))
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, secs = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+
+def _estimate_eta(elapsed_seconds: float, processed: int, total: int) -> str:
+    if processed <= 0 or total <= processed:
+        return "00:00:00"
+    seconds_per_item = elapsed_seconds / processed
+    remaining = total - processed
+    return _format_duration(seconds_per_item * remaining)
+
+
 class SyncJob(ABC):
     table_name: str
     supports_date_range: bool
@@ -80,10 +95,16 @@ class DailySyncJob(SyncJob):
                 "Trade calendar may not be loaded. Run `sync --table trade_cal` first."
             )
 
+        logger.info(
+            f"{self.spec.name}: start {start} ~ {end}, "
+            f"trading_days={len(trading_days)}"
+        )
+
         success = 0
         empty = 0
         skipped_existing = 0
         current_meta = rt.meta.get_last_date(self.spec.name)
+        started_at = time.monotonic()
 
         for i, trade_date in enumerate(trading_days):
             if self.store.exists(trade_date):
@@ -117,15 +138,23 @@ class DailySyncJob(SyncJob):
                 empty += 1
 
             if (i + 1) % PROGRESS_INTERVAL == 0:
+                processed = i + 1
+                total = len(trading_days)
+                elapsed = time.monotonic() - started_at
+                percent = processed / total * 100 if total else 100.0
                 logger.info(
-                    f"{self.spec.name}: progress {i + 1}/{len(trading_days)} "
-                    f"success={success} empty={empty} skipped={skipped_existing}"
+                    f"{self.spec.name}: progress {processed}/{total} ({percent:.1f}%) "
+                    f"success={success} empty={empty} skipped={skipped_existing} "
+                    f"elapsed={_format_duration(elapsed)} "
+                    f"eta={_estimate_eta(elapsed, processed, total)}"
                 )
 
         total = len(trading_days)
+        elapsed = time.monotonic() - started_at
         logger.info(
             f"{self.spec.name}: done total={total} "
-            f"success={success} empty={empty} skipped={skipped_existing}"
+            f"success={success} empty={empty} skipped={skipped_existing} "
+            f"elapsed={_format_duration(elapsed)}"
         )
         rt.notifier.send(
             f"{self.spec.name} 同步完成: "

@@ -5,7 +5,7 @@ import pytest
 from zer0share.storage import MetaStore, DailyPartitionStore, SnapshotStore
 from zer0share.trading_calendar import TradingCalendar
 from zer0share.sync import SyncRuntime
-from zer0share.sync._jobs import DailySyncJob, SnapshotSyncJob
+from zer0share.sync._jobs import DailySyncJob, SnapshotSyncJob, _format_duration
 from zer0share.catalog import DAILY_KLINE_SPEC, BASIC_SPEC
 from zer0share.query.repository import DailyTableSpec
 import pyarrow as pa
@@ -49,6 +49,55 @@ def test_daily_sync_job_writes_partition(tmp_path):
     assert store.exists("20240102")
     # 20240103 is not a trading day, 20240104 is but today is 20240102 so no 20240104
     assert meta.get_last_date("daily_kline") == "20240102"
+    meta.close()
+
+
+def test_daily_sync_job_logs_start_range_and_trading_day_count(tmp_path):
+    rt, meta = _make_runtime(tmp_path, today="20240104")
+    store = DailyPartitionStore(tmp_path / "daily_kline")
+    fetch = MagicMock(return_value=pd.DataFrame({
+        "ts_code": ["000001.SZ"], "trade_date": ["20240102"],
+    }))
+    job = DailySyncJob(table_name="daily_kline", spec=DAILY_KLINE_SPEC, fetch=fetch, store=store)
+    meta.update_last_date("daily_kline", "20240101")
+
+    with (
+        patch("zer0share.sync._jobs.time"),
+        patch("zer0share.sync._jobs.logger.info") as log_info,
+    ):
+        job.run(rt)
+
+    log_info.assert_any_call("daily_kline: start 20240102 ~ 20240104, trading_days=2")
+    meta.close()
+
+
+def test_format_duration_uses_hh_mm_ss():
+    assert _format_duration(0) == "00:00:00"
+    assert _format_duration(65) == "00:01:05"
+    assert _format_duration(3661) == "01:01:01"
+
+
+def test_daily_sync_job_progress_log_includes_elapsed_and_eta(tmp_path):
+    rt, meta = _make_runtime(tmp_path, today="20240104")
+    store = DailyPartitionStore(tmp_path / "daily_kline")
+    fetch = MagicMock(return_value=pd.DataFrame({
+        "ts_code": ["000001.SZ"], "trade_date": ["20240102"],
+    }))
+    job = DailySyncJob(table_name="daily_kline", spec=DAILY_KLINE_SPEC, fetch=fetch, store=store)
+    meta.update_last_date("daily_kline", "20240101")
+
+    with (
+        patch("zer0share.sync._jobs.PROGRESS_INTERVAL", 1),
+        patch("zer0share.sync._jobs.time.sleep"),
+        patch("zer0share.sync._jobs.time.monotonic", side_effect=[0, 10, 20, 20]),
+        patch("zer0share.sync._jobs.logger.info") as log_info,
+    ):
+        job.run(rt)
+
+    log_info.assert_any_call(
+        "daily_kline: progress 1/2 (50.0%) "
+        "success=1 empty=0 skipped=0 elapsed=00:00:10 eta=00:00:10"
+    )
     meta.close()
 
 
