@@ -198,10 +198,12 @@ def build_jobs(cfg, fetcher) -> list[SyncJob]:
         DailySyncJob(
             table_name=FUT_WEEKLY_SPEC.name, spec=FUT_WEEKLY_SPEC,
             fetch=fetcher.fetch_fut_weekly, store=DailyPartitionStore(fd / "fut_weekly"),
+            period="week",
         ),
         DailySyncJob(
             table_name=FUT_MONTHLY_SPEC.name, spec=FUT_MONTHLY_SPEC,
             fetch=fetcher.fetch_fut_monthly, store=DailyPartitionStore(fd / "fut_monthly"),
+            period="month",
         ),
         FutIndexDailySyncJob(
             fetch=fetcher.fetch_fut_index_daily,

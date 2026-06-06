@@ -54,6 +54,7 @@ class DailySyncJob(SyncJob):
         write_empty: bool = False,
         exchange: str = "SSE",
         supports_date_range: bool = True,
+        period: str = "day",
     ):
         self.table_name = table_name
         self.spec = spec
@@ -62,6 +63,7 @@ class DailySyncJob(SyncJob):
         self.write_empty = write_empty
         self.exchange = exchange
         self.supports_date_range = supports_date_range
+        self.period = period
 
     def run(
         self,
@@ -87,7 +89,12 @@ class DailySyncJob(SyncJob):
                 )
 
         trade_cal_loaded = rt.meta.get_last_date("trade_cal") is not None
-        trading_days = rt.calendar.get_trading_days(self.exchange, start, end)
+        if self.period == "week":
+            trading_days = rt.calendar.get_week_end_trading_days(self.exchange, start, end)
+        elif self.period == "month":
+            trading_days = rt.calendar.get_month_end_trading_days(self.exchange, start, end)
+        else:
+            trading_days = rt.calendar.get_trading_days(self.exchange, start, end)
 
         if not trading_days and not trade_cal_loaded:
             raise RuntimeError(

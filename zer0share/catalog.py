@@ -274,6 +274,7 @@ FUT_WEEKLY_SPEC = DailyTableSpec(
     order_by="ts_code, trade_date",
     hive_partitioning=True,
     union_by_name=True,
+    first_date="19950417",
 )
 
 FUT_MONTHLY_SPEC = DailyTableSpec(
@@ -285,6 +286,7 @@ FUT_MONTHLY_SPEC = DailyTableSpec(
     order_by="ts_code, trade_date",
     hive_partitioning=True,
     union_by_name=True,
+    first_date="19950417",
 )
 
 FUT_INDEX_DAILY_SPEC = DailyTableSpec(
