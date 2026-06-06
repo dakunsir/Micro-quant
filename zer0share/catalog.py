@@ -227,7 +227,7 @@ FUT_WSR_SPEC = DailyTableSpec(
     hive_partitioning=True,
     union_by_name=True,
     code_column=None,
-    first_date="20060101",
+    first_date="20070101",
 )
 
 FUT_SETTLE_SPEC = DailyTableSpec(
