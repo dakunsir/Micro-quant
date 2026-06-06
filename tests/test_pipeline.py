@@ -13,7 +13,7 @@ import pandas as pd
 import pytest
 
 from zer0share.pipeline import Pipeline
-from zer0share.sync._helpers import EXCHANGES, ALL_EXCHANGES, skip_if_not_trading, ensure_trade_cal_loaded
+from zer0share.sync._helpers import EXCHANGES, ALL_EXCHANGES
 from zer0share.storage import (
     read_sw_classify,
     read_sw_member,
@@ -169,6 +169,23 @@ def _setup_options_trade_cal(pipeline, cfg) -> None:
     pipeline._runtime.calendar._today_fn = lambda: "20240102"
 
 
+def _setup_trade_cal(pipeline, cfg, trade_date: str, is_open: bool) -> None:
+    """Generic helper to set up trade calendar for a single date and all exchanges."""
+    pretrade_date = "20231229" if trade_date == "20240102" else "20240101"
+    # Write trade_cal for all exchanges
+    for exchange in ALL_EXCHANGES:
+        trade_cal = pd.DataFrame({
+            "exchange": [exchange],
+            "cal_date": [trade_date],
+            "is_open": [is_open],
+            "pretrade_date": [pretrade_date],
+        })
+        write_trade_cal(cfg.data_dir, exchange, trade_cal)
+    pipeline._runtime.calendar.load_from_parquet(cfg.data_dir)
+    pipeline._runtime.meta.update_last_date("trade_cal", trade_date)
+    pipeline._runtime.calendar._today_fn = lambda: trade_date
+
+
 # ---------------------------------------------------------------------------
 # 1. Context manager + registry
 # ---------------------------------------------------------------------------
@@ -196,6 +213,27 @@ def test_pipeline_registry_contains_all_tables(pipeline):
 def test_pipeline_run_unknown_table_raises(pipeline):
     with pytest.raises(ValueError, match="未知表"):
         pipeline.run("nonexistent")
+
+
+def test_run_all_runs_all_25_jobs(pipeline, cfg):
+    """Smoke test: run_all() on a fully up-to-date pipeline raises no exception."""
+    # Mark all tables as already synced to today so every job returns immediately
+    today = "20240102"
+    pipeline._runtime.calendar._today_fn = lambda: today
+    _setup_trade_cal(pipeline, cfg, trade_date=today, is_open=True)
+
+    # Mark every registered table as already synced
+    for table_name in pipeline.registry:
+        pipeline._runtime.meta.update_last_date(table_name, today)
+    # Also mark the per-index index_weight keys
+    from zer0share.sync.equities import INDEX_CODES, _index_weight_meta_key
+    for code in INDEX_CODES:
+        pipeline._runtime.meta.update_last_date(_index_weight_meta_key(code), today)
+
+    # Should complete without exception
+    with patch("zer0share.sync._jobs.time"), patch("zer0share.sync.equities.time"), \
+         patch("zer0share.sync.futures.time"), patch("zer0share.sync.options.time"):
+        pipeline.run_all()
 
 
 # ---------------------------------------------------------------------------
@@ -424,8 +462,6 @@ def test_sync_trade_cal_updates_meta(pipeline, cfg, fetcher):
 
 
 def test_sync_trade_cal_uses_incremental_range(pipeline, cfg, fetcher):
-    from zer0share.sync.calendar import ALL_EXCHANGES as CAL_ALL_EXCHANGES
-
     write_trade_cal(cfg.data_dir, "SSE", pd.DataFrame({
         "exchange": ["SSE", "SSE"],
         "cal_date": ["20240101", "20240102"],
@@ -438,7 +474,7 @@ def test_sync_trade_cal_uses_incremental_range(pipeline, cfg, fetcher):
         "is_open": [True],
         "pretrade_date": ["20240102"],
     }))
-    for ex in CAL_ALL_EXCHANGES:
+    for ex in ALL_EXCHANGES:
         if ex in ("SSE", "SZSE"):
             continue
         write_trade_cal(cfg.data_dir, ex, pd.DataFrame({
@@ -466,9 +502,7 @@ def test_sync_trade_cal_uses_incremental_range(pipeline, cfg, fetcher):
 
 
 def test_sync_trade_cal_skips_when_already_covers_year_end(pipeline, cfg, fetcher):
-    from zer0share.sync.calendar import ALL_EXCHANGES as CAL_ALL_EXCHANGES
-
-    for exchange in CAL_ALL_EXCHANGES:
+    for exchange in ALL_EXCHANGES:
         write_trade_cal(cfg.data_dir, exchange, pd.DataFrame({
             "exchange": [exchange],
             "cal_date": ["20241231"],
@@ -491,12 +525,10 @@ def test_sync_trade_cal_failure_sends_alert(pipeline, cfg, fetcher, notifier):
 
 
 def test_sync_trade_cal_writes_all_8_exchanges(pipeline, cfg, fetcher):
-    from zer0share.sync.calendar import ALL_EXCHANGES as CAL_ALL_EXCHANGES
-
     fetcher.fetch_trade_cal.return_value = _trade_cal_df("SSE")
     pipeline._runtime.calendar._today_fn = lambda: "20240518"
     pipeline.run("trade_cal")
-    for ex in CAL_ALL_EXCHANGES:
+    for ex in ALL_EXCHANGES:
         assert (cfg.data_dir / "trade_cal" / f"exchange={ex}" / "data.parquet").exists(), f"Missing {ex}"
 
 
