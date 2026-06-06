@@ -84,7 +84,6 @@ class DailySyncJob(SyncJob):
         success = 0
         empty = 0
         skipped_existing = 0
-        last_written: str | None = None
 
         for i, trade_date in enumerate(trading_days):
             if self.store.exists(trade_date):
@@ -105,12 +104,10 @@ class DailySyncJob(SyncJob):
             if df is not None and not df.empty:
                 self.store.write(trade_date, df)
                 rt.meta.update_last_date(self.spec.name, trade_date)
-                last_written = trade_date
                 success += 1
             elif self.write_empty:
                 self.store.write(trade_date, df if df is not None else pd.DataFrame())
                 rt.meta.update_last_date(self.spec.name, trade_date)
-                last_written = trade_date
                 empty += 1
             else:
                 empty += 1
@@ -140,6 +137,7 @@ class SnapshotSyncJob(SyncJob):
         fetch: Callable[[], pd.DataFrame],
         store: SnapshotStore,
         skip_non_trading: bool = True,
+        exchange: str = "SSE",
         supports_date_range: bool = False,
     ):
         self.table_name = table_name
@@ -147,6 +145,7 @@ class SnapshotSyncJob(SyncJob):
         self.fetch = fetch
         self.store = store
         self.skip_non_trading = skip_non_trading
+        self.exchange = exchange
         self.supports_date_range = supports_date_range
 
     def run(
@@ -155,7 +154,7 @@ class SnapshotSyncJob(SyncJob):
         start_date: str | None = None,
         end_date: str | None = None,
     ) -> None:
-        if self.skip_non_trading and rt.calendar.skip_if_not_trading("SSE"):
+        if self.skip_non_trading and rt.calendar.skip_if_not_trading(self.exchange):
             return
 
         today = rt.calendar.today()
