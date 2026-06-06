@@ -201,7 +201,7 @@ FUT_DAILY_SPEC = DailyTableSpec(
     order_by="ts_code, trade_date",
     hive_partitioning=True,
     union_by_name=True,
-    first_date="19960101",
+    first_date="19950417",
 )
 
 FUT_HOLDING_SPEC = DailyTableSpec(
