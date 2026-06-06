@@ -3,7 +3,7 @@ import pandas as pd
 
 from zer0share.query import QueryContext
 from zer0share.query._helpers import (
-    format_date_columns, parse_date, parse_fields, query_daily_partitioned,
+    format_date_columns, parse_fields, query_daily_partitioned,
 )
 from zer0share.schema import (
     BASIC_COLS, DAILY_COLS, ADJ_FACTOR_COLS, DAILY_BASIC_COLS,
@@ -132,9 +132,7 @@ def index_weight(ctx: QueryContext, index_code=None, trade_date=None,
     """Query constituent weights for CSI 300/500/1000 index rebalancing dates."""
     if trade_date is not None and (start_date is not None or end_date is not None):
         raise ValueError("trade_date cannot be combined with start_date or end_date")
-    parsed_start = parse_date(start_date) if start_date is not None else None
-    parsed_end = parse_date(end_date) if end_date is not None else None
-    if parsed_start is not None and parsed_end is not None and parsed_end < parsed_start:
+    if start_date is not None and end_date is not None and end_date < start_date:
         raise ValueError("end_date must be on or after start_date")
 
     table_dir = ctx.data_dir / "index_weight"
@@ -149,11 +147,11 @@ def index_weight(ctx: QueryContext, index_code=None, trade_date=None,
     if index_code is not None:
         where.append("index_code = ?"); params.append(index_code)
     if trade_date is not None:
-        where.append("trade_date = ?"); params.append(parse_date(trade_date).strftime("%Y%m%d"))
-    if parsed_start is not None:
-        where.append("trade_date >= ?"); params.append(parsed_start.strftime("%Y%m%d"))
-    if parsed_end is not None:
-        where.append("trade_date <= ?"); params.append(parsed_end.strftime("%Y%m%d"))
+        where.append("trade_date = ?"); params.append(trade_date)
+    if start_date is not None:
+        where.append("trade_date >= ?"); params.append(start_date)
+    if end_date is not None:
+        where.append("trade_date <= ?"); params.append(end_date)
 
     pattern = table_dir / "index_code=*" / "date=*" / "data.parquet"
     sql = (
@@ -176,9 +174,7 @@ def universe(ctx: QueryContext, universe=None, ts_code=None, trade_date=None,
     """Query universe membership snapshots (which stocks belong to which universe on each date)."""
     if trade_date is not None and (start_date is not None or end_date is not None):
         raise ValueError("trade_date cannot be combined with start_date or end_date")
-    parsed_start = parse_date(start_date) if start_date is not None else None
-    parsed_end = parse_date(end_date) if end_date is not None else None
-    if parsed_start is not None and parsed_end is not None and parsed_end < parsed_start:
+    if start_date is not None and end_date is not None and end_date < start_date:
         raise ValueError("end_date must be on or after start_date")
 
     table_dir = ctx.data_dir / "universe"
@@ -195,11 +191,10 @@ def universe(ctx: QueryContext, universe=None, ts_code=None, trade_date=None,
         placeholders = ", ".join("?" for _ in codes)
         where.append(f"ts_code IN ({placeholders})"); params.extend(codes)
     if trade_date is not None:
-        parse_date(trade_date)
         where.append("trade_date = ?"); params.append(trade_date)
-    if parsed_start is not None:
+    if start_date is not None:
         where.append("trade_date >= ?"); params.append(start_date)
-    if parsed_end is not None:
+    if end_date is not None:
         where.append("trade_date <= ?"); params.append(end_date)
 
     pattern = table_dir / "name=*" / "date=*" / "data.parquet"

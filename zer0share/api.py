@@ -1,8 +1,19 @@
+import datetime as dt
 from pathlib import Path
 
 from zer0share.config import load_config
 from zer0share.query import QueryContext
 from zer0share.query import calendar, equities, industry, futures, options
+
+
+def _check_dates(kwargs: dict) -> None:
+    for key in ("start_date", "end_date", "trade_date"):
+        val = kwargs.get(key)
+        if val is not None:
+            try:
+                dt.datetime.strptime(val, "%Y%m%d")
+            except ValueError:
+                raise ValueError(f"invalid date format: {val!r}; expected YYYYMMDD")
 
 
 class LocalPro:
@@ -11,6 +22,7 @@ class LocalPro:
 
     # Calendar
     def trade_cal(self, **kwargs):
+        _check_dates(kwargs)
         return calendar.trade_cal(self._ctx, **kwargs)
 
     # Equities
@@ -18,33 +30,43 @@ class LocalPro:
         return equities.stock_basic(self._ctx, **kwargs)
 
     def daily(self, **kwargs):
+        _check_dates(kwargs)
         return equities.daily(self._ctx, **kwargs)
 
     def adj_factor(self, **kwargs):
+        _check_dates(kwargs)
         return equities.adj_factor(self._ctx, **kwargs)
 
     def daily_basic(self, **kwargs):
+        _check_dates(kwargs)
         return equities.daily_basic(self._ctx, **kwargs)
 
     def stock_st(self, **kwargs):
+        _check_dates(kwargs)
         return equities.stock_st(self._ctx, **kwargs)
 
     def suspend_d(self, **kwargs):
+        _check_dates(kwargs)
         return equities.suspend_d(self._ctx, **kwargs)
 
     def stk_limit(self, **kwargs):
+        _check_dates(kwargs)
         return equities.stk_limit(self._ctx, **kwargs)
 
     def index_daily(self, **kwargs):
+        _check_dates(kwargs)
         return equities.index_daily(self._ctx, **kwargs)
 
     def index_weight(self, **kwargs):
+        _check_dates(kwargs)
         return equities.index_weight(self._ctx, **kwargs)
 
     def universe(self, **kwargs):
+        _check_dates(kwargs)
         return equities.universe(self._ctx, **kwargs)
 
     def pro_bar(self, **kwargs):
+        _check_dates(kwargs)
         return equities.pro_bar(self._ctx, **kwargs)
 
     # Industry
@@ -62,33 +84,43 @@ class LocalPro:
         return futures.fut_basic(self._ctx, **kwargs)
 
     def fut_daily(self, **kwargs):
+        _check_dates(kwargs)
         return futures.fut_daily(self._ctx, **kwargs)
 
     def fut_holding(self, **kwargs):
+        _check_dates(kwargs)
         return futures.fut_holding(self._ctx, **kwargs)
 
     def fut_wsr(self, **kwargs):
+        _check_dates(kwargs)
         return futures.fut_wsr(self._ctx, **kwargs)
 
     def fut_settle(self, **kwargs):
+        _check_dates(kwargs)
         return futures.fut_settle(self._ctx, **kwargs)
 
     def fut_mapping(self, **kwargs):
+        _check_dates(kwargs)
         return futures.fut_mapping(self._ctx, **kwargs)
 
     def ft_limit(self, **kwargs):
+        _check_dates(kwargs)
         return futures.ft_limit(self._ctx, **kwargs)
 
     def fut_weekly(self, **kwargs):
+        _check_dates(kwargs)
         return futures.fut_weekly(self._ctx, **kwargs)
 
     def fut_monthly(self, **kwargs):
+        _check_dates(kwargs)
         return futures.fut_monthly(self._ctx, **kwargs)
 
     def fut_index_daily(self, **kwargs):
+        _check_dates(kwargs)
         return futures.fut_index_daily(self._ctx, **kwargs)
 
     def fut_weekly_detail(self, **kwargs):
+        _check_dates(kwargs)
         return futures.fut_weekly_detail(self._ctx, **kwargs)
 
     # Options
@@ -96,6 +128,7 @@ class LocalPro:
         return options.opt_basic(self._ctx, **kwargs)
 
     def opt_daily(self, **kwargs):
+        _check_dates(kwargs)
         return options.opt_daily(self._ctx, **kwargs)
 
     def query(self, api_name: str, **kwargs):

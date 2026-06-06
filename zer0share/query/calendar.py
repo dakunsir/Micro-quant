@@ -2,7 +2,7 @@ import duckdb
 import pandas as pd
 
 from zer0share.query import QueryContext
-from zer0share.query._helpers import parse_date, parse_fields, parse_is_open
+from zer0share.query._helpers import parse_fields, parse_is_open
 from zer0share.schema import TRADE_CAL_COLS
 
 
@@ -26,16 +26,14 @@ def trade_cal(
     columns = parse_fields(fields, TRADE_CAL_COLS)
     where = ["exchange = ?"]
     params = [exchange]
-    parsed_start = parse_date(start_date) if start_date is not None else None
-    parsed_end = parse_date(end_date) if end_date is not None else None
-    if parsed_start is not None and parsed_end is not None and parsed_end < parsed_start:
+    if start_date is not None and end_date is not None and end_date < start_date:
         raise ValueError("end_date must be on or after start_date")
-    if parsed_start is not None:
+    if start_date is not None:
         where.append("cal_date >= ?")
-        params.append(parsed_start.strftime("%Y%m%d"))
-    if parsed_end is not None:
+        params.append(start_date)
+    if end_date is not None:
         where.append("cal_date <= ?")
-        params.append(parsed_end.strftime("%Y%m%d"))
+        params.append(end_date)
     if is_open is not None:
         where.append("is_open = ?")
         params.append(parse_is_open(is_open))

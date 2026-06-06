@@ -1,5 +1,4 @@
 import re
-import datetime as dt
 from pathlib import Path
 
 import duckdb
@@ -20,12 +19,6 @@ def parse_fields(fields, default_columns: list[str]) -> list[str]:
         raise ValueError(f"unknown fields: {', '.join(unknown)}")
     return parsed
 
-
-def parse_date(value: str):
-    try:
-        return dt.datetime.strptime(value, "%Y%m%d").date()
-    except ValueError as e:
-        raise ValueError(f"invalid date format: {value}; expected YYYYMMDD") from e
 
 
 def parse_is_open(value) -> bool:
@@ -66,9 +59,7 @@ def query_daily_partitioned(
 ) -> pd.DataFrame:
     if trade_date is not None and (start_date is not None or end_date is not None):
         raise ValueError("trade_date cannot be combined with start_date or end_date")
-    parsed_start = parse_date(start_date) if start_date is not None else None
-    parsed_end = parse_date(end_date) if end_date is not None else None
-    if parsed_start is not None and parsed_end is not None and parsed_end < parsed_start:
+    if start_date is not None and end_date is not None and end_date < start_date:
         raise ValueError("end_date must be on or after start_date")
 
     base_dir = data_dir_override or ctx.data_dir
@@ -88,13 +79,13 @@ def query_daily_partitioned(
         params.extend(codes)
     if trade_date is not None:
         where.append("trade_date = ?")
-        params.append(parse_date(trade_date).strftime("%Y%m%d"))
-    if parsed_start is not None:
+        params.append(trade_date)
+    if start_date is not None:
         where.append("trade_date >= ?")
-        params.append(parsed_start.strftime("%Y%m%d"))
-    if parsed_end is not None:
+        params.append(start_date)
+    if end_date is not None:
         where.append("trade_date <= ?")
-        params.append(parsed_end.strftime("%Y%m%d"))
+        params.append(end_date)
     if extra_filters is not None:
         for col, val in extra_filters.items():
             if col not in columns:
