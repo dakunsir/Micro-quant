@@ -173,6 +173,8 @@ uv run python main.py scheduler start
 
 同步完成后，可以在研究代码中使用类似 Tushare Pro 的本地 Python API 查询数据。查询只读取本地 Parquet 文件，通过 DuckDB 执行，不会访问 Tushare，也不会消耗积分。
 
+仓库内置 AI Skill：`skills/zer0share-data`。支持让 Codex、Claude Code、OpenClaw 等智能体把中文自然语言数据请求转成 `zer0share` 本地查询流程。
+
 ```python
 from zer0share import pro_api
 
