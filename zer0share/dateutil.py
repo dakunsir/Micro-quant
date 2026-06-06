@@ -48,3 +48,18 @@ def week_ranges(start: str, end: str) -> list[tuple[str, str]]:
             weeks.append((week_num, monday.strftime(_FMT)))
         current += timedelta(days=7)
     return weeks
+
+
+def date_str(value) -> str:
+    """Coerce a date or YYYYMMDD string to a YYYYMMDD string."""
+    if isinstance(value, str):
+        return value
+    return value.strftime(_FMT)
+
+
+def parse_date(s: str) -> date:
+    """Parse a YYYYMMDD string to a date object; raises ValueError on bad format."""
+    try:
+        return _parse(s)
+    except (ValueError, IndexError) as e:
+        raise ValueError(f"invalid date format: {s!r}; expected YYYYMMDD") from e

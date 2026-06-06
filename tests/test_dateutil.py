@@ -1,4 +1,6 @@
-from zer0share.dateutil import add_days, month_ranges, today, week_ranges
+from datetime import date
+import pytest
+from zer0share.dateutil import add_days, date_str, month_ranges, parse_date, today, week_ranges
 
 
 def test_today_returns_yyyymmdd_string():
@@ -67,3 +69,20 @@ def test_week_ranges_two_weeks():
 def test_week_ranges_advances_by_7():
     result = week_ranges("20240101", "20240107")
     assert len(result) == 1
+
+
+def test_date_str_with_string():
+    assert date_str("20240102") == "20240102"
+
+
+def test_date_str_with_date_object():
+    assert date_str(date(2024, 1, 2)) == "20240102"
+
+
+def test_parse_date_valid():
+    assert parse_date("20240102") == date(2024, 1, 2)
+
+
+def test_parse_date_invalid_raises():
+    with pytest.raises(ValueError):
+        parse_date("2024-01-02")
