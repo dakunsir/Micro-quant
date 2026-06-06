@@ -1,215 +1,252 @@
-import duckdb
 import pandas as pd
 
 from zer0share.query import QueryContext
-from zer0share.query._helpers import (
-    format_date_columns, parse_fields, query_daily_partitioned,
+from zer0share.query._helpers import format_date_columns
+from zer0share.query.repository import (
+    BaseParquetRepository,
+    DailyPartitionRepository,
+    DailyTableSpec,
+    SqlFilter,
+    TableSpec,
+    date_range_filters,
+    eq_filter,
+    in_filter,
 )
 from zer0share.schema import (
-    BASIC_COLS, DAILY_COLS, ADJ_FACTOR_COLS, DAILY_BASIC_COLS,
-    STOCK_ST_COLS, SUSPEND_D_COLS, STK_LIMIT_COLS,
-    INDEX_WEIGHT_COLS, INDEX_DAILY_COLS,
+    ADJ_FACTOR_COLS,
+    BASIC_COLS,
+    DAILY_BASIC_COLS,
+    DAILY_COLS,
+    INDEX_DAILY_COLS,
+    INDEX_WEIGHT_COLS,
+    STOCK_ST_COLS,
+    STK_LIMIT_COLS,
+    SUSPEND_D_COLS,
 )
 
 UNIVERSE_COLS = ["trade_date", "universe", "ts_code"]
+
+
+def _base_repo(ctx: QueryContext, spec: TableSpec) -> BaseParquetRepository:
+    return BaseParquetRepository(ctx, spec)
+
+
+def _daily_repo(ctx: QueryContext, spec: DailyTableSpec) -> DailyPartitionRepository:
+    return DailyPartitionRepository(ctx, spec)
 
 
 def stock_basic(ctx: QueryContext, ts_code=None, name=None, market=None,
                 list_status="L", exchange=None, is_hs=None, fields=None,
                 limit: int | None = None, offset: int | None = None) -> pd.DataFrame:
     """Query stock basic info (name, market, list_status, etc.)."""
-    path = ctx.data_dir / "basic" / "data.parquet"
-    if not path.exists():
-        raise FileNotFoundError("basic data not found; run `python main.py sync --table basic` first")
-
-    columns = parse_fields(fields, BASIC_COLS)
-    where = []
-    params = []
+    repo = _base_repo(
+        ctx,
+        TableSpec(
+            name="basic",
+            path_parts=("basic",),
+            columns=BASIC_COLS,
+            parquet_pattern="data.parquet",
+            sync_table="basic",
+            order_by="ts_code",
+        ),
+    )
+    filters = []
     if ts_code is not None:
-        where.append("ts_code = ?"); params.append(ts_code)
+        filters.append(eq_filter("ts_code", ts_code, BASIC_COLS))
     if name is not None:
-        where.append("name = ?"); params.append(name)
+        filters.append(eq_filter("name", name, BASIC_COLS))
     if market is not None:
-        where.append("market = ?"); params.append(market)
+        filters.append(eq_filter("market", market, BASIC_COLS))
     if list_status is not None:
-        where.append("list_status = ?"); params.append(list_status)
+        filters.append(eq_filter("list_status", list_status, BASIC_COLS))
     if exchange is not None:
-        where.append("exchange = ?"); params.append(exchange)
+        filters.append(eq_filter("exchange", exchange, BASIC_COLS))
     if is_hs is not None:
-        where.append("is_hs = ?"); params.append(is_hs)
-
-    sql = f"SELECT {', '.join(columns)} FROM read_parquet(?)"
-    if where:
-        sql += " WHERE " + " AND ".join(where)
-    sql += " ORDER BY ts_code"
-    if limit is not None:
-        sql += " LIMIT ?"; params.append(limit)
-    if offset is not None:
-        sql += " OFFSET ?"; params.append(offset)
-    return duckdb.connect().execute(sql, [str(path), *params]).fetchdf()
+        filters.append(eq_filter("is_hs", is_hs, BASIC_COLS))
+    return repo.query(fields=fields, filters=filters, limit=limit, offset=offset)
 
 
 def daily(ctx: QueryContext, ts_code=None, trade_date=None,
           start_date=None, end_date=None, fields=None,
           limit: int | None = None, offset: int | None = None) -> pd.DataFrame:
     """Query daily OHLCV bar data (open, high, low, close, vol, amount)."""
-    return query_daily_partitioned(
-        ctx, "daily_kline", "daily_kline", DAILY_COLS,
-        ts_code, trade_date, start_date, end_date, fields,
-        limit=limit, offset=offset,
-    )
+    return _daily_repo(
+        ctx,
+        DailyTableSpec(
+            name="daily_kline",
+            path_parts=("daily_kline",),
+            columns=DAILY_COLS,
+            parquet_pattern="date=*/data.parquet",
+            sync_table="daily_kline",
+            order_by="ts_code, trade_date",
+            hive_partitioning=True,
+            union_by_name=True,
+        ),
+    ).query(ts_code, trade_date, start_date, end_date, fields, limit=limit, offset=offset)
 
 
 def adj_factor(ctx: QueryContext, ts_code=None, trade_date=None,
                start_date=None, end_date=None, fields=None,
                limit: int | None = None, offset: int | None = None) -> pd.DataFrame:
     """Query back-adjustment factors for split/dividend-adjusted price calculation."""
-    return query_daily_partitioned(
-        ctx, "adj_factor", "adj_factor", ADJ_FACTOR_COLS,
-        ts_code, trade_date, start_date, end_date, fields,
-        limit=limit, offset=offset,
-    )
+    return _daily_repo(
+        ctx,
+        DailyTableSpec(
+            name="adj_factor",
+            path_parts=("adj_factor",),
+            columns=ADJ_FACTOR_COLS,
+            parquet_pattern="date=*/data.parquet",
+            sync_table="adj_factor",
+            order_by="ts_code, trade_date",
+            hive_partitioning=True,
+            union_by_name=True,
+        ),
+    ).query(ts_code, trade_date, start_date, end_date, fields, limit=limit, offset=offset)
 
 
 def daily_basic(ctx: QueryContext, ts_code=None, trade_date=None,
                 start_date=None, end_date=None, fields=None,
                 limit: int | None = None, offset: int | None = None) -> pd.DataFrame:
     """Query daily fundamental indicators (PE, PB, market cap, turnover rate, etc.)."""
-    return query_daily_partitioned(
-        ctx, "daily_basic", "daily_basic", DAILY_BASIC_COLS,
-        ts_code, trade_date, start_date, end_date, fields,
-        limit=limit, offset=offset,
-    )
+    return _daily_repo(
+        ctx,
+        DailyTableSpec(
+            name="daily_basic",
+            path_parts=("daily_basic",),
+            columns=DAILY_BASIC_COLS,
+            parquet_pattern="date=*/data.parquet",
+            sync_table="daily_basic",
+            order_by="ts_code, trade_date",
+            hive_partitioning=True,
+            union_by_name=True,
+        ),
+    ).query(ts_code, trade_date, start_date, end_date, fields, limit=limit, offset=offset)
 
 
 def stock_st(ctx: QueryContext, ts_code=None, trade_date=None,
              start_date=None, end_date=None, fields=None,
              limit: int | None = None, offset: int | None = None) -> pd.DataFrame:
     """Query ST/ST*/delisting-risk flag history per stock per trading day."""
-    return query_daily_partitioned(
-        ctx, "stock_st", "stock_st", STOCK_ST_COLS,
-        ts_code, trade_date, start_date, end_date, fields,
-        limit=limit, offset=offset,
-    )
+    return _daily_repo(
+        ctx,
+        DailyTableSpec(
+            name="stock_st",
+            path_parts=("stock_st",),
+            columns=STOCK_ST_COLS,
+            parquet_pattern="date=*/data.parquet",
+            sync_table="stock_st",
+            order_by="ts_code, trade_date",
+            hive_partitioning=True,
+            union_by_name=True,
+        ),
+    ).query(ts_code, trade_date, start_date, end_date, fields, limit=limit, offset=offset)
 
 
 def suspend_d(ctx: QueryContext, ts_code=None, trade_date=None,
               start_date=None, end_date=None, fields=None,
               limit: int | None = None, offset: int | None = None) -> pd.DataFrame:
     """Query daily suspension records (stock halted from trading)."""
-    return query_daily_partitioned(
-        ctx, "suspend_d", "suspend_d", SUSPEND_D_COLS,
-        ts_code, trade_date, start_date, end_date, fields,
-        limit=limit, offset=offset,
-    )
+    return _daily_repo(
+        ctx,
+        DailyTableSpec(
+            name="suspend_d",
+            path_parts=("suspend_d",),
+            columns=SUSPEND_D_COLS,
+            parquet_pattern="date=*/data.parquet",
+            sync_table="suspend_d",
+            order_by="ts_code, trade_date",
+            hive_partitioning=True,
+            union_by_name=True,
+        ),
+    ).query(ts_code, trade_date, start_date, end_date, fields, limit=limit, offset=offset)
 
 
 def stk_limit(ctx: QueryContext, ts_code=None, trade_date=None,
               start_date=None, end_date=None, fields=None,
               limit: int | None = None, offset: int | None = None) -> pd.DataFrame:
     """Query daily price limits (up_limit, down_limit, pre_close) per stock."""
-    return query_daily_partitioned(
-        ctx, "stk_limit", "stk_limit", STK_LIMIT_COLS,
-        ts_code, trade_date, start_date, end_date, fields,
-        limit=limit, offset=offset,
-    )
+    return _daily_repo(
+        ctx,
+        DailyTableSpec(
+            name="stk_limit",
+            path_parts=("stk_limit",),
+            columns=STK_LIMIT_COLS,
+            parquet_pattern="date=*/data.parquet",
+            sync_table="stk_limit",
+            order_by="ts_code, trade_date",
+            hive_partitioning=True,
+            union_by_name=True,
+        ),
+    ).query(ts_code, trade_date, start_date, end_date, fields, limit=limit, offset=offset)
 
 
 def index_daily(ctx: QueryContext, ts_code=None, trade_date=None,
                 start_date=None, end_date=None, fields=None,
                 limit: int | None = None, offset: int | None = None) -> pd.DataFrame:
     """Query daily OHLCV bar data for broad market indices (SSE/SZSE/CSI)."""
-    return query_daily_partitioned(
-        ctx, "index_daily", "index_daily", INDEX_DAILY_COLS,
-        ts_code, trade_date, start_date, end_date, fields,
-        limit=limit, offset=offset,
-    )
+    return _daily_repo(
+        ctx,
+        DailyTableSpec(
+            name="index_daily",
+            path_parts=("index_daily",),
+            columns=INDEX_DAILY_COLS,
+            parquet_pattern="date=*/data.parquet",
+            sync_table="index_daily",
+            order_by="ts_code, trade_date",
+            hive_partitioning=True,
+            union_by_name=True,
+        ),
+    ).query(ts_code, trade_date, start_date, end_date, fields, limit=limit, offset=offset)
 
 
 def index_weight(ctx: QueryContext, index_code=None, trade_date=None,
                  start_date=None, end_date=None, fields=None,
                  limit: int | None = None, offset: int | None = None) -> pd.DataFrame:
     """Query constituent weights for CSI 300/500/1000 index rebalancing dates."""
-    if trade_date is not None and (start_date is not None or end_date is not None):
-        raise ValueError("trade_date cannot be combined with start_date or end_date")
-    if start_date is not None and end_date is not None and end_date < start_date:
-        raise ValueError("end_date must be on or after start_date")
-
-    table_dir = ctx.data_dir / "index_weight"
-    if not table_dir.exists():
-        raise FileNotFoundError(
-            "index_weight data not found; run `python main.py sync --table index_weight` first"
-        )
-
-    selected = parse_fields(fields, INDEX_WEIGHT_COLS)
-    where = []
-    params = []
-    if index_code is not None:
-        where.append("index_code = ?"); params.append(index_code)
-    if trade_date is not None:
-        where.append("trade_date = ?"); params.append(trade_date)
-    if start_date is not None:
-        where.append("trade_date >= ?"); params.append(start_date)
-    if end_date is not None:
-        where.append("trade_date <= ?"); params.append(end_date)
-
-    pattern = table_dir / "index_code=*" / "date=*" / "data.parquet"
-    sql = (
-        f"SELECT {', '.join(selected)} "
-        "FROM read_parquet(?, hive_partitioning=true, union_by_name=true)"
+    repo = _base_repo(
+        ctx,
+        TableSpec(
+            name="index_weight",
+            path_parts=("index_weight",),
+            columns=INDEX_WEIGHT_COLS,
+            parquet_pattern="index_code=*/date=*/data.parquet",
+            sync_table="index_weight",
+            order_by="index_code, con_code, trade_date",
+            hive_partitioning=True,
+            union_by_name=True,
+        ),
     )
-    if where:
-        sql += " WHERE " + " AND ".join(where)
-    sql += " ORDER BY index_code, con_code, trade_date"
-    if limit is not None:
-        sql += " LIMIT ?"; params.append(limit)
-    if offset is not None:
-        sql += " OFFSET ?"; params.append(offset)
-    return duckdb.connect().execute(sql, [str(pattern), *params]).fetchdf()
+    filters: list[SqlFilter] = []
+    if index_code is not None:
+        filters.append(eq_filter("index_code", index_code, INDEX_WEIGHT_COLS))
+    filters.extend(date_range_filters("trade_date", trade_date, start_date, end_date, INDEX_WEIGHT_COLS))
+    return repo.query(fields=fields, filters=filters, limit=limit, offset=offset)
 
 
 def universe(ctx: QueryContext, universe=None, ts_code=None, trade_date=None,
              start_date=None, end_date=None, fields=None,
              limit: int | None = None, offset: int | None = None) -> pd.DataFrame:
     """Query universe membership snapshots (which stocks belong to which universe on each date)."""
-    if trade_date is not None and (start_date is not None or end_date is not None):
-        raise ValueError("trade_date cannot be combined with start_date or end_date")
-    if start_date is not None and end_date is not None and end_date < start_date:
-        raise ValueError("end_date must be on or after start_date")
-
-    table_dir = ctx.data_dir / "universe"
-    if not table_dir.exists():
-        raise FileNotFoundError("universe data not found; run `python main.py build-universe` first")
-
-    selected = parse_fields(fields, UNIVERSE_COLS)
-    where = []
-    params = []
-    if universe is not None:
-        where.append("universe = ?"); params.append(universe)
-    if ts_code is not None:
-        codes = [c.strip() for c in ts_code.split(",") if c.strip()]
-        placeholders = ", ".join("?" for _ in codes)
-        where.append(f"ts_code IN ({placeholders})"); params.extend(codes)
-    if trade_date is not None:
-        where.append("trade_date = ?"); params.append(trade_date)
-    if start_date is not None:
-        where.append("trade_date >= ?"); params.append(start_date)
-    if end_date is not None:
-        where.append("trade_date <= ?"); params.append(end_date)
-
-    pattern = table_dir / "name=*" / "date=*" / "data.parquet"
-    sql = (
-        f"SELECT {', '.join(selected)} "
-        "FROM read_parquet(?, hive_partitioning=true, union_by_name=true)"
+    repo = _base_repo(
+        ctx,
+        TableSpec(
+            name="universe",
+            path_parts=("universe",),
+            columns=UNIVERSE_COLS,
+            parquet_pattern="name=*/date=*/data.parquet",
+            sync_table="build-universe",
+            order_by="universe, ts_code, trade_date",
+            hive_partitioning=True,
+            union_by_name=True,
+        ),
     )
-    if where:
-        sql += " WHERE " + " AND ".join(where)
-    sql += " ORDER BY universe, ts_code, trade_date"
-    if limit is not None:
-        sql += " LIMIT ?"; params.append(limit)
-    if offset is not None:
-        sql += " OFFSET ?"; params.append(offset)
-    df = duckdb.connect().execute(sql, [str(pattern), *params]).fetchdf()
+    filters: list[SqlFilter] = []
+    if universe is not None:
+        filters.append(eq_filter("universe", universe, UNIVERSE_COLS))
+    if ts_code is not None:
+        filters.append(in_filter("ts_code", ts_code, UNIVERSE_COLS))
+    filters.extend(date_range_filters("trade_date", trade_date, start_date, end_date, UNIVERSE_COLS))
+    df = repo.query(fields=fields, filters=filters, limit=limit, offset=offset)
     return format_date_columns(df, ["trade_date"])
 
 

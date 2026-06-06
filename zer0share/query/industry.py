@@ -1,92 +1,75 @@
-import duckdb
 import pandas as pd
 
 from zer0share.query import QueryContext
-from zer0share.query._helpers import parse_fields
-from zer0share.schema import SW_CLASSIFY_COLS, SW_MEMBER_COLS, CI_MEMBER_COLS
+from zer0share.query.repository import BaseParquetRepository, TableSpec, eq_filter, in_filter
+from zer0share.schema import CI_MEMBER_COLS, SW_CLASSIFY_COLS, SW_MEMBER_COLS
 
 
 def index_classify(ctx: QueryContext, level=None, src=None, fields=None,
                    limit: int | None = None, offset: int | None = None) -> pd.DataFrame:
     """Query Shenwan (SW) industry classification hierarchy (L1/L2/L3 levels)."""
-    path = ctx.data_dir / "industry" / "sw_classify" / "data.parquet"
-    if not path.exists():
-        raise FileNotFoundError(
-            "sw_classify data not found; run `python main.py sync --table industry` first"
-        )
-    selected = parse_fields(fields, SW_CLASSIFY_COLS)
-    where = []
-    params = []
+    repo = BaseParquetRepository(
+        ctx,
+        TableSpec(
+            name="sw_classify",
+            path_parts=("industry", "sw_classify"),
+            columns=SW_CLASSIFY_COLS,
+            parquet_pattern="data.parquet",
+            sync_table="industry",
+            order_by="industry_code",
+        ),
+    )
+    filters = []
     if level is not None:
-        where.append("level = ?"); params.append(level)
+        filters.append(eq_filter("level", level, SW_CLASSIFY_COLS))
     if src is not None:
-        where.append("src = ?"); params.append(src)
-    sql = f"SELECT {', '.join(selected)} FROM read_parquet(?)"
-    if where:
-        sql += " WHERE " + " AND ".join(where)
-    sql += " ORDER BY industry_code"
-    if limit is not None:
-        sql += " LIMIT ?"; params.append(limit)
-    if offset is not None:
-        sql += " OFFSET ?"; params.append(offset)
-    return duckdb.connect().execute(sql, [str(path), *params]).fetchdf()
+        filters.append(eq_filter("src", src, SW_CLASSIFY_COLS))
+    return repo.query(fields=fields, filters=filters, limit=limit, offset=offset)
 
 
 def index_member_all(ctx: QueryContext, l1_code=None, ts_code=None, is_new=None, fields=None,
                      limit: int | None = None, offset: int | None = None) -> pd.DataFrame:
     """Query Shenwan industry membership: which stocks belong to which SW industry."""
-    path = ctx.data_dir / "industry" / "sw_member" / "data.parquet"
-    if not path.exists():
-        raise FileNotFoundError(
-            "sw_member data not found; run `python main.py sync --table industry` first"
-        )
-    selected = parse_fields(fields, SW_MEMBER_COLS)
-    where = []
-    params = []
+    repo = BaseParquetRepository(
+        ctx,
+        TableSpec(
+            name="sw_member",
+            path_parts=("industry", "sw_member"),
+            columns=SW_MEMBER_COLS,
+            parquet_pattern="data.parquet",
+            sync_table="industry",
+            order_by="ts_code, l1_code",
+        ),
+    )
+    filters = []
     if l1_code is not None:
-        where.append("l1_code = ?"); params.append(l1_code)
+        filters.append(eq_filter("l1_code", l1_code, SW_MEMBER_COLS))
     if ts_code is not None:
-        codes = [c.strip() for c in ts_code.split(",") if c.strip()]
-        placeholders = ", ".join("?" for _ in codes)
-        where.append(f"ts_code IN ({placeholders})"); params.extend(codes)
+        filters.append(in_filter("ts_code", ts_code, SW_MEMBER_COLS))
     if is_new is not None:
-        where.append("is_new = ?"); params.append(is_new)
-    sql = f"SELECT {', '.join(selected)} FROM read_parquet(?)"
-    if where:
-        sql += " WHERE " + " AND ".join(where)
-    sql += " ORDER BY ts_code, l1_code"
-    if limit is not None:
-        sql += " LIMIT ?"; params.append(limit)
-    if offset is not None:
-        sql += " OFFSET ?"; params.append(offset)
-    return duckdb.connect().execute(sql, [str(path), *params]).fetchdf()
+        filters.append(eq_filter("is_new", is_new, SW_MEMBER_COLS))
+    return repo.query(fields=fields, filters=filters, limit=limit, offset=offset)
 
 
 def ci_index_member(ctx: QueryContext, l1_code=None, ts_code=None, is_new=None, fields=None,
                     limit: int | None = None, offset: int | None = None) -> pd.DataFrame:
     """Query China Securities Index (CI) industry membership."""
-    path = ctx.data_dir / "industry" / "ci_member" / "data.parquet"
-    if not path.exists():
-        raise FileNotFoundError(
-            "ci_member data not found; run `python main.py sync --table ci_member` first"
-        )
-    selected = parse_fields(fields, CI_MEMBER_COLS)
-    where = []
-    params = []
+    repo = BaseParquetRepository(
+        ctx,
+        TableSpec(
+            name="ci_member",
+            path_parts=("industry", "ci_member"),
+            columns=CI_MEMBER_COLS,
+            parquet_pattern="data.parquet",
+            sync_table="ci_member",
+            order_by="ts_code, l1_code",
+        ),
+    )
+    filters = []
     if l1_code is not None:
-        where.append("l1_code = ?"); params.append(l1_code)
+        filters.append(eq_filter("l1_code", l1_code, CI_MEMBER_COLS))
     if ts_code is not None:
-        codes = [c.strip() for c in ts_code.split(",") if c.strip()]
-        placeholders = ", ".join("?" for _ in codes)
-        where.append(f"ts_code IN ({placeholders})"); params.extend(codes)
+        filters.append(in_filter("ts_code", ts_code, CI_MEMBER_COLS))
     if is_new is not None:
-        where.append("is_new = ?"); params.append(is_new)
-    sql = f"SELECT {', '.join(selected)} FROM read_parquet(?)"
-    if where:
-        sql += " WHERE " + " AND ".join(where)
-    sql += " ORDER BY ts_code, l1_code"
-    if limit is not None:
-        sql += " LIMIT ?"; params.append(limit)
-    if offset is not None:
-        sql += " OFFSET ?"; params.append(offset)
-    return duckdb.connect().execute(sql, [str(path), *params]).fetchdf()
+        filters.append(eq_filter("is_new", is_new, CI_MEMBER_COLS))
+    return repo.query(fields=fields, filters=filters, limit=limit, offset=offset)

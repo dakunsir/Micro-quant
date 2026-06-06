@@ -4,11 +4,11 @@
 
 Refactor `zer0share.query` from repeated function-local SQL construction into a small object-oriented query layer while preserving the public Tushare-like API exposed by `LocalPro`.
 
-The refactor should make new local query APIs easier to add, reduce duplicated DuckDB SQL assembly, and centralize field/date/filter validation. It should not change user-facing method names, default parameters, result ordering, or error behavior except where existing behavior is clearly inconsistent and covered by tests.
+The refactor should make new local query APIs easier to add, reduce duplicated DuckDB SQL assembly, and centralize field/date/filter validation. It may break internal helper compatibility, especially `query_daily_partitioned()`, but should preserve the user-facing `LocalPro` API names, default parameters, result ordering, and tested error behavior.
 
 ## Current Context
 
-The query module already has one useful abstraction: `query_daily_partitioned()` in `zer0share/query/_helpers.py`. Daily partitioned tables use it successfully across equities, futures, and options.
+The query module currently has one function-level abstraction: `query_daily_partitioned()` in `zer0share/query/_helpers.py`. Daily partitioned tables use it across equities, futures, and options, but its signature now exposes too many repository-level details.
 
 The remaining query functions still duplicate the same pattern:
 
@@ -21,19 +21,22 @@ The remaining query functions still duplicate the same pattern:
 
 The duplication is visible in static tables such as `stock_basic`, `opt_basic`, industry member queries, `trade_cal`, `fut_basic`, `index_weight`, and `universe`.
 
-There is also a current worktree syntax issue in `zer0share/query/_helpers.py` where the Parquet pattern line contains a stray `I`. Implementation must fix that before running tests.
+There is also a current worktree syntax issue in `zer0share/query/_helpers.py` where the Parquet pattern line contains a stray `I`. Removing `query_daily_partitioned()` fixes that issue by deleting the broken code path.
 
 ## Design Principles
 
 Use objects for stable responsibilities, not for their own sake.
 
 - `TableSpec` describes a table.
+- `DailyTableSpec` describes daily partition semantics.
 - `ParquetQueryEngine` executes safe parameterized DuckDB queries.
 - Repository classes adapt table specs into reusable query patterns.
 - Domain modules keep explicit public functions so the API remains readable.
 - `pro_bar` remains a business service because it performs adjustment calculations, not just table reads.
 
 Avoid a single universal dynamic query dispatcher that hides every API behind metadata. That would reduce lines but make behavior, validation, and error messages harder to reason about.
+
+Do not preserve `query_daily_partitioned()` as an internal compatibility wrapper. Domain query modules should depend on repositories directly.
 
 ## Core Types
 
@@ -82,6 +85,15 @@ class SqlFilter:
 
 Helpers should create filters for equality, `IN`, and date ranges. Column names must come from trusted code or be checked against `TableSpec.columns`; user values must always be bound as parameters.
 
+### `DailyTableSpec`
+
+`DailyTableSpec` extends `TableSpec` with date-specific semantics:
+
+- `date_column`: the column used for `trade_date`, `start_date`, and `end_date` filters. Defaults to `trade_date`.
+- `code_column`: the optional code column used by the common `ts_code`-style filter. Defaults to `ts_code`; can be `None` for tables such as `fut_holding`.
+
+This removes the old need to pass `None` positionally into `query_daily_partitioned()` or to override the base data directory for futures and options.
+
 ### `ParquetQueryEngine`
 
 `ParquetQueryEngine` owns SQL generation and DuckDB execution.
@@ -111,16 +123,16 @@ It should expose a reusable `query()` method for non-date-partition-specific tab
 
 ### `DailyPartitionRepository`
 
-`DailyPartitionRepository` extends the base repository for tables keyed by `trade_date` and stored under `date=*`.
+`DailyPartitionRepository` extends the base repository for tables keyed by a date column and stored under `date=*`.
 
 Responsibilities:
 
 - reject ambiguous `trade_date` plus date range input
 - parse and validate `start_date` and `end_date`
-- add `ts_code`, `trade_date`, `start_date`, and `end_date` filters
-- accept extra validated filters such as `exchange`, `symbol`, or `prd`
+- add code, exact date, start date, and end date filters according to `DailyTableSpec`
+- accept extra `SqlFilter` objects such as `exchange`, `symbol`, or `prd`
 
-This class should replace direct usage of `query_daily_partitioned()` once migration is complete.
+This class replaces direct usage of `query_daily_partitioned()`.
 
 ### Domain Query Services
 
@@ -132,7 +144,7 @@ Domain modules should remain explicit:
 - `IndustryQueries`
 - `CalendarQueries`
 
-These classes can hold repository instances and expose methods matching existing functions. The current module-level functions may remain as thin wrappers, or `LocalPro` may instantiate the services directly. The important constraint is that `LocalPro.daily(...)`, `LocalPro.opt_basic(...)`, and `LocalPro.query("daily", ...)` keep working.
+These classes hold repository instances and expose methods matching existing functions. The current module-level functions may be removed as internal API if `LocalPro` instantiates the services directly. The important constraint is that `LocalPro.daily(...)`, `LocalPro.opt_basic(...)`, and `LocalPro.query("daily", ...)` keep working.
 
 ### `ProBarService`
 
@@ -153,8 +165,8 @@ For a simple table query:
 For a daily partitioned query:
 
 1. Public API method receives `ts_code`, `trade_date`, `start_date`, `end_date`, `fields`, `limit`, and `offset`.
-2. `DailyPartitionRepository` validates date combinations and builds date filters.
-3. Extra domain filters are added after column validation.
+2. `DailyPartitionRepository` validates date combinations and builds date filters using `DailyTableSpec`.
+3. Extra domain filters are passed as `SqlFilter` objects.
 4. Engine executes the query using Hive partitioning and `union_by_name` according to `TableSpec`.
 
 ## Error Handling
@@ -174,7 +186,7 @@ Refactor tests should focus on behavior preservation:
 - existing `tests/test_api.py` should pass
 - unknown field validation still rejects invalid fields
 - invalid date formats and reversed date ranges still raise `ValueError`
-- daily partitioned queries still support `trade_date`, date ranges, multi-code `ts_code`, extra filters, `limit`, and `offset`
+- daily partitioned queries still support `trade_date`, date ranges, multi-code code filters where previously supported, extra filters, `limit`, and `offset`
 - static table queries such as `stock_basic`, `opt_basic`, industry queries, and `fut_basic` still return the same rows and ordering
 - `LocalPro.query(api_name, **kwargs)` dispatch remains unchanged
 - `pro_bar` adjustment behavior remains unchanged
@@ -185,11 +197,11 @@ Add focused unit tests for new helper classes only where existing API tests do n
 
 Implement in small steps:
 
-1. Fix the current syntax issue in `_helpers.py`.
-2. Add `TableSpec`, `SqlFilter`, `ParquetQueryEngine`, `BaseParquetRepository`, and `DailyPartitionRepository`.
-3. Port `query_daily_partitioned()` to delegate to `DailyPartitionRepository` so existing call sites keep working.
-4. Migrate simple static queries to `BaseParquetRepository` one module at a time.
-5. Migrate `index_weight`, `universe`, `trade_cal`, and `fut_basic` after the base path is stable.
+1. Add `TableSpec`, `DailyTableSpec`, `SqlFilter`, `ParquetQueryEngine`, `BaseParquetRepository`, and `DailyPartitionRepository`.
+2. Remove `query_daily_partitioned()` and update all query modules to use repositories directly.
+3. Migrate simple static queries to `BaseParquetRepository`.
+4. Migrate daily partitioned queries to `DailyPartitionRepository`.
+5. Migrate `index_weight`, `universe`, and `trade_cal` through the same repository primitives.
 6. Keep `pro_bar` behavior unchanged, with only dependency wiring adjusted if needed.
 7. Run targeted API tests after each migration step and the full test suite at the end.
 
@@ -203,10 +215,10 @@ This refactor will not:
 - replace `LocalPro.query()` with a dynamic metadata-only dispatcher
 - change the storage layout or sync behavior
 - remove user or unrelated worktree changes
+- preserve internal helper compatibility for `query_daily_partitioned()`
 
-## Open Decisions
+## Compatibility Choice
 
-The implementation should make one explicit compatibility choice before changing behavior:
+Internal compatibility is not required. The implementation should delete `query_daily_partitioned()` and remove `data_dir_override`/`extra_filters: dict` as concepts.
 
-- `ts_code` handling is inconsistent today. Some APIs accept comma-separated values, while `stock_basic` uses exact equality. The safest first migration is to preserve existing behavior. A later feature can standardize multi-code support across APIs with dedicated tests.
-
+User-facing API compatibility is still required. `LocalPro` methods and `LocalPro.query(api_name, **kwargs)` should continue working.
