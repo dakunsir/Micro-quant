@@ -251,6 +251,7 @@ FUT_MAPPING_SPEC = DailyTableSpec(
     order_by="ts_code, trade_date",
     hive_partitioning=True,
     union_by_name=True,
+    first_date="19950417",
 )
 
 FT_LIMIT_SPEC = DailyTableSpec(
