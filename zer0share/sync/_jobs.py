@@ -84,6 +84,7 @@ class DailySyncJob(SyncJob):
         success = 0
         empty = 0
         skipped_existing = 0
+        current_meta = rt.meta.get_last_date(self.spec.name)
 
         for i, trade_date in enumerate(trading_days):
             if self.store.exists(trade_date):
@@ -103,11 +104,15 @@ class DailySyncJob(SyncJob):
 
             if df is not None and not df.empty:
                 self.store.write(trade_date, df)
-                rt.meta.update_last_date(self.spec.name, trade_date)
+                if current_meta is None or trade_date > current_meta:
+                    rt.meta.update_last_date(self.spec.name, trade_date)
+                    current_meta = trade_date
                 success += 1
             elif self.write_empty:
                 self.store.write(trade_date, df if df is not None else pd.DataFrame())
-                rt.meta.update_last_date(self.spec.name, trade_date)
+                if current_meta is None or trade_date > current_meta:
+                    rt.meta.update_last_date(self.spec.name, trade_date)
+                    current_meta = trade_date
                 empty += 1
             else:
                 empty += 1
