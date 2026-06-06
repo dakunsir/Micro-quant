@@ -1,216 +1,214 @@
 import time
-
 import pandas as pd
 from loguru import logger
 
 import zer0share.dateutil as dateutil
 from zer0share.fetcher import FUTURES_EXCHANGES
-from zer0share.storage import daily_partition_exists, write_daily_partition
-from zer0share.sync import SyncContext
-from zer0share.sync._helpers import FIRST_DATE, skip_if_not_trading, sync_daily_partitioned
-
-date = None
-
-
-def _date_str(value) -> str:
-    if isinstance(value, str):
-        return value
-    return format(value, "%Y%m%d")
+from zer0share.storage import DailyPartitionStore, SnapshotStore
+from zer0share.sync import SyncRuntime
+from zer0share.sync._jobs import DailySyncJob, SyncJob, FIRST_DATE
+from zer0share.catalog import (
+    FT_LIMIT_SPEC, FUT_BASIC_SPEC, FUT_DAILY_SPEC, FUT_HOLDING_SPEC,
+    FUT_INDEX_DAILY_SPEC, FUT_MAPPING_SPEC, FUT_MONTHLY_SPEC,
+    FUT_SETTLE_SPEC, FUT_WEEKLY_DETAIL_SPEC, FUT_WEEKLY_SPEC, FUT_WSR_SPEC,
+)
 
 
-def _today() -> str:
-    provider = globals().get("date")
-    if provider is not None:
-        return _date_str(getattr(provider, "today")())
-    return dateutil.today()
+class FutBasicSyncJob(SyncJob):
+    table_name = "fut_basic"
+    supports_date_range = False
+
+    def __init__(self, fetch, store: DailyPartitionStore):
+        self._fetch = fetch
+        self._store = store
+
+    def run(self, rt: SyncRuntime, start_date=None, end_date=None) -> None:
+        if rt.calendar.skip_if_not_trading("SSE"):
+            return
+        today = rt.calendar.today()
+        all_frames = []
+        try:
+            for exchange in FUTURES_EXCHANGES:
+                for fut_type in ("1", "2"):
+                    df = self._fetch(exchange, fut_type)
+                    time.sleep(0.2)
+                    if not df.empty:
+                        all_frames.append(df)
+            combined = pd.concat(all_frames, ignore_index=True) if all_frames else pd.DataFrame()
+            self._store.write(today, combined)
+            rt.meta.update_last_date("fut_basic", today)
+            logger.info(f"fut_basic 同步完成: {len(combined)} 条")
+        except Exception as e:
+            logger.error(f"fut_basic 同步失败: {e}")
+            rt.notifier.send(f"fut_basic 同步失败: {e}")
+            raise
 
 
-def sync_fut_basic(ctx: SyncContext) -> None:
-    if skip_if_not_trading(ctx, "SSE"):
-        return
-    today = _today()
-    futures_dir = ctx.cfg.data_dir / "futures"
-    all_frames = []
-    try:
-        for exchange in FUTURES_EXCHANGES:
-            for fut_type in ("1", "2"):
-                df = ctx.fetcher.fetch_fut_basic(exchange, fut_type)
+class FutIndexDailySyncJob(SyncJob):
+    """Bug3 fix: iterates trading days only (not all calendar days)."""
+    table_name = "fut_index_daily"
+    supports_date_range = True
+
+    def __init__(self, fetch, store: DailyPartitionStore):
+        self._fetch = fetch
+        self._store = store
+
+    def run(self, rt: SyncRuntime, start_date=None, end_date=None) -> None:
+        today = rt.calendar.today()
+        last = rt.meta.get_last_date("fut_index_daily")
+
+        if start_date is None:
+            start = dateutil.add_days(last, 1) if last else FIRST_DATE
+            end = today
+            if start > end:
+                logger.info("fut_index_daily 已是最新，无需同步")
+                return
+        else:
+            start = start_date
+            end = end_date or today
+            if start > end:
+                raise ValueError("start_date must be on or before end_date")
+
+        # Bug3 fix: use trading days, not all calendar days
+        trading_days = rt.calendar.get_trading_days("SSE", start, end)
+        logger.info(f"fut_index_daily 同步开始: {start} ~ {end}, {len(trading_days)} 个交易日")
+        all_frames = []
+
+        for trade_date in trading_days:
+            try:
+                df = self._fetch(trade_date)
                 time.sleep(0.2)
                 if not df.empty:
                     all_frames.append(df)
-        combined = pd.concat(all_frames, ignore_index=True) if all_frames else pd.DataFrame()
-        write_daily_partition(futures_dir, "fut_basic", today, combined)
-        ctx.meta.update_last_date("fut_basic", today)
-        logger.info(f"fut_basic 同步完成: {len(combined)} 条")
-    except Exception as e:
-        logger.error(f"fut_basic 同步失败: {e}")
-        ctx.notifier.send(f"fut_basic 同步失败: {e}")
-        raise
+            except Exception as e:
+                logger.error(f"fut_index_daily {trade_date} 拉取失败: {e}")
+                rt.notifier.send(f"fut_index_daily {trade_date} 拉取失败: {e}")
 
+        if not all_frames:
+            msg = "fut_index_daily 无数据，跳过"
+            logger.info(msg)
+            rt.notifier.send(msg)
+            return
 
-def sync_fut_daily(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
-    sync_daily_partitioned(
-        ctx, "fut_daily", ctx.fetcher.fetch_fut_daily, start_date, end_date,
-        data_dir=ctx.cfg.data_dir / "futures",
-    )
+        combined = pd.concat(all_frames, ignore_index=True)
+        success = skipped_existing = 0
+        frontier = last
 
-
-def sync_fut_holding(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
-    sync_daily_partitioned(
-        ctx, "fut_holding", ctx.fetcher.fetch_fut_holding, start_date, end_date,
-        data_dir=ctx.cfg.data_dir / "futures",
-    )
-
-
-def sync_fut_wsr(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
-    sync_daily_partitioned(
-        ctx, "fut_wsr", ctx.fetcher.fetch_fut_wsr, start_date, end_date,
-        data_dir=ctx.cfg.data_dir / "futures",
-    )
-
-
-def sync_fut_settle(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
-    sync_daily_partitioned(
-        ctx, "fut_settle", ctx.fetcher.fetch_fut_settle, start_date, end_date,
-        data_dir=ctx.cfg.data_dir / "futures",
-    )
-
-
-def sync_fut_mapping(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
-    sync_daily_partitioned(
-        ctx, "fut_mapping", ctx.fetcher.fetch_fut_mapping, start_date, end_date,
-        data_dir=ctx.cfg.data_dir / "futures",
-    )
-
-
-def sync_ft_limit(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
-    sync_daily_partitioned(
-        ctx, "ft_limit", ctx.fetcher.fetch_ft_limit, start_date, end_date,
-        data_dir=ctx.cfg.data_dir / "futures",
-    )
-
-
-def sync_fut_weekly(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
-    sync_daily_partitioned(
-        ctx, "fut_weekly", ctx.fetcher.fetch_fut_weekly, start_date, end_date,
-        data_dir=ctx.cfg.data_dir / "futures",
-    )
-
-
-def sync_fut_monthly(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
-    sync_daily_partitioned(
-        ctx, "fut_monthly", ctx.fetcher.fetch_fut_monthly, start_date, end_date,
-        data_dir=ctx.cfg.data_dir / "futures",
-    )
-
-
-def sync_fut_index_daily(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
-    if skip_if_not_trading(ctx, "SSE"):
-        return
-    today = _today()
-    last = ctx.meta.get_last_date("fut_index_daily")
-
-    if start_date is None:
-        start = dateutil.add_days(last, 1) if last else FIRST_DATE
-        end = today
-    else:
-        start = start_date
-        end = end_date or today
-
-    if start_date is None and start > end:
-        logger.info("fut_index_daily 已是最新，无需同步")
-        return
-    if start > end:
-        raise ValueError("start_date must be on or before end_date")
-
-    logger.info(f"fut_index_daily 同步开始: {start} ~ {end}")
-    futures_dir = ctx.cfg.data_dir / "futures"
-    all_frames = []
-    current = start
-    while current <= end:
-        try:
-            df = ctx.fetcher.fetch_fut_index_daily(current)
-            time.sleep(0.2)
-            if not df.empty:
-                all_frames.append(df)
-        except Exception as e:
-            logger.error(f"fut_index_daily {current} 拉取失败: {e}")
-            ctx.notifier.send(f"fut_index_daily {current} 拉取失败: {e}")
-        current = dateutil.add_days(current, 1)
-
-    if not all_frames:
-        msg = "fut_index_daily 无数据，跳过"
-        logger.info(msg)
-        ctx.notifier.send(msg)
-        return
-
-    combined = pd.concat(all_frames, ignore_index=True)
-    success = 0
-    skipped_existing = 0
-    frontier = last
-
-    for trade_date_value, part in combined.groupby("trade_date"):
-        trade_date = str(trade_date_value)
-        if daily_partition_exists(futures_dir, "fut_index_daily", trade_date):
-            skipped_existing += 1
-            continue
-        write_daily_partition(futures_dir, "fut_index_daily", trade_date, part.reset_index(drop=True))
-        if frontier is None or trade_date > frontier:
-            ctx.meta.update_last_date("fut_index_daily", trade_date)
-            frontier = trade_date
-        success += 1
-
-    msg = (
-        f"fut_index_daily 同步完成: 成功 {success} 天, "
-        f"跳过已存在 {skipped_existing} 天"
-    )
-    logger.info(msg)
-    ctx.notifier.send(msg)
-
-
-def sync_fut_weekly_detail(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
-    today = _today()
-    last = ctx.meta.get_last_date("fut_weekly_detail")
-
-    if start_date is None:
-        start = dateutil.add_days(last, 1) if last else FIRST_DATE
-        end = today
-    else:
-        start = start_date
-        end = end_date or today
-
-    if start > end:
-        raise ValueError("start_date must be on or before end_date")
-
-    futures_dir = ctx.cfg.data_dir / "futures"
-    success = 0
-    skipped_existing = 0
-    frontier = last
-    weeks = dateutil.week_ranges(start, end)
-    logger.info(f"fut_weekly_detail 同步开始: {start} ~ {end}, 共 {len(weeks)} 个周")
-
-    for week_num, week_start in weeks:
-        try:
-            df = ctx.fetcher.fetch_fut_weekly_detail(week_num)
-            time.sleep(0.2)
-            if df.empty:
-                continue
-            if daily_partition_exists(futures_dir, "fut_weekly_detail", week_start):
+        for trade_date_value, part in combined.groupby("trade_date"):
+            trade_date = str(trade_date_value)
+            if self._store.exists(trade_date):
                 skipped_existing += 1
                 continue
-            write_daily_partition(futures_dir, "fut_weekly_detail", week_start, df)
-            if frontier is None or week_start > frontier:
-                ctx.meta.update_last_date("fut_weekly_detail", week_start)
-                frontier = week_start
+            self._store.write(trade_date, part.reset_index(drop=True))
+            if frontier is None or trade_date > frontier:
+                rt.meta.update_last_date("fut_index_daily", trade_date)
+                frontier = trade_date
             success += 1
-        except Exception as e:
-            logger.error(f"fut_weekly_detail {week_num} 同步失败: {e}")
-            ctx.notifier.send(f"fut_weekly_detail {week_num} 同步失败: {e}")
-            raise
 
-    msg = (
-        f"fut_weekly_detail 同步完成: 成功 {success} 周, "
-        f"跳过已存在 {skipped_existing} 周, 共 {len(weeks)} 周"
-    )
-    logger.info(msg)
-    ctx.notifier.send(msg)
+        msg = f"fut_index_daily 同步完成: 成功 {success} 天, 跳过已存在 {skipped_existing} 天"
+        logger.info(msg)
+        rt.notifier.send(msg)
+
+
+class FutWeeklyDetailSyncJob(SyncJob):
+    """Bug1+Bug2 fix: check existence before fetch; graceful up-to-date return."""
+    table_name = "fut_weekly_detail"
+    supports_date_range = True
+
+    def __init__(self, fetch, store: DailyPartitionStore):
+        self._fetch = fetch
+        self._store = store
+
+    def run(self, rt: SyncRuntime, start_date=None, end_date=None) -> None:
+        today = rt.calendar.today()
+        last = rt.meta.get_last_date("fut_weekly_detail")
+
+        if start_date is None:
+            start = dateutil.add_days(last, 1) if last else FIRST_DATE
+            end = today
+            if start > end:  # Bug2 fix: graceful return
+                logger.info("fut_weekly_detail 已是最新，无需同步")
+                return
+        else:
+            start = start_date
+            end = end_date or today
+            if start > end:
+                raise ValueError("start_date must be on or before end_date")
+
+        weeks = dateutil.week_ranges(start, end)
+        logger.info(f"fut_weekly_detail 同步开始: {start} ~ {end}, 共 {len(weeks)} 个周")
+        success = skipped_existing = 0
+        frontier = last
+
+        for week_num, week_start in weeks:
+            if self._store.exists(week_start):  # Bug1 fix: check before fetch
+                skipped_existing += 1
+                continue
+            try:
+                df = self._fetch(week_num)
+                time.sleep(0.2)
+                if df.empty:
+                    continue
+                self._store.write(week_start, df)
+                if frontier is None or week_start > frontier:
+                    rt.meta.update_last_date("fut_weekly_detail", week_start)
+                    frontier = week_start
+                success += 1
+            except Exception as e:
+                logger.error(f"fut_weekly_detail {week_num} 同步失败: {e}")
+                rt.notifier.send(f"fut_weekly_detail {week_num} 同步失败: {e}")
+                raise
+
+        msg = (
+            f"fut_weekly_detail 同步完成: 成功 {success} 周, "
+            f"跳过已存在 {skipped_existing} 周, 共 {len(weeks)} 周"
+        )
+        logger.info(msg)
+        rt.notifier.send(msg)
+
+
+def build_jobs(cfg, fetcher) -> list[SyncJob]:
+    fd = cfg.data_dir / "futures"
+    return [
+        FutBasicSyncJob(fetch=fetcher.fetch_fut_basic, store=DailyPartitionStore(fd / "fut_basic")),
+        DailySyncJob(
+            table_name=FUT_DAILY_SPEC.name, spec=FUT_DAILY_SPEC,
+            fetch=fetcher.fetch_fut_daily, store=DailyPartitionStore(fd / "fut_daily"),
+        ),
+        DailySyncJob(
+            table_name=FUT_HOLDING_SPEC.name, spec=FUT_HOLDING_SPEC,
+            fetch=fetcher.fetch_fut_holding, store=DailyPartitionStore(fd / "fut_holding"),
+        ),
+        DailySyncJob(
+            table_name=FUT_WSR_SPEC.name, spec=FUT_WSR_SPEC,
+            fetch=fetcher.fetch_fut_wsr, store=DailyPartitionStore(fd / "fut_wsr"),
+        ),
+        DailySyncJob(
+            table_name=FUT_SETTLE_SPEC.name, spec=FUT_SETTLE_SPEC,
+            fetch=fetcher.fetch_fut_settle, store=DailyPartitionStore(fd / "fut_settle"),
+        ),
+        DailySyncJob(
+            table_name=FUT_MAPPING_SPEC.name, spec=FUT_MAPPING_SPEC,
+            fetch=fetcher.fetch_fut_mapping, store=DailyPartitionStore(fd / "fut_mapping"),
+        ),
+        DailySyncJob(
+            table_name=FT_LIMIT_SPEC.name, spec=FT_LIMIT_SPEC,
+            fetch=fetcher.fetch_ft_limit, store=DailyPartitionStore(fd / "ft_limit"),
+        ),
+        DailySyncJob(
+            table_name=FUT_WEEKLY_SPEC.name, spec=FUT_WEEKLY_SPEC,
+            fetch=fetcher.fetch_fut_weekly, store=DailyPartitionStore(fd / "fut_weekly"),
+        ),
+        DailySyncJob(
+            table_name=FUT_MONTHLY_SPEC.name, spec=FUT_MONTHLY_SPEC,
+            fetch=fetcher.fetch_fut_monthly, store=DailyPartitionStore(fd / "fut_monthly"),
+        ),
+        FutIndexDailySyncJob(
+            fetch=fetcher.fetch_fut_index_daily,
+            store=DailyPartitionStore(fd / "fut_index_daily"),
+        ),
+        FutWeeklyDetailSyncJob(
+            fetch=fetcher.fetch_fut_weekly_detail,
+            store=DailyPartitionStore(fd / "fut_weekly_detail"),
+        ),
+    ]

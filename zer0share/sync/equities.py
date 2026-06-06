@@ -1,211 +1,203 @@
 import time
+from pathlib import Path
 
 import pandas as pd
 from loguru import logger
 
 import zer0share.dateutil as dateutil
 from zer0share.fetcher import INDEX_DAILY_CODES
-from zer0share.storage import (
-    daily_partition_exists,
-    index_weight_partition_exists,
-    write_basic,
-    write_daily_partition,
-    write_index_weight,
-)
-from zer0share.sync import SyncContext
-from zer0share.sync._helpers import (
-    FIRST_DATE,
-    INDEX_CODES,
-    index_weight_meta_key,
-    should_log_progress,
-    skip_if_not_trading,
-    sync_daily_partitioned,
+from zer0share.storage import DailyPartitionStore, IndexWeightStore, SnapshotStore
+from zer0share.sync import SyncRuntime
+from zer0share.sync._jobs import DailySyncJob, SnapshotSyncJob, SyncJob, FIRST_DATE
+from zer0share.catalog import (
+    ADJ_FACTOR_SPEC, BASIC_SPEC, DAILY_BASIC_SPEC, DAILY_KLINE_SPEC,
+    INDEX_DAILY_SPEC, STK_LIMIT_SPEC, STOCK_ST_SPEC, SUSPEND_D_SPEC,
 )
 
-date = None
+INDEX_CODES = ["399300.SZ", "000905.SH", "000852.SH"]
 
 
-def _date_str(value) -> str:
-    if isinstance(value, str):
-        return value
-    return format(value, "%Y%m%d")
+def _index_weight_meta_key(index_code: str) -> str:
+    return f"index_weight:{index_code}"
 
 
-def _today() -> str:
-    provider = globals().get("date")
-    if provider is not None:
-        return _date_str(getattr(provider, "today")())
-    return dateutil.today()
+class IndexWeightSyncJob(SyncJob):
+    table_name = "index_weight"
+    supports_date_range = True
 
+    def __init__(self, fetch, store: IndexWeightStore):
+        self._fetch = fetch
+        self._store = store
 
-def sync_basic(ctx: SyncContext) -> None:
-    if skip_if_not_trading(ctx, "SSE"):
-        return
-    today = _today()
-    try:
-        df = ctx.fetcher.fetch_basic()
-        write_basic(ctx.cfg.data_dir, df)
-        ctx.meta.update_last_date("basic", today)
-        logger.info(f"basic 同步完成: {len(df)} 条")
-    except Exception as e:
-        logger.error(f"basic 同步失败: {e}")
-        ctx.notifier.send(f"basic 同步失败: {e}")
-        raise
-
-
-def sync_daily_kline(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
-    sync_daily_partitioned(ctx, "daily_kline", ctx.fetcher.fetch_daily_kline, start_date, end_date)
-
-
-def sync_adj_factor(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
-    sync_daily_partitioned(ctx, "adj_factor", ctx.fetcher.fetch_adj_factor, start_date, end_date)
-
-
-def sync_daily_basic(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
-    sync_daily_partitioned(ctx, "daily_basic", ctx.fetcher.fetch_daily_basic, start_date, end_date)
-
-
-def sync_stock_st(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
-    sync_daily_partitioned(ctx, "stock_st", ctx.fetcher.fetch_stock_st, start_date, end_date, write_empty=True)
-
-
-def sync_suspend_d(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
-    sync_daily_partitioned(ctx, "suspend_d", ctx.fetcher.fetch_suspend_d, start_date, end_date, write_empty=True)
-
-
-def sync_stk_limit(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
-    sync_daily_partitioned(ctx, "stk_limit", ctx.fetcher.fetch_stk_limit, start_date, end_date)
-
-
-def sync_index_weight(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
-    today = _today()
-    end = end_date or today
-    if start_date is not None and start_date > end:
-        raise ValueError("start_date must be on or before end_date")
-
-    success = 0
-    skipped_existing = 0
-    empty_months = 0
-    requests = 0
-    coverage_dates: list[str] = []
-    for index_code in INDEX_CODES:
-        meta_key = index_weight_meta_key(index_code)
-        last = ctx.meta.get_last_date(meta_key)
-        start = start_date or (dateutil.add_days(last, 1) if last else FIRST_DATE)
-        if start > end:
-            logger.info(f"index_weight {index_code} 已覆盖到 {last}，无需同步")
-            if last is not None:
-                coverage_dates.append(last)
-            continue
-
-        ranges = dateutil.month_ranges(start, end)
-        logger.info(
-            f"index_weight {index_code} 同步开始: {start} ~ {end}, "
-            f"共 {len(ranges)} 个月度窗口"
-        )
-        try:
-            for processed, (month_start, month_end) in enumerate(ranges, start=1):
-                df = ctx.fetcher.fetch_index_weight(index_code, month_start, month_end)
-                requests += 1
-                time.sleep(0.2)
-                if df.empty:
-                    empty_months += 1
-                else:
-                    for trade_date_value, part in df.groupby("trade_date"):
-                        trade_date = str(trade_date_value)
-                        if index_weight_partition_exists(ctx.cfg.data_dir, index_code, trade_date):
-                            skipped_existing += 1
-                            continue
-                        write_index_weight(ctx.cfg.data_dir, index_code, trade_date, part)
-                        success += 1
-
-                if should_log_progress(processed, len(ranges)):
-                    percent = processed / len(ranges) * 100
-                    logger.info(
-                        f"index_weight {index_code} 同步进度: "
-                        f"{processed}/{len(ranges)} ({percent:.1f}%), "
-                        f"当前窗口 {month_start} ~ {month_end}, "
-                        f"成功 {success} 个分区, 空窗口 {empty_months} 个, "
-                        f"跳过已存在 {skipped_existing} 个分区"
-                    )
-
-            frontier = max(last, end) if last is not None else end
-            ctx.meta.update_last_date(meta_key, frontier)
-            coverage_dates.append(frontier)
-        except Exception as e:
-            logger.error(f"index_weight {index_code} 同步失败: {e}")
-            ctx.notifier.send(f"index_weight {index_code} 同步失败: {e}")
-            raise
-
-    if coverage_dates:
-        ctx.meta.update_last_date("index_weight", min(coverage_dates))
-
-    msg = (
-        f"index_weight 同步完成: 成功 {success} 个分区, "
-        f"空窗口 {empty_months} 个, 跳过已存在 {skipped_existing} 个分区, "
-        f"请求 {requests} 次"
-    )
-    logger.info(msg)
-    ctx.notifier.send(msg)
-
-
-def sync_index_daily(ctx: SyncContext, start_date: str | None = None, end_date: str | None = None) -> None:
-    today = _today()
-    last = ctx.meta.get_last_date("index_daily")
-
-    if start_date is None:
-        start = dateutil.add_days(last, 1) if last else FIRST_DATE
-        end = today
-    else:
-        start = start_date
+    def run(self, rt: SyncRuntime, start_date=None, end_date=None) -> None:
+        today = rt.calendar.today()
         end = end_date or today
+        if start_date is not None and start_date > end:
+            raise ValueError("start_date must be on or before end_date")
 
-    if start_date is None and start > end:
-        logger.info("index_daily 已是最新，无需同步")
-        return
-    if start > end:
-        raise ValueError("start_date must be on or before end_date")
+        success = empty_months = skipped_existing = requests = 0
+        coverage_dates = []
 
-    logger.info(f"index_daily 同步开始: {start} ~ {end}, 共 {len(INDEX_DAILY_CODES)} 个指数")
-    all_frames = []
-    for ts_code in INDEX_DAILY_CODES:
-        try:
-            df = ctx.fetcher.fetch_index_daily(ts_code, start, end)
-            time.sleep(0.2)
-            if not df.empty:
-                all_frames.append(df)
-        except Exception as e:
-            logger.error(f"index_daily {ts_code} 拉取失败: {e}")
-            ctx.notifier.send(f"index_daily {ts_code} 拉取失败: {e}")
-            continue
+        for index_code in INDEX_CODES:
+            meta_key = _index_weight_meta_key(index_code)
+            last = rt.meta.get_last_date(meta_key)
+            start = start_date or (dateutil.add_days(last, 1) if last else FIRST_DATE)
+            if start > end:
+                logger.info(f"index_weight {index_code} 已覆盖到 {last}，无需同步")
+                if last is not None:
+                    coverage_dates.append(last)
+                continue
 
-    if not all_frames:
-        msg = "index_daily 无数据，跳过"
-        logger.info(msg)
-        ctx.notifier.send(msg)
-        return
+            ranges = dateutil.month_ranges(start, end)
+            logger.info(f"index_weight {index_code} 同步开始: {start} ~ {end}, 共 {len(ranges)} 个月度窗口")
+            try:
+                for processed, (month_start, month_end) in enumerate(ranges, start=1):
+                    df = self._fetch(index_code, month_start, month_end)
+                    requests += 1
+                    time.sleep(0.2)
+                    if df.empty:
+                        empty_months += 1
+                    else:
+                        for trade_date_value, part in df.groupby("trade_date"):
+                            trade_date = str(trade_date_value)
+                            if self._store.exists(index_code, trade_date):
+                                skipped_existing += 1
+                                continue
+                            self._store.write(index_code, trade_date, part)
+                            success += 1
+                    if processed == len(ranges) or processed % 50 == 0:
+                        percent = processed / len(ranges) * 100
+                        logger.info(
+                            f"index_weight {index_code} 进度: {processed}/{len(ranges)} ({percent:.1f}%), "
+                            f"成功 {success}, 空 {empty_months}, 跳过 {skipped_existing}"
+                        )
+                frontier = max(last, end) if last is not None else end
+                rt.meta.update_last_date(meta_key, frontier)
+                coverage_dates.append(frontier)
+            except Exception as e:
+                logger.error(f"index_weight {index_code} 同步失败: {e}")
+                rt.notifier.send(f"index_weight {index_code} 同步失败: {e}")
+                raise
 
-    combined = pd.concat(all_frames, ignore_index=True)
-    success = 0
-    skipped_existing = 0
-    frontier = last
+        if coverage_dates:
+            rt.meta.update_last_date("index_weight", min(coverage_dates))
 
-    for trade_date_value, part in combined.groupby("trade_date"):
-        trade_date = str(trade_date_value)
-        if daily_partition_exists(ctx.cfg.data_dir, "index_daily", trade_date):
-            skipped_existing += 1
-            continue
-        write_daily_partition(
-            ctx.cfg.data_dir, "index_daily", trade_date, part.reset_index(drop=True)
+        msg = (
+            f"index_weight 同步完成: 成功 {success}, 空窗口 {empty_months}, "
+            f"跳过 {skipped_existing}, 请求 {requests} 次"
         )
-        if frontier is None or trade_date > frontier:
-            ctx.meta.update_last_date("index_daily", trade_date)
-            frontier = trade_date
-        success += 1
+        logger.info(msg)
+        rt.notifier.send(msg)
 
-    msg = (
-        f"index_daily 同步完成: 成功 {success} 天, "
-        f"跳过已存在 {skipped_existing} 天, 共 {len(INDEX_DAILY_CODES)} 个指数"
-    )
-    logger.info(msg)
-    ctx.notifier.send(msg)
+
+class IndexDailySyncJob(SyncJob):
+    table_name = "index_daily"
+    supports_date_range = True
+
+    def __init__(self, fetch, store: DailyPartitionStore):
+        self._fetch = fetch
+        self._store = store
+
+    def run(self, rt: SyncRuntime, start_date=None, end_date=None) -> None:
+        today = rt.calendar.today()
+        last = rt.meta.get_last_date("index_daily")
+
+        if start_date is None:
+            start = dateutil.add_days(last, 1) if last else FIRST_DATE
+            end = today
+            if start > end:
+                logger.info("index_daily 已是最新，无需同步")
+                return
+        else:
+            start = start_date
+            end = end_date or today
+            if start > end:
+                raise ValueError("start_date must be on or before end_date")
+
+        logger.info(f"index_daily 同步开始: {start} ~ {end}, {len(INDEX_DAILY_CODES)} 个指数")
+        all_frames = []
+        for ts_code in INDEX_DAILY_CODES:
+            try:
+                df = self._fetch(ts_code, start, end)
+                time.sleep(0.2)
+                if not df.empty:
+                    all_frames.append(df)
+            except Exception as e:
+                logger.error(f"index_daily {ts_code} 拉取失败: {e}")
+                rt.notifier.send(f"index_daily {ts_code} 拉取失败: {e}")
+
+        if not all_frames:
+            msg = "index_daily 无数据，跳过"
+            logger.info(msg)
+            rt.notifier.send(msg)
+            return
+
+        combined = pd.concat(all_frames, ignore_index=True)
+        success = skipped_existing = 0
+        frontier = last
+
+        for trade_date_value, part in combined.groupby("trade_date"):
+            trade_date = str(trade_date_value)
+            if self._store.exists(trade_date):
+                skipped_existing += 1
+                continue
+            self._store.write(trade_date, part.reset_index(drop=True))
+            if frontier is None or trade_date > frontier:
+                rt.meta.update_last_date("index_daily", trade_date)
+                frontier = trade_date
+            success += 1
+
+        msg = f"index_daily 同步完成: 成功 {success} 天, 跳过已存在 {skipped_existing} 天"
+        logger.info(msg)
+        rt.notifier.send(msg)
+
+
+def build_jobs(cfg, fetcher) -> list[SyncJob]:
+    d = cfg.data_dir
+    return [
+        SnapshotSyncJob(
+            table_name=BASIC_SPEC.name, spec=BASIC_SPEC,
+            fetch=fetcher.fetch_basic,
+            store=SnapshotStore(d / "basic" / "data.parquet"),
+        ),
+        DailySyncJob(
+            table_name=DAILY_KLINE_SPEC.name, spec=DAILY_KLINE_SPEC,
+            fetch=fetcher.fetch_daily_kline,
+            store=DailyPartitionStore(d / "daily_kline"),
+        ),
+        DailySyncJob(
+            table_name=ADJ_FACTOR_SPEC.name, spec=ADJ_FACTOR_SPEC,
+            fetch=fetcher.fetch_adj_factor,
+            store=DailyPartitionStore(d / "adj_factor"),
+        ),
+        DailySyncJob(
+            table_name=DAILY_BASIC_SPEC.name, spec=DAILY_BASIC_SPEC,
+            fetch=fetcher.fetch_daily_basic,
+            store=DailyPartitionStore(d / "daily_basic"),
+        ),
+        DailySyncJob(
+            table_name=STOCK_ST_SPEC.name, spec=STOCK_ST_SPEC,
+            fetch=fetcher.fetch_stock_st,
+            store=DailyPartitionStore(d / "stock_st"),
+            write_empty=True,
+        ),
+        DailySyncJob(
+            table_name=SUSPEND_D_SPEC.name, spec=SUSPEND_D_SPEC,
+            fetch=fetcher.fetch_suspend_d,
+            store=DailyPartitionStore(d / "suspend_d"),
+            write_empty=True,
+        ),
+        DailySyncJob(
+            table_name=STK_LIMIT_SPEC.name, spec=STK_LIMIT_SPEC,
+            fetch=fetcher.fetch_stk_limit,
+            store=DailyPartitionStore(d / "stk_limit"),
+        ),
+        IndexWeightSyncJob(
+            fetch=fetcher.fetch_index_weight,
+            store=IndexWeightStore(d / "index_weight"),
+        ),
+        IndexDailySyncJob(
+            fetch=fetcher.fetch_index_daily,
+            store=DailyPartitionStore(d / "index_daily"),
+        ),
+    ]

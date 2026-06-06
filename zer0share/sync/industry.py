@@ -1,56 +1,53 @@
 from loguru import logger
-
-import zer0share.dateutil as dateutil
-from zer0share.storage import write_ci_member, write_sw_classify, write_sw_member
-from zer0share.sync import SyncContext
-from zer0share.sync._helpers import skip_if_not_trading
-
-date = None
+from zer0share.storage import SnapshotStore
+from zer0share.sync import SyncRuntime
+from zer0share.sync._jobs import SnapshotSyncJob, SyncJob
+from zer0share.catalog import SW_CLASSIFY_SPEC, SW_MEMBER_SPEC, CI_MEMBER_SPEC
 
 
-def _date_str(value) -> str:
-    if isinstance(value, str):
-        return value
-    return format(value, "%Y%m%d")
+class IndustrySyncJob(SyncJob):
+    table_name = "industry"
+    supports_date_range = False
+
+    def __init__(self, fetch_classify, fetch_member, store_classify: SnapshotStore, store_member: SnapshotStore):
+        self._fetch_classify = fetch_classify
+        self._fetch_member = fetch_member
+        self._store_classify = store_classify
+        self._store_member = store_member
+
+    def run(self, rt: SyncRuntime, start_date=None, end_date=None) -> None:
+        if rt.calendar.skip_if_not_trading("SSE"):
+            return
+        today = rt.calendar.today()
+        try:
+            df = self._fetch_classify()
+            self._store_classify.write(df)
+            rt.meta.update_last_date("sw_classify", today)
+            logger.info(f"sw_classify 同步完成: {len(df)} 条")
+
+            df = self._fetch_member()
+            self._store_member.write(df)
+            rt.meta.update_last_date("sw_member", today)
+            logger.info(f"sw_member 同步完成: {len(df)} 条")
+        except Exception as e:
+            logger.error(f"industry 同步失败: {e}")
+            rt.notifier.send(f"industry 同步失败: {e}")
+            raise
 
 
-def _today() -> str:
-    provider = globals().get("date")
-    if provider is not None:
-        return _date_str(getattr(provider, "today")())
-    return dateutil.today()
-
-
-def sync_industry(ctx: SyncContext) -> None:
-    if skip_if_not_trading(ctx, "SSE"):
-        return
-    today = _today()
-    try:
-        df = ctx.fetcher.fetch_sw_classify()
-        write_sw_classify(ctx.cfg.data_dir, df)
-        ctx.meta.update_last_date("sw_classify", today)
-        logger.info(f"sw_classify 同步完成: {len(df)} 条")
-
-        df = ctx.fetcher.fetch_sw_member()
-        write_sw_member(ctx.cfg.data_dir, df)
-        ctx.meta.update_last_date("sw_member", today)
-        logger.info(f"sw_member 同步完成: {len(df)} 条")
-    except Exception as e:
-        logger.error(f"industry 同步失败: {e}")
-        ctx.notifier.send(f"industry 同步失败: {e}")
-        raise
-
-
-def sync_ci_member(ctx: SyncContext) -> None:
-    if skip_if_not_trading(ctx, "SSE"):
-        return
-    today = _today()
-    try:
-        df = ctx.fetcher.fetch_ci_member()
-        write_ci_member(ctx.cfg.data_dir, df)
-        ctx.meta.update_last_date("ci_member", today)
-        logger.info(f"ci_member 同步完成: {len(df)} 条")
-    except Exception as e:
-        logger.error(f"ci_member 同步失败: {e}")
-        ctx.notifier.send(f"ci_member 同步失败: {e}")
-        raise
+def build_jobs(cfg, fetcher) -> list[SyncJob]:
+    d = cfg.data_dir
+    return [
+        IndustrySyncJob(
+            fetch_classify=fetcher.fetch_sw_classify,
+            fetch_member=fetcher.fetch_sw_member,
+            store_classify=SnapshotStore(d / "industry" / "sw_classify" / "data.parquet"),
+            store_member=SnapshotStore(d / "industry" / "sw_member" / "data.parquet"),
+        ),
+        SnapshotSyncJob(
+            table_name=CI_MEMBER_SPEC.name,
+            spec=CI_MEMBER_SPEC,
+            fetch=fetcher.fetch_ci_member,
+            store=SnapshotStore(d / "industry" / "ci_member" / "data.parquet"),
+        ),
+    ]
