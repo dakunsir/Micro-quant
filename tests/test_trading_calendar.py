@@ -59,3 +59,13 @@ def test_skip_if_not_trading_on_closed_day(cal):
 def test_skip_if_not_trading_on_open_day(cal):
     cal2 = TradingCalendar(cal._meta, today_fn=lambda: "20240102")
     assert cal2.skip_if_not_trading("SSE") is False
+
+
+def test_ensure_loaded_raises_when_trade_cal_missing(tmp_path):
+    meta = MetaStore(tmp_path / "meta.duckdb")
+    cal = TradingCalendar(meta)
+    from unittest.mock import MagicMock
+    rt = SyncRuntime(calendar=cal, notifier=MagicMock(), meta=meta)
+    with pytest.raises(RuntimeError, match="交易日历未加载"):
+        cal.ensure_loaded(rt)
+    meta.close()
