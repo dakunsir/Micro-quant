@@ -97,6 +97,26 @@ def test_load_config_invalid_schedule_format(tmp_path):
         load_config(cfg_file)
 
 
+def test_load_config_out_of_range_schedule_time(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        "[tushare]\n"
+        "token = 'test'\n"
+        "[paths]\n"
+        "data_dir='data'\n"
+        "db_path='db/meta.duckdb'\n"
+        "log_path='logs/pipeline.log'\n"
+        "[scheduler]\n"
+        "trade_cal = '25:00'\n"
+        "[notifier]\n"
+        "wecom_webhook_url='https://x.com'\n"
+        "enabled=false\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="调度时间格式错误"):
+        load_config(cfg_file)
+
+
 def test_config_is_immutable(tmp_path):
     cfg_file = tmp_path / "settings.toml"
     cfg_file.write_text(VALID_TOML, encoding="utf-8")

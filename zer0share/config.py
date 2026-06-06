@@ -21,6 +21,9 @@ def _parse_schedule(raw_scheduler: dict) -> dict[str, str]:
     for table, time_str in raw_scheduler.items():
         if not isinstance(time_str, str) or not pattern.match(time_str):
             raise ValueError(f"调度时间格式错误 ({table}): 期望 'HH:MM', 得到 {time_str!r}")
+        hour, minute = int(time_str.split(":")[0]), int(time_str.split(":")[1])
+        if not (0 <= hour <= 23 and 0 <= minute <= 59):
+            raise ValueError(f"调度时间格式错误 ({table}): 期望 'HH:MM', 得到 {time_str!r}")
         schedule[table] = time_str
     return schedule
 
