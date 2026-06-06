@@ -203,6 +203,7 @@ FUT_DAILY_SPEC = DailyTableSpec(
     order_by="ts_code, trade_date",
     hive_partitioning=True,
     union_by_name=True,
+    first_date="19960101",
 )
 
 FUT_HOLDING_SPEC = DailyTableSpec(
@@ -215,6 +216,7 @@ FUT_HOLDING_SPEC = DailyTableSpec(
     hive_partitioning=True,
     union_by_name=True,
     code_column=None,
+    first_date="20020101",
 )
 
 FUT_WSR_SPEC = DailyTableSpec(
@@ -227,6 +229,7 @@ FUT_WSR_SPEC = DailyTableSpec(
     hive_partitioning=True,
     union_by_name=True,
     code_column=None,
+    first_date="20060101",
 )
 
 FUT_SETTLE_SPEC = DailyTableSpec(
@@ -238,6 +241,7 @@ FUT_SETTLE_SPEC = DailyTableSpec(
     order_by="ts_code, trade_date",
     hive_partitioning=True,
     union_by_name=True,
+    first_date="20120101",
 )
 
 FUT_MAPPING_SPEC = DailyTableSpec(
@@ -330,4 +334,5 @@ OPT_DAILY_SPEC = DailyTableSpec(
     order_by="ts_code, trade_date",
     hive_partitioning=True,
     union_by_name=True,
+    first_date="20150209",
 )

@@ -20,6 +20,7 @@ class TableSpec:
     order_by: str
     hive_partitioning: bool = False
     union_by_name: bool = False
+    first_date: str = "20160101"
 
 
 @dataclass(frozen=True)

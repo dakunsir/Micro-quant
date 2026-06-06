@@ -6,7 +6,7 @@ import zer0share.dateutil as dateutil
 from zer0share.fetcher import FUTURES_EXCHANGES
 from zer0share.storage import DailyPartitionStore, SnapshotStore
 from zer0share.sync import SyncRuntime
-from zer0share.sync._jobs import DailySyncJob, SyncJob, FIRST_DATE
+from zer0share.sync._jobs import DailySyncJob, SyncJob
 from zer0share.catalog import (
     FT_LIMIT_SPEC, FUT_BASIC_SPEC, FUT_DAILY_SPEC, FUT_HOLDING_SPEC,
     FUT_INDEX_DAILY_SPEC, FUT_MAPPING_SPEC, FUT_MONTHLY_SPEC,
@@ -60,7 +60,7 @@ class FutIndexDailySyncJob(SyncJob):
         last = rt.meta.get_last_date("fut_index_daily")
 
         if start_date is None:
-            start = dateutil.add_days(last, 1) if last else FIRST_DATE
+            start = dateutil.add_days(last, 1) if last else FUT_INDEX_DAILY_SPEC.first_date
             end = today
             if start > end:
                 logger.info("fut_index_daily 已是最新，无需同步")
@@ -126,7 +126,7 @@ class FutWeeklyDetailSyncJob(SyncJob):
         last = rt.meta.get_last_date("fut_weekly_detail")
 
         if start_date is None:
-            start = dateutil.add_days(last, 1) if last else FIRST_DATE
+            start = dateutil.add_days(last, 1) if last else FUT_WEEKLY_DETAIL_SPEC.first_date
             end = today
             if start > end:  # Bug2 fix: graceful return
                 logger.info("fut_weekly_detail 已是最新，无需同步")

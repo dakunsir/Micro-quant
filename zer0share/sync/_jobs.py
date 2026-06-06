@@ -17,7 +17,6 @@ from zer0share.query.repository import DailyTableSpec, TableSpec
 from zer0share.storage import DailyPartitionStore, SnapshotStore
 from zer0share.sync import SyncRuntime
 
-FIRST_DATE = "20160101"
 PROGRESS_INTERVAL = 50
 
 
@@ -59,7 +58,7 @@ class DailySyncJob(SyncJob):
 
         if start_date is None:
             last = rt.meta.get_last_date(self.spec.name)
-            start = dateutil.add_days(last, 1) if last is not None else FIRST_DATE
+            start = dateutil.add_days(last, 1) if last is not None else self.spec.first_date
             end = today
             if start > end:
                 logger.info(f"{self.spec.name}: 已是最新 (last={last})")

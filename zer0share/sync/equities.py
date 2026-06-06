@@ -8,10 +8,10 @@ import zer0share.dateutil as dateutil
 from zer0share.fetcher import INDEX_DAILY_CODES
 from zer0share.storage import DailyPartitionStore, IndexWeightStore, SnapshotStore
 from zer0share.sync import SyncRuntime
-from zer0share.sync._jobs import DailySyncJob, SnapshotSyncJob, SyncJob, FIRST_DATE
+from zer0share.sync._jobs import DailySyncJob, SnapshotSyncJob, SyncJob
 from zer0share.catalog import (
     ADJ_FACTOR_SPEC, BASIC_SPEC, DAILY_BASIC_SPEC, DAILY_KLINE_SPEC,
-    INDEX_DAILY_SPEC, STK_LIMIT_SPEC, STOCK_ST_SPEC, SUSPEND_D_SPEC,
+    INDEX_DAILY_SPEC, INDEX_WEIGHT_SPEC, STK_LIMIT_SPEC, STOCK_ST_SPEC, SUSPEND_D_SPEC,
 )
 
 INDEX_CODES = ["399300.SZ", "000905.SH", "000852.SH"]
@@ -41,7 +41,7 @@ class IndexWeightSyncJob(SyncJob):
         for index_code in INDEX_CODES:
             meta_key = _index_weight_meta_key(index_code)
             last = rt.meta.get_last_date(meta_key)
-            start = start_date or (dateutil.add_days(last, 1) if last else FIRST_DATE)
+            start = start_date or (dateutil.add_days(last, 1) if last else INDEX_WEIGHT_SPEC.first_date)
             if start > end:
                 logger.info(f"index_weight {index_code} 已覆盖到 {last}，无需同步")
                 if last is not None:
@@ -103,7 +103,7 @@ class IndexDailySyncJob(SyncJob):
         last = rt.meta.get_last_date("index_daily")
 
         if start_date is None:
-            start = dateutil.add_days(last, 1) if last else FIRST_DATE
+            start = dateutil.add_days(last, 1) if last else INDEX_DAILY_SPEC.first_date
             end = today
             if start > end:
                 logger.info("index_daily 已是最新，无需同步")

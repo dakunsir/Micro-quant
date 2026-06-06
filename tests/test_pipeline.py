@@ -7,6 +7,7 @@ Key API:
   - pipeline._runtime.meta  (was pipeline._meta)
   - pipeline._runtime.calendar._today_fn  for injecting today
 """
+from dataclasses import replace
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -25,6 +26,7 @@ from zer0share.storage import (
     write_daily_partition,
 )
 from zer0share.fetcher import INDEX_DAILY_CODES, FUTURES_EXCHANGES, OPTIONS_EXCHANGES
+from zer0share.catalog import INDEX_WEIGHT_SPEC
 
 
 # ---------------------------------------------------------------------------
@@ -207,6 +209,10 @@ def test_pipeline_registry_contains_all_tables(pipeline):
     }
     assert set(pipeline.registry.keys()) == expected
     assert len(pipeline.registry) == 25
+
+
+def test_opt_daily_spec_uses_option_market_first_date(pipeline):
+    assert pipeline.registry["opt_daily"].spec.first_date == "20150209"
 
 
 def test_pipeline_run_unknown_table_raises(pipeline):
@@ -571,7 +577,7 @@ def test_sync_index_weight_does_not_use_global_meta_for_new_index_meta(pipeline,
 
     with (
         patch("zer0share.sync.equities.INDEX_CODES", ["399300.SZ"]),
-        patch("zer0share.sync.equities.FIRST_DATE", "20240101"),
+        patch("zer0share.sync.equities.INDEX_WEIGHT_SPEC", replace(INDEX_WEIGHT_SPEC, first_date="20240101")),
         patch("zer0share.sync.equities.time.sleep"),
     ):
         pipeline.run("index_weight")
