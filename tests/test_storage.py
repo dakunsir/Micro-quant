@@ -556,3 +556,61 @@ def test_is_trading_day_returns_true_when_no_calendar_loaded(tmp_path):
     db_path = tmp_path / "meta.duckdb"
     with MetaStore(db_path) as store:
         assert store.is_trading_day("SSE", "20240102") is True
+
+
+def test_daily_partition_store_write_and_exists(tmp_path):
+    from zer0share.storage import DailyPartitionStore
+
+    store = DailyPartitionStore(tmp_path / "daily_kline")
+    df = pd.DataFrame({"ts_code": ["000001.SZ"], "trade_date": ["20240102"]})
+    assert store.exists("20240102") is False
+    store.write("20240102", df)
+    assert store.exists("20240102") is True
+    assert (tmp_path / "daily_kline" / "date=20240102" / "data.parquet").exists()
+
+
+def test_daily_partition_store_read(tmp_path):
+    from zer0share.storage import DailyPartitionStore
+
+    store = DailyPartitionStore(tmp_path / "daily_kline")
+    df = pd.DataFrame({"ts_code": ["000001.SZ"], "trade_date": ["20240102"]})
+    store.write("20240102", df)
+    result = store.read("20240102")
+    assert len(result) == 1
+    assert result.iloc[0]["ts_code"] == "000001.SZ"
+
+
+def test_daily_partition_store_read_missing_returns_empty(tmp_path):
+    from zer0share.storage import DailyPartitionStore
+
+    store = DailyPartitionStore(tmp_path / "daily_kline")
+    assert store.read("20240102").empty
+
+
+def test_snapshot_store_write_and_read(tmp_path):
+    from zer0share.storage import SnapshotStore
+
+    store = SnapshotStore(tmp_path / "basic" / "data.parquet")
+    df = pd.DataFrame({"ts_code": ["000001.SZ"], "name": ["平安银行"]})
+    store.write(df)
+    result = store.read()
+    assert len(result) == 1
+    assert result.iloc[0]["name"] == "平安银行"
+
+
+def test_snapshot_store_read_missing_returns_empty(tmp_path):
+    from zer0share.storage import SnapshotStore
+
+    store = SnapshotStore(tmp_path / "basic" / "data.parquet")
+    assert store.read().empty
+
+
+def test_index_weight_store_write_and_exists(tmp_path):
+    from zer0share.storage import IndexWeightStore
+
+    store = IndexWeightStore(tmp_path / "index_weight")
+    df = pd.DataFrame({"index_code": ["399300.SZ"], "con_code": ["000001.SZ"], "weight": [1.0]})
+    assert store.exists("399300.SZ", "20240102") is False
+    store.write("399300.SZ", "20240102", df)
+    assert store.exists("399300.SZ", "20240102") is True
+    assert (tmp_path / "index_weight" / "index_code=399300.SZ" / "date=20240102" / "data.parquet").exists()

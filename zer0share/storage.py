@@ -300,3 +300,55 @@ def read_ci_member(data_dir: Path) -> pd.DataFrame:
     if not path.exists():
         return pd.DataFrame()
     return pq.read_table(path).to_pandas()
+
+
+class DailyPartitionStore:
+    """Reads and writes Parquet files partitioned by date=YYYYMMDD."""
+
+    def __init__(self, table_dir: Path):
+        self._dir = table_dir
+
+    def write(self, trade_date: str, df: pd.DataFrame) -> None:
+        partition_dir = self._dir / f"date={trade_date}"
+        partition_dir.mkdir(parents=True, exist_ok=True)
+        pq.write_table(pa.Table.from_pandas(df, preserve_index=False), partition_dir / "data.parquet")
+
+    def exists(self, trade_date: str) -> bool:
+        return (self._dir / f"date={trade_date}" / "data.parquet").exists()
+
+    def read(self, trade_date: str) -> pd.DataFrame:
+        path = self._dir / f"date={trade_date}" / "data.parquet"
+        if not path.exists():
+            return pd.DataFrame()
+        return pq.read_table(path).to_pandas()
+
+
+class SnapshotStore:
+    """Reads and writes a single Parquet snapshot file."""
+
+    def __init__(self, file_path: Path):
+        self._path = file_path
+
+    def write(self, df: pd.DataFrame) -> None:
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        pq.write_table(pa.Table.from_pandas(df, preserve_index=False), self._path)
+
+    def read(self) -> pd.DataFrame:
+        if not self._path.exists():
+            return pd.DataFrame()
+        return pq.read_table(self._path).to_pandas()
+
+
+class IndexWeightStore:
+    """Reads and writes Parquet files partitioned by index_code=X/date=YYYYMMDD."""
+
+    def __init__(self, index_weight_dir: Path):
+        self._dir = index_weight_dir
+
+    def write(self, index_code: str, trade_date: str, df: pd.DataFrame) -> None:
+        partition_dir = self._dir / f"index_code={index_code}" / f"date={trade_date}"
+        partition_dir.mkdir(parents=True, exist_ok=True)
+        pq.write_table(pa.Table.from_pandas(df, preserve_index=False), partition_dir / "data.parquet")
+
+    def exists(self, index_code: str, trade_date: str) -> bool:
+        return (self._dir / f"index_code={index_code}" / f"date={trade_date}" / "data.parquet").exists()
