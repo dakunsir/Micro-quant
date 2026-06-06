@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+import re
 import tomllib
 
 
@@ -9,17 +10,19 @@ class Config:
     data_dir: Path
     db_path: Path
     log_path: Path
-    scheduler_daily_kline_hour: int
-    scheduler_daily_kline_minute: int
-    scheduler_basic_hour: int
-    scheduler_adj_factor_hour: int
-    scheduler_adj_factor_minute: int
-    scheduler_futures_hour: int
-    scheduler_futures_start_minute: int
-    scheduler_trade_cal_hour: int
-    scheduler_trade_cal_minute: int
+    schedule: dict[str, str]  # table_name → "HH:MM"
     wecom_webhook_url: str
     notifier_enabled: bool
+
+
+def _parse_schedule(raw_scheduler: dict) -> dict[str, str]:
+    schedule = {}
+    pattern = re.compile(r"^\d{1,2}:\d{2}$")
+    for table, time_str in raw_scheduler.items():
+        if not isinstance(time_str, str) or not pattern.match(time_str):
+            raise ValueError(f"调度时间格式错误 ({table}): 期望 'HH:MM', 得到 {time_str!r}")
+        schedule[table] = time_str
+    return schedule
 
 
 def load_config(path: Path = Path("config/settings.toml")) -> Config:
@@ -36,15 +39,7 @@ def load_config(path: Path = Path("config/settings.toml")) -> Config:
             data_dir=Path(raw["paths"]["data_dir"]),
             db_path=Path(raw["paths"]["db_path"]),
             log_path=Path(raw["paths"]["log_path"]),
-            scheduler_daily_kline_hour=raw["scheduler"]["daily_kline_hour"],
-            scheduler_daily_kline_minute=raw["scheduler"]["daily_kline_minute"],
-            scheduler_basic_hour=raw["scheduler"]["basic_hour"],
-            scheduler_adj_factor_hour=raw["scheduler"]["adj_factor_hour"],
-            scheduler_adj_factor_minute=raw["scheduler"]["adj_factor_minute"],
-            scheduler_futures_hour=raw["scheduler"]["futures_hour"],
-            scheduler_futures_start_minute=raw["scheduler"]["futures_start_minute"],
-            scheduler_trade_cal_hour=raw["scheduler"]["trade_cal_hour"],
-            scheduler_trade_cal_minute=raw["scheduler"]["trade_cal_minute"],
+            schedule=_parse_schedule(raw["scheduler"]),
             wecom_webhook_url=raw["notifier"]["wecom_webhook_url"],
             notifier_enabled=raw["notifier"]["enabled"],
         )

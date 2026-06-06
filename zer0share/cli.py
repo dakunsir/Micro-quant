@@ -87,141 +87,21 @@ def sync(
     """同步数据。"""
     if end_date is not None and start_date is None:
         raise click.UsageError("--end-date requires --start-date")
-    range_tables = {
-        "daily_kline",
-        "adj_factor",
-        "daily_basic",
-        "stock_st",
-        "suspend_d",
-        "stk_limit",
-        "index_weight",
-        "index_daily",
-        "fut_daily",
-        "fut_holding",
-        "fut_wsr",
-        "fut_settle",
-        "fut_mapping",
-        "ft_limit",
-        "fut_weekly",
-        "fut_monthly",
-        "fut_index_daily",
-        "fut_weekly_detail",
-        "opt_daily",
-    }
-    if (start_date is not None or end_date is not None) and table not in range_tables:
-        raise click.UsageError("date range options are only supported for daily partitioned tables")
-
     if start_date is not None and end_date is not None and end_date < start_date:
         raise click.UsageError("--end-date must be on or after --start-date")
 
     with _make_pipeline() as pipeline:
-        if sync_all or table == "trade_cal":
-            pipeline.sync_trade_cal()
-        if sync_all or table == "basic":
-            pipeline.sync_basic()
-        if sync_all or table == "daily_kline":
-            pipeline.sync_daily_kline(
-                start_date=start_date,
-                end_date=end_date,
-            )
-        if sync_all or table == "adj_factor":
-            pipeline.sync_adj_factor(
-                start_date=start_date,
-                end_date=end_date,
-            )
-        if sync_all or table == "daily_basic":
-            pipeline.sync_daily_basic(
-                start_date=start_date,
-                end_date=end_date,
-            )
-        if sync_all or table == "stock_st":
-            pipeline.sync_stock_st(
-                start_date=start_date,
-                end_date=end_date,
-            )
-        if sync_all or table == "suspend_d":
-            pipeline.sync_suspend_d(
-                start_date=start_date,
-                end_date=end_date,
-            )
-        if sync_all or table == "stk_limit":
-            pipeline.sync_stk_limit(
-                start_date=start_date,
-                end_date=end_date,
-            )
-        if sync_all or table == "index_weight":
-            pipeline.sync_index_weight(
-                start_date=start_date,
-                end_date=end_date,
-            )
-        if sync_all or table == "index_daily":
-            pipeline.sync_index_daily(
-                start_date=start_date,
-                end_date=end_date,
-            )
-        if sync_all or table == "industry":
-            pipeline.sync_industry()
-        if sync_all or table == "ci_member":
-            pipeline.sync_ci_member()
-        if sync_all or table == "fut_basic":
-            pipeline.sync_fut_basic()
-        if sync_all or table == "fut_daily":
-            pipeline.sync_fut_daily(
-                start_date=start_date,
-                end_date=end_date,
-            )
-        if sync_all or table == "fut_holding":
-            pipeline.sync_fut_holding(
-                start_date=start_date,
-                end_date=end_date,
-            )
-        if sync_all or table == "fut_wsr":
-            pipeline.sync_fut_wsr(
-                start_date=start_date,
-                end_date=end_date,
-            )
-        if sync_all or table == "fut_settle":
-            pipeline.sync_fut_settle(
-                start_date=start_date,
-                end_date=end_date,
-            )
-        if sync_all or table == "fut_mapping":
-            pipeline.sync_fut_mapping(
-                start_date=start_date,
-                end_date=end_date,
-            )
-        if sync_all or table == "ft_limit":
-            pipeline.sync_ft_limit(
-                start_date=start_date,
-                end_date=end_date,
-            )
-        if sync_all or table == "fut_weekly":
-            pipeline.sync_fut_weekly(
-                start_date=start_date,
-                end_date=end_date,
-            )
-        if sync_all or table == "fut_monthly":
-            pipeline.sync_fut_monthly(
-                start_date=start_date,
-                end_date=end_date,
-            )
-        if sync_all or table == "fut_index_daily":
-            pipeline.sync_fut_index_daily(
-                start_date=start_date,
-                end_date=end_date,
-            )
-        if sync_all or table == "fut_weekly_detail":
-            pipeline.sync_fut_weekly_detail(
-                start_date=start_date,
-                end_date=end_date,
-            )
-        if sync_all or table == "opt_basic":
-            pipeline.sync_opt_basic()
-        if sync_all or table == "opt_daily":
-            pipeline.sync_opt_daily(
-                start_date=start_date,
-                end_date=end_date,
-            )
+        if table is not None and (start_date is not None or end_date is not None):
+            job = pipeline.registry.get(table)
+            if job is not None and not job.supports_date_range:
+                raise click.UsageError("date range options are only supported for daily partitioned tables")
+
+        if sync_all:
+            pipeline.run_all(start_date=start_date, end_date=end_date)
+        elif table is not None:
+            pipeline.run(table, start_date=start_date, end_date=end_date)
+        else:
+            raise click.UsageError("需要指定 --table 或 --all")
 
 
 @cli.command("build-universe")

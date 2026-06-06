@@ -6,11 +6,30 @@ from click.testing import CliRunner
 from zer0share.cli import cli
 
 
-def test_sync_daily_kline_accepts_date_range():
-    runner = CliRunner()
+def _make_mock_pipeline(supports_date_range_for=None):
+    """Return a MagicMock pipeline.
+
+    supports_date_range_for: set of table names that support date range.
+    All others return a job with supports_date_range=False.
+    If None, all tables return supports_date_range=True (default MagicMock truthy).
+    """
     pipeline = MagicMock()
     pipeline.__enter__.return_value = pipeline
     pipeline.__exit__.return_value = False
+
+    if supports_date_range_for is not None:
+        def fake_registry_get(table):
+            job = MagicMock()
+            job.supports_date_range = table in supports_date_range_for
+            return job
+        pipeline.registry.get.side_effect = fake_registry_get
+
+    return pipeline
+
+
+def test_sync_daily_kline_accepts_date_range():
+    runner = CliRunner()
+    pipeline = _make_mock_pipeline()
 
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
@@ -27,7 +46,8 @@ def test_sync_daily_kline_accepts_date_range():
         )
 
     assert result.exit_code == 0
-    pipeline.sync_daily_kline.assert_called_once_with(
+    pipeline.run.assert_called_once_with(
+        "daily_kline",
         start_date="20160101",
         end_date="20160131",
     )
@@ -103,49 +123,41 @@ def test_build_universe_rejects_date_with_range():
 
 def test_sync_industry_calls_pipeline():
     runner = CliRunner()
-    pipeline = MagicMock()
-    pipeline.__enter__.return_value = pipeline
-    pipeline.__exit__.return_value = False
+    pipeline = _make_mock_pipeline()
 
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--table", "industry"])
 
     assert result.exit_code == 0
-    pipeline.sync_industry.assert_called_once()
+    pipeline.run.assert_called_once_with("industry", start_date=None, end_date=None)
 
 
 def test_sync_ci_member_calls_pipeline():
     runner = CliRunner()
-    pipeline = MagicMock()
-    pipeline.__enter__.return_value = pipeline
-    pipeline.__exit__.return_value = False
+    pipeline = _make_mock_pipeline()
 
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--table", "ci_member"])
 
     assert result.exit_code == 0
-    pipeline.sync_ci_member.assert_called_once()
+    pipeline.run.assert_called_once_with("ci_member", start_date=None, end_date=None)
 
 
 def test_sync_all_includes_industry_and_ci_member():
     runner = CliRunner()
-    pipeline = MagicMock()
-    pipeline.__enter__.return_value = pipeline
-    pipeline.__exit__.return_value = False
+    pipeline = _make_mock_pipeline()
 
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--all"])
 
     assert result.exit_code == 0
-    pipeline.sync_industry.assert_called_once()
-    pipeline.sync_ci_member.assert_called_once()
+    pipeline.run_all.assert_called_once_with(start_date=None, end_date=None)
 
 
 def test_sync_industry_rejects_date_range():
     runner = CliRunner()
-    pipeline = MagicMock()
-    pipeline.__enter__.return_value = pipeline
-    pipeline.__exit__.return_value = False
+    # industry does not support date range
+    pipeline = _make_mock_pipeline(supports_date_range_for=set())
 
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
@@ -158,9 +170,7 @@ def test_sync_industry_rejects_date_range():
 
 def test_sync_index_daily_accepts_date_range():
     runner = CliRunner()
-    pipeline = MagicMock()
-    pipeline.__enter__.return_value = pipeline
-    pipeline.__exit__.return_value = False
+    pipeline = _make_mock_pipeline()
 
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
@@ -177,7 +187,8 @@ def test_sync_index_daily_accepts_date_range():
         )
 
     assert result.exit_code == 0
-    pipeline.sync_index_daily.assert_called_once_with(
+    pipeline.run.assert_called_once_with(
+        "index_daily",
         start_date="20240101",
         end_date="20240131",
     )
@@ -185,35 +196,29 @@ def test_sync_index_daily_accepts_date_range():
 
 def test_sync_all_includes_index_daily():
     runner = CliRunner()
-    pipeline = MagicMock()
-    pipeline.__enter__.return_value = pipeline
-    pipeline.__exit__.return_value = False
+    pipeline = _make_mock_pipeline()
 
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--all"])
 
     assert result.exit_code == 0
-    pipeline.sync_index_daily.assert_called_once()
+    pipeline.run_all.assert_called_once_with(start_date=None, end_date=None)
 
 
 def test_sync_fut_basic_calls_pipeline():
     runner = CliRunner()
-    pipeline = MagicMock()
-    pipeline.__enter__.return_value = pipeline
-    pipeline.__exit__.return_value = False
+    pipeline = _make_mock_pipeline()
 
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--table", "fut_basic"])
 
     assert result.exit_code == 0
-    pipeline.sync_fut_basic.assert_called_once()
+    pipeline.run.assert_called_once_with("fut_basic", start_date=None, end_date=None)
 
 
 def test_sync_fut_daily_accepts_date_range():
     runner = CliRunner()
-    pipeline = MagicMock()
-    pipeline.__enter__.return_value = pipeline
-    pipeline.__exit__.return_value = False
+    pipeline = _make_mock_pipeline()
 
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
@@ -230,7 +235,8 @@ def test_sync_fut_daily_accepts_date_range():
         )
 
     assert result.exit_code == 0
-    pipeline.sync_fut_daily.assert_called_once_with(
+    pipeline.run.assert_called_once_with(
+        "fut_daily",
         start_date="20240101",
         end_date="20240131",
     )
@@ -238,9 +244,8 @@ def test_sync_fut_daily_accepts_date_range():
 
 def test_sync_fut_basic_rejects_date_range():
     runner = CliRunner()
-    pipeline = MagicMock()
-    pipeline.__enter__.return_value = pipeline
-    pipeline.__exit__.return_value = False
+    # fut_basic does not support date range
+    pipeline = _make_mock_pipeline(supports_date_range_for=set())
 
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
@@ -253,27 +258,18 @@ def test_sync_fut_basic_rejects_date_range():
 
 def test_sync_all_includes_futures_tables():
     runner = CliRunner()
-    pipeline = MagicMock()
-    pipeline.__enter__.return_value = pipeline
-    pipeline.__exit__.return_value = False
+    pipeline = _make_mock_pipeline()
 
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--all"])
 
     assert result.exit_code == 0
-    pipeline.sync_fut_basic.assert_called_once()
-    pipeline.sync_fut_daily.assert_called_once()
-    pipeline.sync_fut_holding.assert_called_once()
-    pipeline.sync_fut_wsr.assert_called_once()
-    pipeline.sync_fut_settle.assert_called_once()
-    pipeline.sync_fut_mapping.assert_called_once()
+    pipeline.run_all.assert_called_once_with(start_date=None, end_date=None)
 
 
 def test_sync_ft_limit_accepts_date_range():
     runner = CliRunner()
-    pipeline = MagicMock()
-    pipeline.__enter__.return_value = pipeline
-    pipeline.__exit__.return_value = False
+    pipeline = _make_mock_pipeline()
 
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
@@ -290,7 +286,8 @@ def test_sync_ft_limit_accepts_date_range():
         )
 
     assert result.exit_code == 0
-    pipeline.sync_ft_limit.assert_called_once_with(
+    pipeline.run.assert_called_once_with(
+        "ft_limit",
         start_date="20240101",
         end_date="20240131",
     )
@@ -298,9 +295,7 @@ def test_sync_ft_limit_accepts_date_range():
 
 def test_sync_fut_weekly_detail_accepts_date_range():
     runner = CliRunner()
-    pipeline = MagicMock()
-    pipeline.__enter__.return_value = pipeline
-    pipeline.__exit__.return_value = False
+    pipeline = _make_mock_pipeline()
 
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
@@ -317,7 +312,8 @@ def test_sync_fut_weekly_detail_accepts_date_range():
         )
 
     assert result.exit_code == 0
-    pipeline.sync_fut_weekly_detail.assert_called_once_with(
+    pipeline.run.assert_called_once_with(
+        "fut_weekly_detail",
         start_date="20240101",
         end_date="20240131",
     )
@@ -325,39 +321,29 @@ def test_sync_fut_weekly_detail_accepts_date_range():
 
 def test_sync_all_includes_futures_batch2_tables():
     runner = CliRunner()
-    pipeline = MagicMock()
-    pipeline.__enter__.return_value = pipeline
-    pipeline.__exit__.return_value = False
+    pipeline = _make_mock_pipeline()
 
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--all"])
 
     assert result.exit_code == 0
-    pipeline.sync_ft_limit.assert_called_once()
-    pipeline.sync_fut_weekly.assert_called_once()
-    pipeline.sync_fut_monthly.assert_called_once()
-    pipeline.sync_fut_index_daily.assert_called_once()
-    pipeline.sync_fut_weekly_detail.assert_called_once()
+    pipeline.run_all.assert_called_once_with(start_date=None, end_date=None)
 
 
 def test_sync_opt_basic_calls_pipeline():
     runner = CliRunner()
-    pipeline = MagicMock()
-    pipeline.__enter__.return_value = pipeline
-    pipeline.__exit__.return_value = False
+    pipeline = _make_mock_pipeline()
 
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--table", "opt_basic"])
 
     assert result.exit_code == 0
-    pipeline.sync_opt_basic.assert_called_once()
+    pipeline.run.assert_called_once_with("opt_basic", start_date=None, end_date=None)
 
 
 def test_sync_opt_daily_accepts_date_range():
     runner = CliRunner()
-    pipeline = MagicMock()
-    pipeline.__enter__.return_value = pipeline
-    pipeline.__exit__.return_value = False
+    pipeline = _make_mock_pipeline()
 
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
@@ -366,7 +352,8 @@ def test_sync_opt_daily_accepts_date_range():
         )
 
     assert result.exit_code == 0
-    pipeline.sync_opt_daily.assert_called_once_with(
+    pipeline.run.assert_called_once_with(
+        "opt_daily",
         start_date="20240101",
         end_date="20240131",
     )
@@ -374,9 +361,8 @@ def test_sync_opt_daily_accepts_date_range():
 
 def test_sync_opt_basic_rejects_date_range():
     runner = CliRunner()
-    pipeline = MagicMock()
-    pipeline.__enter__.return_value = pipeline
-    pipeline.__exit__.return_value = False
+    # opt_basic does not support date range
+    pipeline = _make_mock_pipeline(supports_date_range_for=set())
 
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
@@ -389,13 +375,10 @@ def test_sync_opt_basic_rejects_date_range():
 
 def test_sync_all_includes_options_tables():
     runner = CliRunner()
-    pipeline = MagicMock()
-    pipeline.__enter__.return_value = pipeline
-    pipeline.__exit__.return_value = False
+    pipeline = _make_mock_pipeline()
 
     with patch("zer0share.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--all"])
 
     assert result.exit_code == 0
-    pipeline.sync_opt_basic.assert_called_once()
-    pipeline.sync_opt_daily.assert_called_once()
+    pipeline.run_all.assert_called_once_with(start_date=None, end_date=None)

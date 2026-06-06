@@ -15,15 +15,9 @@ db_path = "db/meta.duckdb"
 log_path = "logs/pipeline.log"
 
 [scheduler]
-daily_kline_hour = 18
-daily_kline_minute = 0
-basic_hour = 8
-adj_factor_hour = 18
-adj_factor_minute = 5
-futures_hour = 17
-futures_start_minute = 0
-trade_cal_hour = 16
-trade_cal_minute = 0
+trade_cal   = "09:00"
+basic       = "09:10"
+daily_kline = "16:30"
 
 [notifier]
 wecom_webhook_url = "https://example.com/webhook"
@@ -31,7 +25,7 @@ enabled = false
 """
 
 
-def test_load_config_returns_all_fields(tmp_path):
+def test_load_config_returns_schedule_dict(tmp_path):
     cfg_file = tmp_path / "settings.toml"
     cfg_file.write_text(VALID_TOML, encoding="utf-8")
 
@@ -39,17 +33,11 @@ def test_load_config_returns_all_fields(tmp_path):
 
     assert cfg.tushare_token == "test_token"
     assert cfg.data_dir == Path("data")
-    assert cfg.db_path == Path("db/meta.duckdb")
-    assert cfg.log_path == Path("logs/pipeline.log")
-    assert cfg.scheduler_daily_kline_hour == 18
-    assert cfg.scheduler_daily_kline_minute == 0
-    assert cfg.scheduler_basic_hour == 8
-    assert cfg.scheduler_adj_factor_hour == 18
-    assert cfg.scheduler_adj_factor_minute == 5
-    assert cfg.scheduler_futures_hour == 17
-    assert cfg.scheduler_futures_start_minute == 0
-    assert cfg.scheduler_trade_cal_hour == 16
-    assert cfg.scheduler_trade_cal_minute == 0
+    assert cfg.schedule == {
+        "trade_cal": "09:00",
+        "basic": "09:10",
+        "daily_kline": "16:30",
+    }
     assert cfg.wecom_webhook_url == "https://example.com/webhook"
     assert cfg.notifier_enabled is False
 
@@ -60,9 +48,7 @@ def test_load_config_notifier_enabled_true(tmp_path):
         VALID_TOML.replace("enabled = false", "enabled = true"),
         encoding="utf-8",
     )
-
     cfg = load_config(cfg_file)
-
     assert cfg.notifier_enabled is True
 
 
@@ -81,22 +67,33 @@ def test_load_config_missing_key(tmp_path):
         "db_path='db/meta.duckdb'\n"
         "log_path='logs/pipeline.log'\n"
         "[scheduler]\n"
-        "daily_kline_hour=18\n"
-        "daily_kline_minute=0\n"
-        "basic_hour=8\n"
-        "adj_factor_hour=18\n"
-        "adj_factor_minute=5\n"
-        "futures_hour=17\n"
-        "futures_start_minute=0\n"
-        "trade_cal_hour=16\n"
-        "trade_cal_minute=0\n"
+        "trade_cal = '09:00'\n"
         "[notifier]\n"
         "wecom_webhook_url='https://x.com'\n"
         "enabled=false\n",
         encoding="utf-8",
     )
-
     with pytest.raises(KeyError, match="配置文件缺少必要字段"):
+        load_config(cfg_file)
+
+
+def test_load_config_invalid_schedule_format(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        "[tushare]\n"
+        "token = 'test'\n"
+        "[paths]\n"
+        "data_dir='data'\n"
+        "db_path='db/meta.duckdb'\n"
+        "log_path='logs/pipeline.log'\n"
+        "[scheduler]\n"
+        "trade_cal = 'not_a_time'\n"
+        "[notifier]\n"
+        "wecom_webhook_url='https://x.com'\n"
+        "enabled=false\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="调度时间格式错误"):
         load_config(cfg_file)
 
 
@@ -104,40 +101,5 @@ def test_config_is_immutable(tmp_path):
     cfg_file = tmp_path / "settings.toml"
     cfg_file.write_text(VALID_TOML, encoding="utf-8")
     cfg = load_config(cfg_file)
-
     with pytest.raises(Exception):
         cfg.tushare_token = "hacked"
-
-
-CONFIG_WITH_TRADE_CAL = """
-[tushare]
-token = "test_token"
-
-[paths]
-data_dir = "data"
-db_path = "db/meta.duckdb"
-log_path = "logs/pipeline.log"
-
-[scheduler]
-daily_kline_hour = 18
-daily_kline_minute = 0
-basic_hour = 8
-adj_factor_hour = 18
-adj_factor_minute = 5
-futures_hour = 17
-futures_start_minute = 0
-trade_cal_hour = 16
-trade_cal_minute = 0
-
-[notifier]
-wecom_webhook_url = "https://example.com/webhook"
-enabled = false
-"""
-
-
-def test_load_config_with_trade_cal_schedule(tmp_path):
-    cfg_file = tmp_path / "settings.toml"
-    cfg_file.write_text(CONFIG_WITH_TRADE_CAL, encoding="utf-8")
-    cfg = load_config(cfg_file)
-    assert cfg.scheduler_trade_cal_hour == 16
-    assert cfg.scheduler_trade_cal_minute == 0

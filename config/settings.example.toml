@@ -7,15 +7,31 @@ db_path = "db/meta.duckdb"
 log_path = "logs/pipeline.log"
 
 [scheduler]
-daily_kline_hour = 18
-daily_kline_minute = 0
-basic_hour = 8
-adj_factor_hour = 18
-adj_factor_minute = 5
-futures_hour = 17
-futures_start_minute = 0
-trade_cal_hour = 16
-trade_cal_minute = 0
+trade_cal         = "09:00"
+basic             = "09:10"
+daily_kline       = "16:30"
+adj_factor        = "16:35"
+daily_basic       = "16:40"
+stock_st          = "16:45"
+suspend_d         = "16:50"
+stk_limit         = "16:55"
+index_weight      = "17:00"
+index_daily       = "17:05"
+industry          = "17:10"
+ci_member         = "17:15"
+fut_basic         = "17:20"
+fut_daily         = "17:25"
+fut_holding       = "17:30"
+fut_wsr           = "17:35"
+fut_settle        = "17:40"
+fut_mapping       = "17:45"
+ft_limit          = "17:50"
+fut_weekly        = "17:55"
+fut_monthly       = "18:00"
+fut_index_daily   = "18:05"
+fut_weekly_detail = "18:10"
+opt_basic         = "18:15"
+opt_daily         = "18:20"
 
 [notifier]
 wecom_webhook_url = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY"
