@@ -13,7 +13,7 @@ import pandas as pd
 import pytest
 
 from zer0share.pipeline import Pipeline
-from zer0share.sync._helpers import EXCHANGES, ALL_EXCHANGES
+from zer0share.sync.calendar import EXCHANGES, ALL_EXCHANGES
 from zer0share.storage import (
     read_sw_classify,
     read_sw_member,

@@ -7,6 +7,7 @@ from zer0share.storage import read_trade_cal, write_trade_cal
 from zer0share.sync import SyncRuntime
 from zer0share.sync._jobs import SyncJob
 
+EXCHANGES = ["SSE", "SZSE"]
 ALL_EXCHANGES = ["SSE", "SZSE", "CFFEX", "DCE", "SHFE", "CZCE", "INE", "GFEX"]
 TRADE_CAL_FIRST_DATE = "19900101"
 
