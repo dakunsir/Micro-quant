@@ -21,3 +21,5 @@ class Notifier:
             logger.error(f"企业微信推送失败: {e}")
         except httpx.HTTPStatusError as e:
             logger.error(f"企业微信返回错误: {e.response.status_code}")
+        except Exception as e:
+            logger.error(f"企业微信推送异常: {e}")

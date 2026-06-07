@@ -18,6 +18,7 @@ from zer0share.storage import DailyPartitionStore, SnapshotStore
 from zer0share.sync import SyncRuntime
 
 PROGRESS_INTERVAL = 50
+_RETRY_DELAYS = (5, 15, 45)  # seconds between retries
 
 
 def _format_duration(seconds: float) -> str:
@@ -120,14 +121,27 @@ class DailySyncJob(SyncJob):
                 skipped_existing += 1
                 continue
 
-            try:
-                df = self.fetch(trade_date)
-            except Exception as exc:
-                logger.error(f"{self.spec.name}: fetch failed on {trade_date}: {exc}")
+            last_exc: Exception | None = None
+            for attempt, delay in enumerate((*_RETRY_DELAYS, None), start=1):
+                try:
+                    df = self.fetch(trade_date)
+                    last_exc = None
+                    break
+                except Exception as exc:
+                    last_exc = exc
+                    if delay is None:
+                        break
+                    logger.warning(
+                        f"{self.spec.name}: fetch failed on {trade_date} "
+                        f"(attempt {attempt}), retry in {delay}s: {exc}"
+                    )
+                    time.sleep(delay)
+            if last_exc is not None:
+                logger.error(f"{self.spec.name}: fetch failed on {trade_date} after {attempt} attempts: {last_exc}")
                 rt.notifier.send(
-                    f"{self.spec.name} 同步失败 ({trade_date}): {exc}"
+                    f"{self.spec.name} 同步失败 ({trade_date}): {last_exc}"
                 )
-                raise
+                raise last_exc
 
             time.sleep(0.2)
 
