@@ -254,10 +254,18 @@ opt_snapshot = pro.opt_daily(trade_date="20240102", exchange="SSE")   # 某日�
 | `opt_daily` | 查询已同步的期权日线行情（支持按交易所过滤） |
 | `query` | 按接口名分发，例如 `pro.query("daily", ...)` |
 
-运行示例：
+运行冒烟测试（`examples/futures/` 和 `examples/options/` 目录下各有独立脚本）：
 
 ```bash
-uv run python examples/local_query_api_smoke.py
+# 期货示例
+uv run python examples/futures/fut_daily_query_smoke.py
+uv run python examples/futures/fut_holding_query_smoke.py
+uv run python examples/futures/fut_settle_query_smoke.py
+uv run python examples/futures/ft_limit_query_smoke.py
+
+# 期权示例
+uv run python examples/options/opt_basic_query_smoke.py
+uv run python examples/options/opt_daily_query_smoke.py
 ```
 
 ## 数据存储结构
@@ -429,7 +437,9 @@ zer0share/
 ├── notifier.py   # 企业微信 Webhook 通知
 └── cli.py        # Click CLI 入口
 tests/            # pytest 测试套件
-examples/         # 本地查询 API 示例
+examples/
+├── futures/      # 期货本地查询冒烟测试（fut_daily、fut_holding、fut_settle 等）
+└── options/      # 期权本地查询冒烟测试（opt_basic、opt_daily）
 config/
 └── settings.example.toml
 ```
