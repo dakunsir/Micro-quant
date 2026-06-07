@@ -802,11 +802,12 @@ def test_sync_fut_basic_failure_sends_alert_and_raises(pipeline, cfg, fetcher, n
     assert "fut_basic 同步失败" in msg
 
 
-def test_sync_fut_basic_skips_non_trading_day(pipeline, cfg, fetcher, notifier):
+def test_sync_fut_basic_runs_on_non_trading_day(pipeline, cfg, fetcher, notifier):
+    fetcher.fetch_fut_basic.return_value = pd.DataFrame()
     _setup_non_trading_day(pipeline, cfg)
-    pipeline.run("fut_basic")
-    fetcher.fetch_fut_basic.assert_not_called()
-    notifier.send.assert_not_called()
+    with patch("zer0share.sync.futures.time.sleep"):
+        pipeline.run("fut_basic")
+    assert fetcher.fetch_fut_basic.called
 
 
 # ---------------------------------------------------------------------------
@@ -1051,11 +1052,12 @@ def test_sync_opt_basic_failure_sends_alert_and_raises(pipeline, cfg, fetcher, n
     assert "opt_basic 同步失败" in msg
 
 
-def test_sync_opt_basic_skips_non_trading_day(pipeline, cfg, fetcher, notifier):
+def test_sync_opt_basic_runs_on_non_trading_day(pipeline, cfg, fetcher, notifier):
+    fetcher.fetch_opt_basic.return_value = pd.DataFrame()
     _setup_non_trading_day(pipeline, cfg)
-    pipeline.run("opt_basic")
-    fetcher.fetch_opt_basic.assert_not_called()
-    notifier.send.assert_not_called()
+    with patch("zer0share.sync.options.time.sleep"):
+        pipeline.run("opt_basic")
+    assert fetcher.fetch_opt_basic.called
 
 
 # ---------------------------------------------------------------------------
