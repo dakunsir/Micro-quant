@@ -270,84 +270,66 @@ uv run python examples/options/opt_daily_query_smoke.py
 
 ## 数据存储结构
 
+目录按 Tushare 数据分类命名：`stock/`（股票数据）、`index/`（指数专题）、`futures/`（期货数据）、`options/`（期权数据）。
+
 ```
 data/
-├── trade_cal/
-│   ├── exchange=SSE/data.parquet
-│   ├── exchange=SZSE/data.parquet
-│   ├── exchange=CFFEX/data.parquet
-│   ├── exchange=SHFE/data.parquet
-│   ├── exchange=DCE/data.parquet
-│   ├── exchange=CZCE/data.parquet
-│   ├── exchange=INE/data.parquet
-│   └── exchange=GFEX/data.parquet
-├── basic/
-│   └── data.parquet
-├── daily_kline/
-│   ├── date=20160104/data.parquet
-│   ├── date=20160105/data.parquet
-│   └── ...
-├── adj_factor/
-│   ├── date=20160104/data.parquet
-│   ├── date=20160105/data.parquet
-│   └── ...
-├── daily_basic/
-│   └── date=20160104/data.parquet
-├── stock_st/
-│   └── date=20160104/data.parquet
-├── suspend_d/
-│   └── date=20160104/data.parquet
-├── stk_limit/
-│   └── date=20160104/data.parquet
-├── index_weight/
-│   ├── index_code=399300.SZ/date=20160104/data.parquet
-│   ├── index_code=000905.SH/date=20160104/data.parquet
-│   └── index_code=000852.SH/date=20160104/data.parquet
-├── index_daily/
-│   ├── date=20160104/data.parquet   # 含当日全部12个宽基指数
-│   ├── date=20160105/data.parquet
-│   └── ...
-├── industry/
-│   ├── sw_classify/data.parquet       # 申万行业分类树
-│   ├── sw_member/data.parquet         # 申万股票-行业映射（全量历史）
-│   └── ci_member/data.parquet         # 中信股票-行业映射（全量历史）
-├── universe/
-│   ├── name=univ_research_base/date=20240131/data.parquet
-│   ├── name=univ_trade_base/date=20240131/data.parquet
-│   ├── name=univ_trade_hs300/date=20240131/data.parquet
-│   ├── name=univ_trade_zz500/date=20240131/data.parquet
-│   └── name=univ_trade_zz1000/date=20240131/data.parquet
-├── futures/
-│   ├── fut_basic/
-│   │   └── date=YYYYMMDD/data.parquet   # 全量，每次覆盖
-│   ├── fut_daily/
+├── stock/                              # 股票数据
+│   ├── trade_cal/
+│   │   ├── exchange=SSE/data.parquet
+│   │   ├── exchange=SZSE/data.parquet
+│   │   ├── exchange=CFFEX/data.parquet
+│   │   ├── exchange=SHFE/data.parquet
+│   │   ├── exchange=DCE/data.parquet
+│   │   ├── exchange=CZCE/data.parquet
+│   │   ├── exchange=INE/data.parquet
+│   │   └── exchange=GFEX/data.parquet
+│   ├── basic/
+│   │   └── data.parquet
+│   ├── daily_kline/
 │   │   └── date=YYYYMMDD/data.parquet
-│   ├── fut_holding/
+│   ├── adj_factor/
 │   │   └── date=YYYYMMDD/data.parquet
-│   ├── fut_wsr/
+│   ├── daily_basic/
 │   │   └── date=YYYYMMDD/data.parquet
-│   ├── fut_settle/
+│   ├── stock_st/
 │   │   └── date=YYYYMMDD/data.parquet
-│   ├── fut_mapping/
+│   ├── suspend_d/
 │   │   └── date=YYYYMMDD/data.parquet
-│   ├── ft_limit/
+│   ├── stk_limit/
 │   │   └── date=YYYYMMDD/data.parquet
-│   ├── fut_weekly/
-│   │   └── date=YYYYMMDD/data.parquet
-│   ├── fut_monthly/
-│   │   └── date=YYYYMMDD/data.parquet
-│   ├── fut_index_daily/
-│   │   └── date=YYYYMMDD/data.parquet
-│   └── fut_weekly_detail/
-│       └── date=YYYYMMDD/data.parquet
-└── options/
-    ├── opt_basic/
-    │   └── date=YYYYMMDD/data.parquet   # 全量，每次覆盖
-    └── opt_daily/
-        ├── date=YYYYMMDD/data.parquet
-        └── ...
+│   ├── industry/
+│   │   ├── sw_classify/data.parquet   # 申万行业分类树
+│   │   ├── sw_member/data.parquet     # 申万股票-行业映射（全量历史）
+│   │   └── ci_member/data.parquet     # 中信股票-行业映射（全量历史）
+│   └── universe/
+│       ├── name=univ_research_base/date=YYYYMMDD/data.parquet
+│       ├── name=univ_trade_base/date=YYYYMMDD/data.parquet
+│       ├── name=univ_trade_hs300/date=YYYYMMDD/data.parquet
+│       ├── name=univ_trade_zz500/date=YYYYMMDD/data.parquet
+│       └── name=univ_trade_zz1000/date=YYYYMMDD/data.parquet
+├── index/                              # 指数专题
+│   ├── index_daily/
+│   │   └── date=YYYYMMDD/data.parquet  # 含当日全部12个宽基指数
+│   └── index_weight/
+│       └── index_code=*/date=YYYYMMDD/data.parquet
+├── futures/                            # 期货数据
+│   ├── fut_basic/data.parquet          # 全量，每次覆盖
+│   ├── fut_daily/date=YYYYMMDD/data.parquet
+│   ├── fut_holding/date=YYYYMMDD/data.parquet
+│   ├── fut_wsr/date=YYYYMMDD/data.parquet
+│   ├── fut_settle/date=YYYYMMDD/data.parquet
+│   ├── fut_mapping/date=YYYYMMDD/data.parquet
+│   ├── ft_limit/date=YYYYMMDD/data.parquet
+│   ├── fut_weekly/date=YYYYMMDD/data.parquet
+│   ├── fut_monthly/date=YYYYMMDD/data.parquet
+│   ├── fut_index_daily/date=YYYYMMDD/data.parquet
+│   └── fut_weekly_detail/date=YYYYMMDD/data.parquet
+└── options/                            # 期权数据
+    ├── opt_basic/data.parquet          # 全量，每次覆盖
+    └── opt_daily/date=YYYYMMDD/data.parquet
 db/
-└── meta.duckdb                      # 同步记录 + 交易日历索引
+└── meta.duckdb                         # 同步记录 + 交易日历索引
 ```
 
 ## CLI 命令
