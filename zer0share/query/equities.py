@@ -138,7 +138,7 @@ def universe(ctx: QueryContext, universe=None, ts_code=None, trade_date=None,
         ctx,
         TableSpec(
             name="universe",
-            path_parts=("universe",),
+            path_parts=("stock", "universe"),
             columns=UNIVERSE_COLS,
             parquet_pattern="name=*/date=*/data.parquet",
             sync_table="build-universe",

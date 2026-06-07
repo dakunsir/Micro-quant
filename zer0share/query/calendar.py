@@ -27,7 +27,7 @@ def trade_cal(
         ctx,
         TableSpec(
             name="trade_cal",
-            path_parts=("trade_cal",),
+            path_parts=("stock", "trade_cal"),
             columns=TRADE_CAL_COLS,
             parquet_pattern="exchange=*/data.parquet",
             sync_table="trade_cal",

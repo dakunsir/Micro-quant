@@ -123,14 +123,14 @@ def _open_trading_days(data_dir: Path, start: dt.date, end: dt.date) -> list[dt.
 def _universe_partitions_exist(data_dir: Path, trade_date: dt.date) -> bool:
     date_part = f"date={trade_date.strftime('%Y%m%d')}"
     return all(
-        (data_dir / "universe" / f"name={name}" / date_part / "data.parquet").exists()
+        (data_dir / "stock" / "universe" / f"name={name}" / date_part / "data.parquet").exists()
         for name in UNIVERSE_NAMES
     )
 
 
 def _latest_complete_source_date(data_dir: Path) -> dt.date:
     required_tables = ("daily_kline", "daily_basic", "stock_st", "suspend_d", "stk_limit")
-    available_dates = [_partition_dates(data_dir / table_name) for table_name in required_tables]
+    available_dates = [_partition_dates(data_dir / "stock" / table_name) for table_name in required_tables]
     if any(not dates for dates in available_dates):
         missing = [
             table_name
@@ -165,7 +165,7 @@ def _default_range_start(data_dir: Path, end: dt.date, incremental: bool) -> dt.
 
 def _latest_complete_universe_date(data_dir: Path) -> dt.date | None:
     available_dates = [
-        _partition_dates(data_dir / "universe" / f"name={name}")
+        _partition_dates(data_dir / "stock" / "universe" / f"name={name}")
         for name in UNIVERSE_NAMES
     ]
     if any(not dates for dates in available_dates):
@@ -256,14 +256,14 @@ def build_universe_detail(data_dir: str | Path, trade_date: dt.date) -> pd.DataF
 
 
 def _read_basic(data_dir: Path) -> pd.DataFrame:
-    path = data_dir / "basic" / "data.parquet"
+    path = data_dir / "stock" / "basic" / "data.parquet"
     if not path.exists():
         raise FileNotFoundError("basic data not found; run `python main.py sync --table basic` first")
     return pd.read_parquet(path)
 
 
 def _read_daily_table(data_dir: Path, table_name: str, trade_date: dt.date) -> pd.DataFrame:
-    path = data_dir / table_name / f"date={trade_date.strftime('%Y%m%d')}" / "data.parquet"
+    path = data_dir / "stock" / table_name / f"date={trade_date.strftime('%Y%m%d')}" / "data.parquet"
     if not path.exists():
         raise FileNotFoundError(
             f"{table_name} data not found for {trade_date}; "
@@ -273,7 +273,7 @@ def _read_daily_table(data_dir: Path, table_name: str, trade_date: dt.date) -> p
 
 
 def _rolling_avg_amount_20d(data_dir: Path, trade_date: dt.date) -> pd.DataFrame:
-    table_dir = data_dir / "daily_kline"
+    table_dir = data_dir / "stock" / "daily_kline"
     if not table_dir.exists():
         raise FileNotFoundError("daily_kline data not found; run `python main.py sync --table daily_kline` first")
 
@@ -295,7 +295,7 @@ def _rolling_avg_amount_20d(data_dir: Path, trade_date: dt.date) -> pd.DataFrame
 
 
 def _latest_index_members(data_dir: Path, index_code: str, trade_date: dt.date) -> set[str]:
-    table_dir = data_dir / "index_weight"
+    table_dir = data_dir / "index" / "index_weight"
     if not table_dir.exists():
         raise FileNotFoundError("index_weight data not found; run `python main.py sync --table index_weight` first")
     pattern = table_dir / "index_code=*" / "date=*" / "data.parquet"

@@ -41,13 +41,13 @@ def build_jobs(cfg, fetcher) -> list[SyncJob]:
         IndustrySyncJob(
             fetch_classify=fetcher.fetch_sw_classify,
             fetch_member=fetcher.fetch_sw_member,
-            store_classify=SnapshotStore(d / "industry" / "sw_classify" / "data.parquet"),
-            store_member=SnapshotStore(d / "industry" / "sw_member" / "data.parquet"),
+            store_classify=SnapshotStore(d / "stock" / "industry" / "sw_classify" / "data.parquet"),
+            store_member=SnapshotStore(d / "stock" / "industry" / "sw_member" / "data.parquet"),
         ),
         SnapshotSyncJob(
             table_name=CI_MEMBER_SPEC.name,
             spec=CI_MEMBER_SPEC,
             fetch=fetcher.fetch_ci_member,
-            store=SnapshotStore(d / "industry" / "ci_member" / "data.parquet"),
+            store=SnapshotStore(d / "stock" / "industry" / "ci_member" / "data.parquet"),
         ),
     ]

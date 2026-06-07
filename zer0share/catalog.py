@@ -43,7 +43,7 @@ from zer0share.schema import (
 
 BASIC_SPEC = TableSpec(
     name="basic",
-    path_parts=("basic",),
+    path_parts=("stock", "basic"),
     columns=BASIC_COLS,
     parquet_pattern="data.parquet",
     sync_table="basic",
@@ -52,7 +52,7 @@ BASIC_SPEC = TableSpec(
 
 DAILY_KLINE_SPEC = DailyTableSpec(
     name="daily_kline",
-    path_parts=("daily_kline",),
+    path_parts=("stock", "daily_kline"),
     columns=DAILY_COLS,
     parquet_pattern="date=*/data.parquet",
     sync_table="daily_kline",
@@ -63,7 +63,7 @@ DAILY_KLINE_SPEC = DailyTableSpec(
 
 ADJ_FACTOR_SPEC = DailyTableSpec(
     name="adj_factor",
-    path_parts=("adj_factor",),
+    path_parts=("stock", "adj_factor"),
     columns=ADJ_FACTOR_COLS,
     parquet_pattern="date=*/data.parquet",
     sync_table="adj_factor",
@@ -74,7 +74,7 @@ ADJ_FACTOR_SPEC = DailyTableSpec(
 
 DAILY_BASIC_SPEC = DailyTableSpec(
     name="daily_basic",
-    path_parts=("daily_basic",),
+    path_parts=("stock", "daily_basic"),
     columns=DAILY_BASIC_COLS,
     parquet_pattern="date=*/data.parquet",
     sync_table="daily_basic",
@@ -85,7 +85,7 @@ DAILY_BASIC_SPEC = DailyTableSpec(
 
 STOCK_ST_SPEC = DailyTableSpec(
     name="stock_st",
-    path_parts=("stock_st",),
+    path_parts=("stock", "stock_st"),
     columns=STOCK_ST_COLS,
     parquet_pattern="date=*/data.parquet",
     sync_table="stock_st",
@@ -96,7 +96,7 @@ STOCK_ST_SPEC = DailyTableSpec(
 
 SUSPEND_D_SPEC = DailyTableSpec(
     name="suspend_d",
-    path_parts=("suspend_d",),
+    path_parts=("stock", "suspend_d"),
     columns=SUSPEND_D_COLS,
     parquet_pattern="date=*/data.parquet",
     sync_table="suspend_d",
@@ -107,7 +107,7 @@ SUSPEND_D_SPEC = DailyTableSpec(
 
 STK_LIMIT_SPEC = DailyTableSpec(
     name="stk_limit",
-    path_parts=("stk_limit",),
+    path_parts=("stock", "stk_limit"),
     columns=STK_LIMIT_COLS,
     parquet_pattern="date=*/data.parquet",
     sync_table="stk_limit",
@@ -118,7 +118,7 @@ STK_LIMIT_SPEC = DailyTableSpec(
 
 INDEX_DAILY_SPEC = DailyTableSpec(
     name="index_daily",
-    path_parts=("index_daily",),
+    path_parts=("index", "index_daily"),
     columns=INDEX_DAILY_COLS,
     parquet_pattern="date=*/data.parquet",
     sync_table="index_daily",
@@ -129,7 +129,7 @@ INDEX_DAILY_SPEC = DailyTableSpec(
 
 INDEX_WEIGHT_SPEC = TableSpec(
     name="index_weight",
-    path_parts=("index_weight",),
+    path_parts=("index", "index_weight"),
     columns=INDEX_WEIGHT_COLS,
     parquet_pattern="index_code=*/date=*/data.parquet",
     sync_table="index_weight",
@@ -140,7 +140,7 @@ INDEX_WEIGHT_SPEC = TableSpec(
 
 TRADE_CAL_SPEC = TableSpec(
     name="trade_cal",
-    path_parts=("trade_cal",),
+    path_parts=("stock", "trade_cal"),
     columns=TRADE_CAL_COLS,
     parquet_pattern="exchange=*/data.parquet",
     sync_table="trade_cal",
@@ -154,7 +154,7 @@ TRADE_CAL_SPEC = TableSpec(
 
 SW_CLASSIFY_SPEC = TableSpec(
     name="sw_classify",
-    path_parts=("industry", "sw_classify"),
+    path_parts=("stock", "industry", "sw_classify"),
     columns=SW_CLASSIFY_COLS,
     parquet_pattern="data.parquet",
     sync_table="industry",
@@ -163,7 +163,7 @@ SW_CLASSIFY_SPEC = TableSpec(
 
 SW_MEMBER_SPEC = TableSpec(
     name="sw_member",
-    path_parts=("industry", "sw_member"),
+    path_parts=("stock", "industry", "sw_member"),
     columns=SW_MEMBER_COLS,
     parquet_pattern="data.parquet",
     sync_table="industry",
@@ -172,7 +172,7 @@ SW_MEMBER_SPEC = TableSpec(
 
 CI_MEMBER_SPEC = TableSpec(
     name="ci_member",
-    path_parts=("industry", "ci_member"),
+    path_parts=("stock", "industry", "ci_member"),
     columns=CI_MEMBER_COLS,
     parquet_pattern="data.parquet",
     sync_table="ci_member",
