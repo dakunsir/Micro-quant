@@ -313,6 +313,7 @@ FUT_WEEKLY_DETAIL_SPEC = DailyTableSpec(
     union_by_name=True,
     date_column="week_date",
     code_column=None,
+    first_date="20151201",
 )
 
 # ---------------------------------------------------------------------------
