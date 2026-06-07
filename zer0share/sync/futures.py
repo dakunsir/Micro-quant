@@ -42,71 +42,6 @@ class FutBasicSyncJob(SyncJob):
             raise
 
 
-class FutIndexDailySyncJob(SyncJob):
-    """Bug3 fix: iterates trading days only (not all calendar days)."""
-    table_name = "fut_index_daily"
-    supports_date_range = True
-
-    def __init__(self, fetch, store: DailyPartitionStore):
-        self._fetch = fetch
-        self._store = store
-
-    def run(self, rt: SyncRuntime, start_date=None, end_date=None) -> None:
-        today = rt.calendar.today()
-        last = rt.meta.get_last_date("fut_index_daily")
-
-        if start_date is None:
-            start = dateutil.add_days(last, 1) if last else FUT_INDEX_DAILY_SPEC.first_date
-            end = today
-            if start > end:
-                logger.info("fut_index_daily 已是最新，无需同步")
-                return
-        else:
-            start = start_date
-            end = end_date or today
-            if start > end:
-                raise ValueError("start_date must be on or before end_date")
-
-        # Bug3 fix: use trading days, not all calendar days
-        trading_days = rt.calendar.get_trading_days("SSE", start, end)
-        logger.info(f"fut_index_daily 同步开始: {start} ~ {end}, {len(trading_days)} 个交易日")
-        all_frames = []
-
-        for trade_date in trading_days:
-            try:
-                df = self._fetch(trade_date)
-                time.sleep(0.2)
-                if not df.empty:
-                    all_frames.append(df)
-            except Exception as e:
-                logger.error(f"fut_index_daily {trade_date} 拉取失败: {e}")
-                rt.notifier.send(f"fut_index_daily {trade_date} 拉取失败: {e}")
-
-        if not all_frames:
-            msg = "fut_index_daily 无数据，跳过"
-            logger.info(msg)
-            rt.notifier.send(msg)
-            return
-
-        combined = pd.concat(all_frames, ignore_index=True)
-        success = skipped_existing = 0
-        frontier = last
-
-        for trade_date_value, part in combined.groupby("trade_date"):
-            trade_date = str(trade_date_value)
-            if self._store.exists(trade_date):
-                skipped_existing += 1
-                continue
-            self._store.write(trade_date, part.reset_index(drop=True))
-            if frontier is None or trade_date > frontier:
-                rt.meta.update_last_date("fut_index_daily", trade_date)
-                frontier = trade_date
-            success += 1
-
-        msg = f"fut_index_daily 同步完成: 成功 {success} 天, 跳过已存在 {skipped_existing} 天"
-        logger.info(msg)
-        rt.notifier.send(msg)
-
 
 class FutWeeklyDetailSyncJob(SyncJob):
     """Bug1+Bug2 fix: check existence before fetch; graceful up-to-date return."""
@@ -203,9 +138,9 @@ def build_jobs(cfg, fetcher) -> list[SyncJob]:
             fetch=fetcher.fetch_fut_monthly, store=DailyPartitionStore(fd / "fut_monthly"),
             period="month",
         ),
-        FutIndexDailySyncJob(
-            fetch=fetcher.fetch_fut_index_daily,
-            store=DailyPartitionStore(fd / "fut_index_daily"),
+        DailySyncJob(
+            table_name=FUT_INDEX_DAILY_SPEC.name, spec=FUT_INDEX_DAILY_SPEC,
+            fetch=fetcher.fetch_fut_index_daily, store=DailyPartitionStore(fd / "fut_index_daily"),
         ),
         FutWeeklyDetailSyncJob(
             fetch=fetcher.fetch_fut_weekly_detail,
