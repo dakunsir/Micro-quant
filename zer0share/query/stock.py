@@ -5,8 +5,6 @@ from zer0share.catalog import (
     BASIC_SPEC,
     DAILY_BASIC_SPEC,
     DAILY_KLINE_SPEC,
-    INDEX_DAILY_SPEC,
-    INDEX_WEIGHT_SPEC,
     STOCK_ST_SPEC,
     STK_LIMIT_SPEC,
     SUSPEND_D_SPEC,
@@ -107,27 +105,6 @@ def stk_limit(ctx: QueryContext, ts_code=None, trade_date=None,
     return _daily_repo(ctx, STK_LIMIT_SPEC).query(
         ts_code, trade_date, start_date, end_date, fields, limit=limit, offset=offset
     )
-
-
-def index_daily(ctx: QueryContext, ts_code=None, trade_date=None,
-                start_date=None, end_date=None, fields=None,
-                limit: int | None = None, offset: int | None = None) -> pd.DataFrame:
-    """Query daily OHLCV bar data for broad market indices (SSE/SZSE/CSI)."""
-    return _daily_repo(ctx, INDEX_DAILY_SPEC).query(
-        ts_code, trade_date, start_date, end_date, fields, limit=limit, offset=offset
-    )
-
-
-def index_weight(ctx: QueryContext, index_code=None, trade_date=None,
-                 start_date=None, end_date=None, fields=None,
-                 limit: int | None = None, offset: int | None = None) -> pd.DataFrame:
-    """Query constituent weights for CSI 300/500/1000 index rebalancing dates."""
-    repo = _base_repo(ctx, INDEX_WEIGHT_SPEC)
-    filters: list[SqlFilter] = []
-    if index_code is not None:
-        filters.append(eq_filter("index_code", index_code, INDEX_WEIGHT_SPEC.columns))
-    filters.extend(date_range_filters("trade_date", trade_date, start_date, end_date, INDEX_WEIGHT_SPEC.columns))
-    return repo.query(fields=fields, filters=filters, limit=limit, offset=offset)
 
 
 def universe(ctx: QueryContext, universe=None, ts_code=None, trade_date=None,

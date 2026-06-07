@@ -3,7 +3,7 @@ from pathlib import Path
 
 from zer0share.config import load_config
 from zer0share.query import QueryContext
-from zer0share.query import calendar, equities, industry, futures, options
+from zer0share.query import calendar, stock, index, industry, futures, options
 
 
 def _check_dates(kwargs: dict) -> None:
@@ -27,47 +27,47 @@ class LocalPro:
 
     # Equities
     def stock_basic(self, **kwargs):
-        return equities.stock_basic(self._ctx, **kwargs)
+        return stock.stock_basic(self._ctx, **kwargs)
 
     def daily(self, **kwargs):
         _check_dates(kwargs)
-        return equities.daily(self._ctx, **kwargs)
+        return stock.daily(self._ctx, **kwargs)
 
     def adj_factor(self, **kwargs):
         _check_dates(kwargs)
-        return equities.adj_factor(self._ctx, **kwargs)
+        return stock.adj_factor(self._ctx, **kwargs)
 
     def daily_basic(self, **kwargs):
         _check_dates(kwargs)
-        return equities.daily_basic(self._ctx, **kwargs)
+        return stock.daily_basic(self._ctx, **kwargs)
 
     def stock_st(self, **kwargs):
         _check_dates(kwargs)
-        return equities.stock_st(self._ctx, **kwargs)
+        return stock.stock_st(self._ctx, **kwargs)
 
     def suspend_d(self, **kwargs):
         _check_dates(kwargs)
-        return equities.suspend_d(self._ctx, **kwargs)
+        return stock.suspend_d(self._ctx, **kwargs)
 
     def stk_limit(self, **kwargs):
         _check_dates(kwargs)
-        return equities.stk_limit(self._ctx, **kwargs)
+        return stock.stk_limit(self._ctx, **kwargs)
 
     def index_daily(self, **kwargs):
         _check_dates(kwargs)
-        return equities.index_daily(self._ctx, **kwargs)
+        return index.index_daily(self._ctx, **kwargs)
 
     def index_weight(self, **kwargs):
         _check_dates(kwargs)
-        return equities.index_weight(self._ctx, **kwargs)
+        return index.index_weight(self._ctx, **kwargs)
 
     def universe(self, **kwargs):
         _check_dates(kwargs)
-        return equities.universe(self._ctx, **kwargs)
+        return stock.universe(self._ctx, **kwargs)
 
     def pro_bar(self, **kwargs):
         _check_dates(kwargs)
-        return equities.pro_bar(self._ctx, **kwargs)
+        return stock.pro_bar(self._ctx, **kwargs)
 
     # Industry
     def index_classify(self, **kwargs):
