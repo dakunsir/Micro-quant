@@ -23,6 +23,8 @@ class FutBasicSyncJob(SyncJob):
         self._store = store
 
     def run(self, rt: SyncRuntime, start_date=None, end_date=None) -> None:
+        if rt.calendar.skip_if_not_trading("SSE"):
+            return
         today = rt.calendar.today()
         all_frames = []
         try:

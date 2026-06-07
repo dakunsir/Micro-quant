@@ -231,12 +231,12 @@ def test_run_all_runs_all_25_jobs(pipeline, cfg):
     for table_name in pipeline.registry:
         pipeline._runtime.meta.update_last_date(table_name, today)
     # Also mark the per-index index_weight keys
-    from zer0share.sync.equities import INDEX_CODES, _index_weight_meta_key
+    from zer0share.sync.index import INDEX_CODES, _index_weight_meta_key
     for code in INDEX_CODES:
         pipeline._runtime.meta.update_last_date(_index_weight_meta_key(code), today)
 
     # Should complete without exception
-    with patch("zer0share.sync._jobs.time"), patch("zer0share.sync.equities.time"), \
+    with patch("zer0share.sync._jobs.time"), patch("zer0share.sync.index.time"), \
          patch("zer0share.sync.futures.time"), patch("zer0share.sync.options.time"):
         pipeline.run_all()
 
@@ -249,7 +249,7 @@ def test_sync_basic_first_run_writes_parquet(pipeline, cfg, fetcher):
     fetcher.fetch_basic.return_value = _basic_df()
     _setup_trade_cal_sse(pipeline, cfg)
     pipeline.run("basic")
-    assert (cfg.data_dir / "basic" / "data.parquet").exists()
+    assert (cfg.data_dir / "stock" / "basic" / "data.parquet").exists()
 
 
 def test_sync_basic_refreshes_even_if_recently_updated(pipeline, cfg, fetcher):
@@ -288,7 +288,7 @@ def test_sync_daily_kline_writes_parquet(pipeline, cfg, fetcher):
     fetcher.fetch_daily_kline.return_value = _kline_df("20240102")
     pipeline._runtime.meta.update_last_date("daily_kline", "20240101")
     pipeline.run("daily_kline")
-    assert (cfg.data_dir / "daily_kline" / "date=20240102" / "data.parquet").exists()
+    assert (cfg.data_dir / "stock" / "daily_kline" / "date=20240102" / "data.parquet").exists()
 
 
 def test_sync_daily_kline_skips_empty_dates(pipeline, cfg, fetcher):
@@ -297,7 +297,7 @@ def test_sync_daily_kline_skips_empty_dates(pipeline, cfg, fetcher):
     fetcher.fetch_daily_kline.return_value = pd.DataFrame()
     pipeline._runtime.meta.update_last_date("daily_kline", "20240101")
     pipeline.run("daily_kline")
-    assert not (cfg.data_dir / "daily_kline" / "date=20240102" / "data.parquet").exists()
+    assert not (cfg.data_dir / "stock" / "daily_kline" / "date=20240102" / "data.parquet").exists()
 
 
 def test_sync_daily_kline_sends_completion_notification(pipeline, cfg, fetcher, notifier):
@@ -367,7 +367,7 @@ def test_sync_daily_kline_range_skips_existing_partitions(pipeline, cfg, fetcher
     pipeline._runtime.meta.update_last_date("trade_cal", "20240104")
 
     existing_df = _kline_df("20240103")
-    write_daily_partition(cfg.data_dir, "daily_kline", "20240103", existing_df)
+    write_daily_partition(cfg.data_dir / "stock", "daily_kline", "20240103", existing_df)
 
     fetcher.fetch_daily_kline.side_effect = [
         _kline_df("20240102"),
@@ -447,7 +447,7 @@ def test_sync_trade_cal_writes_all_exchanges(pipeline, cfg, fetcher):
     pipeline._runtime.calendar._today_fn = lambda: "20240518"
     pipeline.run("trade_cal")
     for ex in EXCHANGES:
-        assert (cfg.data_dir / "trade_cal" / f"exchange={ex}" / "data.parquet").exists()
+        assert (cfg.data_dir / "stock" / "trade_cal" / f"exchange={ex}" / "data.parquet").exists()
 
 
 def test_sync_trade_cal_loads_to_duckdb(pipeline, cfg, fetcher):
@@ -534,7 +534,7 @@ def test_sync_trade_cal_writes_all_8_exchanges(pipeline, cfg, fetcher):
     pipeline._runtime.calendar._today_fn = lambda: "20240518"
     pipeline.run("trade_cal")
     for ex in ALL_EXCHANGES:
-        assert (cfg.data_dir / "trade_cal" / f"exchange={ex}" / "data.parquet").exists(), f"Missing {ex}"
+        assert (cfg.data_dir / "stock" / "trade_cal" / f"exchange={ex}" / "data.parquet").exists(), f"Missing {ex}"
 
 
 # ---------------------------------------------------------------------------
@@ -553,8 +553,8 @@ def test_sync_index_weight_fetches_monthly_ranges(pipeline, cfg, fetcher):
     fetcher.fetch_index_weight.side_effect = fetch_index_weight
 
     with (
-        patch("zer0share.sync.equities.INDEX_CODES", ["399300.SZ"]),
-        patch("zer0share.sync.equities.time.sleep"),
+        patch("zer0share.sync.index.INDEX_CODES", ["399300.SZ"]),
+        patch("zer0share.sync.index.time.sleep"),
     ):
         pipeline.run("index_weight", start_date="20240115", end_date="20240210")
 
@@ -576,9 +576,9 @@ def test_sync_index_weight_does_not_use_global_meta_for_new_index_meta(pipeline,
     pipeline._runtime.calendar._today_fn = lambda: "20240131"
 
     with (
-        patch("zer0share.sync.equities.INDEX_CODES", ["399300.SZ"]),
-        patch("zer0share.sync.equities.INDEX_WEIGHT_SPEC", replace(INDEX_WEIGHT_SPEC, first_date="20240101")),
-        patch("zer0share.sync.equities.time.sleep"),
+        patch("zer0share.sync.index.INDEX_CODES", ["399300.SZ"]),
+        patch("zer0share.sync.index.INDEX_WEIGHT_SPEC", replace(INDEX_WEIGHT_SPEC, first_date="20240101")),
+        patch("zer0share.sync.index.time.sleep"),
     ):
         pipeline.run("index_weight")
 
@@ -690,7 +690,7 @@ def test_sync_index_daily_fetches_all_codes(pipeline, cfg, fetcher):
 
     assert fetcher.fetch_index_daily.call_count == len(INDEX_DAILY_CODES)
     for ts_code in INDEX_DAILY_CODES:
-        fetcher.fetch_index_daily.assert_any_call(ts_code, "20160101", "20240102")
+        fetcher.fetch_index_daily.assert_any_call(ts_code, "19901219", "20240102")
 
 
 def test_sync_index_daily_writes_date_partitions(pipeline, cfg, fetcher):
@@ -700,15 +700,15 @@ def test_sync_index_daily_writes_date_partitions(pipeline, cfg, fetcher):
     ]
     pipeline._runtime.calendar._today_fn = lambda: "20240102"
 
-    with patch("zer0share.sync.equities.time.sleep"):
+    with patch("zer0share.sync.index.time.sleep"):
         pipeline.run("index_daily")
 
-    assert daily_partition_exists(cfg.data_dir, "index_daily", "20240102")
+    assert daily_partition_exists(cfg.data_dir / "index", "index_daily", "20240102")
 
 
 def test_sync_index_daily_skips_existing_partitions(pipeline, cfg, fetcher):
     existing = _index_daily_df(ts_code="000300.SH", trade_date="20240102")
-    write_daily_partition(cfg.data_dir, "index_daily", "20240102", existing)
+    write_daily_partition(cfg.data_dir / "index", "index_daily", "20240102", existing)
     pipeline._runtime.calendar._today_fn = lambda: "20240102"
 
     fetcher.fetch_index_daily.side_effect = [
@@ -716,10 +716,10 @@ def test_sync_index_daily_skips_existing_partitions(pipeline, cfg, fetcher):
         for ts_code in INDEX_DAILY_CODES
     ]
 
-    with patch("zer0share.sync.equities.time.sleep"):
+    with patch("zer0share.sync.index.time.sleep"):
         pipeline.run("index_daily")
 
-    assert daily_partition_exists(cfg.data_dir, "index_daily", "20240102")
+    assert daily_partition_exists(cfg.data_dir / "index", "index_daily", "20240102")
 
 
 def test_sync_index_daily_up_to_date_skips_fetch(pipeline, cfg, fetcher):
@@ -733,7 +733,7 @@ def test_sync_index_daily_no_data_sends_notification(pipeline, cfg, fetcher, not
     fetcher.fetch_index_daily.return_value = pd.DataFrame()
     pipeline._runtime.calendar._today_fn = lambda: "20240102"
 
-    with patch("zer0share.sync.equities.time.sleep"):
+    with patch("zer0share.sync.index.time.sleep"):
         pipeline.run("index_daily")
 
     notifier.send.assert_called_once_with("index_daily 无数据，跳过")
@@ -746,7 +746,7 @@ def test_sync_index_daily_updates_metastore(pipeline, cfg, fetcher):
     ]
     pipeline._runtime.calendar._today_fn = lambda: "20240102"
 
-    with patch("zer0share.sync.equities.time.sleep"):
+    with patch("zer0share.sync.index.time.sleep"):
         pipeline.run("index_daily")
 
     assert pipeline._runtime.meta.get_last_date("index_daily") == "20240102"
@@ -775,7 +775,7 @@ def test_sync_fut_basic_writes_to_futures_subdir(pipeline, cfg, fetcher):
         _setup_trade_cal_sse(pipeline, cfg)
         pipeline.run("fut_basic")
 
-    assert (cfg.data_dir / "futures" / "fut_basic" / "date=20240102" / "data.parquet").exists()
+    assert (cfg.data_dir / "futures" / "fut_basic" / "data.parquet").exists()
     assert pipeline._runtime.meta.get_last_date("fut_basic") == "20240102"
 
 

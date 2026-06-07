@@ -1,18 +1,14 @@
 import time
-from pathlib import Path
 
 import pandas as pd
 from loguru import logger
 
 import zer0share.dateutil as dateutil
+from zer0share.catalog import INDEX_DAILY_SPEC, INDEX_WEIGHT_SPEC
 from zer0share.fetcher import INDEX_DAILY_CODES
-from zer0share.storage import DailyPartitionStore, IndexWeightStore, SnapshotStore
+from zer0share.storage import DailyPartitionStore, IndexWeightStore
 from zer0share.sync import SyncRuntime
-from zer0share.sync._jobs import DailySyncJob, SnapshotSyncJob, SyncJob
-from zer0share.catalog import (
-    ADJ_FACTOR_SPEC, BASIC_SPEC, DAILY_BASIC_SPEC, DAILY_KLINE_SPEC,
-    INDEX_DAILY_SPEC, INDEX_WEIGHT_SPEC, STK_LIMIT_SPEC, STOCK_ST_SPEC, SUSPEND_D_SPEC,
-)
+from zer0share.sync._jobs import SyncJob
 
 INDEX_CODES = ["399300.SZ", "000905.SH", "000852.SH"]
 
@@ -155,43 +151,6 @@ class IndexDailySyncJob(SyncJob):
 def build_jobs(cfg, fetcher) -> list[SyncJob]:
     d = cfg.data_dir
     return [
-        SnapshotSyncJob(
-            table_name=BASIC_SPEC.name, spec=BASIC_SPEC,
-            fetch=fetcher.fetch_basic,
-            store=SnapshotStore(d / "stock" / "basic" / "data.parquet"),
-        ),
-        DailySyncJob(
-            table_name=DAILY_KLINE_SPEC.name, spec=DAILY_KLINE_SPEC,
-            fetch=fetcher.fetch_daily_kline,
-            store=DailyPartitionStore(d / "stock" / "daily_kline"),
-        ),
-        DailySyncJob(
-            table_name=ADJ_FACTOR_SPEC.name, spec=ADJ_FACTOR_SPEC,
-            fetch=fetcher.fetch_adj_factor,
-            store=DailyPartitionStore(d / "stock" / "adj_factor"),
-        ),
-        DailySyncJob(
-            table_name=DAILY_BASIC_SPEC.name, spec=DAILY_BASIC_SPEC,
-            fetch=fetcher.fetch_daily_basic,
-            store=DailyPartitionStore(d / "stock" / "daily_basic"),
-        ),
-        DailySyncJob(
-            table_name=STOCK_ST_SPEC.name, spec=STOCK_ST_SPEC,
-            fetch=fetcher.fetch_stock_st,
-            store=DailyPartitionStore(d / "stock" / "stock_st"),
-            write_empty=True,
-        ),
-        DailySyncJob(
-            table_name=SUSPEND_D_SPEC.name, spec=SUSPEND_D_SPEC,
-            fetch=fetcher.fetch_suspend_d,
-            store=DailyPartitionStore(d / "stock" / "suspend_d"),
-            write_empty=True,
-        ),
-        DailySyncJob(
-            table_name=STK_LIMIT_SPEC.name, spec=STK_LIMIT_SPEC,
-            fetch=fetcher.fetch_stk_limit,
-            store=DailyPartitionStore(d / "stock" / "stk_limit"),
-        ),
         IndexWeightSyncJob(
             fetch=fetcher.fetch_index_weight,
             store=IndexWeightStore(d / "index" / "index_weight"),

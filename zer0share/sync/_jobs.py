@@ -96,11 +96,13 @@ class DailySyncJob(SyncJob):
         else:
             trading_days = rt.calendar.get_trading_days(self.exchange, start, end)
 
-        if not trading_days and not trade_cal_loaded:
-            raise RuntimeError(
-                f"No trading days found for {self.exchange} between {start} and {end}. "
-                "Trade calendar may not be loaded. Run `sync --table trade_cal` first."
-            )
+        if not trading_days:
+            if not trade_cal_loaded:
+                raise RuntimeError(
+                    f"No trading days found for {self.exchange} between {start} and {end}. "
+                    "Trade calendar may not be loaded. Run `sync --table trade_cal` first."
+                )
+            return
 
         logger.info(
             f"{self.spec.name}: start {start} ~ {end}, "
