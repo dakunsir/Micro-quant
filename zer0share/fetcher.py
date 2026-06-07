@@ -36,12 +36,6 @@ FUT_INDEX_CODES = ["NHCI.NH", "NHAI.NH", "NHMI.NH"]
 OPTIONS_EXCHANGES = ["SSE", "SZSE", "CFFEX", "DCE", "SHFE", "CZCE"]
 
 
-def _date_str(value) -> str:
-    if isinstance(value, str):
-        return value
-    return value.strftime("%Y%m%d")
-
-
 class TushareFetcher:
     def __init__(self, token: str):
         self._pro = ts.pro_api(token)
@@ -56,7 +50,6 @@ class TushareFetcher:
         return _select_columns_or_empty(df, BASIC_COLS)
 
     def fetch_daily_kline(self, trade_date: str) -> pd.DataFrame:
-        trade_date = _date_str(trade_date)
         logger.debug(f"拉取日线行情: {trade_date}")
         df = self._pro.daily(trade_date=trade_date, fields=",".join(DAILY_COLS))
         if df is None or df.empty:
@@ -64,7 +57,6 @@ class TushareFetcher:
         return df[DAILY_COLS]
 
     def fetch_adj_factor(self, trade_date: str) -> pd.DataFrame:
-        trade_date = _date_str(trade_date)
         logger.debug(f"拉取复权因子: {trade_date}")
         df = self._pro.adj_factor(trade_date=trade_date, fields=",".join(ADJ_FACTOR_COLS))
         if df is None or df.empty:
@@ -72,7 +64,6 @@ class TushareFetcher:
         return df[ADJ_FACTOR_COLS]
 
     def fetch_daily_basic(self, trade_date: str) -> pd.DataFrame:
-        trade_date = _date_str(trade_date)
         logger.debug(f"拉取每日指标: {trade_date}")
         df = self._pro.daily_basic(
             ts_code="",
@@ -82,13 +73,11 @@ class TushareFetcher:
         return _select_columns_or_empty(df, DAILY_BASIC_COLS)
 
     def fetch_stock_st(self, trade_date: str) -> pd.DataFrame:
-        trade_date = _date_str(trade_date)
         logger.debug(f"拉取ST股票列表: {trade_date}")
         df = self._pro.stock_st(trade_date=trade_date, fields=",".join(STOCK_ST_COLS))
         return _select_columns_or_empty(df, STOCK_ST_COLS)
 
     def fetch_suspend_d(self, trade_date: str) -> pd.DataFrame:
-        trade_date = _date_str(trade_date)
         logger.debug(f"拉取每日停复牌: {trade_date}")
         df = self._pro.suspend_d(
             trade_date=trade_date,
@@ -98,7 +87,6 @@ class TushareFetcher:
         return _select_columns_or_empty(df, SUSPEND_D_COLS)
 
     def fetch_stk_limit(self, trade_date: str) -> pd.DataFrame:
-        trade_date = _date_str(trade_date)
         logger.debug(f"拉取每日涨跌停价格: {trade_date}")
         df = self._pro.stk_limit(trade_date=trade_date, fields=",".join(STK_LIMIT_COLS))
         return _select_columns_or_empty(df, STK_LIMIT_COLS)
@@ -106,8 +94,6 @@ class TushareFetcher:
     def fetch_index_weight(
         self, index_code: str, start_date: str, end_date: str
     ) -> pd.DataFrame:
-        start_date = _date_str(start_date)
-        end_date = _date_str(end_date)
         logger.debug(f"拉取指数成分: {index_code} {start_date}~{end_date}")
         df = self._pro.index_weight(
             index_code=index_code,
@@ -120,8 +106,6 @@ class TushareFetcher:
     def fetch_index_daily(
         self, ts_code: str, start_date: str, end_date: str
     ) -> pd.DataFrame:
-        start_date = _date_str(start_date)
-        end_date = _date_str(end_date)
         logger.debug(f"拉取指数日线: {ts_code} {start_date}~{end_date}")
         df = self._pro.index_daily(
             ts_code=ts_code,
@@ -137,8 +121,8 @@ class TushareFetcher:
         start_date: str | None = None,
         end_date: str | None = None,
     ) -> pd.DataFrame:
-        start_date = _date_str(start_date) if start_date is not None else "19900101"
-        end_date = _date_str(end_date) if end_date is not None else dateutil.today()
+        start_date = start_date if start_date is not None else "19900101"
+        end_date = end_date if end_date is not None else dateutil.today()
         logger.info(f"拉取交易日历: {exchange} {start_date}~{end_date}")
         df = self._pro.trade_cal(
             exchange=exchange,
@@ -163,43 +147,36 @@ class TushareFetcher:
         return df[FUT_BASIC_COLS]
 
     def fetch_fut_daily(self, trade_date: str) -> pd.DataFrame:
-        trade_date = _date_str(trade_date)
         logger.debug(f"拉取期货日线: {trade_date}")
         df = self._pro.fut_daily(trade_date=trade_date, fields=",".join(FUT_DAILY_COLS))
         return _select_columns_or_empty(df, FUT_DAILY_COLS)
 
     def fetch_fut_holding(self, trade_date: str) -> pd.DataFrame:
-        trade_date = _date_str(trade_date)
         logger.debug(f"拉取期货持仓排名: {trade_date}")
         df = self._pro.fut_holding(trade_date=trade_date, fields=",".join(FUT_HOLDING_COLS))
         return _select_columns_or_empty(df, FUT_HOLDING_COLS)
 
     def fetch_fut_wsr(self, trade_date: str) -> pd.DataFrame:
-        trade_date = _date_str(trade_date)
         logger.debug(f"拉取期货仓单: {trade_date}")
         df = self._pro.fut_wsr(trade_date=trade_date, fields=",".join(FUT_WSR_COLS))
         return _select_columns_or_empty(df, FUT_WSR_COLS)
 
     def fetch_fut_settle(self, trade_date: str) -> pd.DataFrame:
-        trade_date = _date_str(trade_date)
         logger.debug(f"拉取期货结算参数: {trade_date}")
         df = self._pro.fut_settle(trade_date=trade_date, fields=",".join(FUT_SETTLE_COLS))
         return _select_columns_or_empty(df, FUT_SETTLE_COLS)
 
     def fetch_fut_mapping(self, trade_date: str) -> pd.DataFrame:
-        trade_date = _date_str(trade_date)
         logger.debug(f"拉取期货主力映射: {trade_date}")
         df = self._pro.fut_mapping(trade_date=trade_date, fields=",".join(FUT_MAPPING_COLS))
         return _select_columns_or_empty(df, FUT_MAPPING_COLS)
 
     def fetch_ft_limit(self, trade_date: str) -> pd.DataFrame:
-        trade_date = _date_str(trade_date)
         logger.debug(f"拉取期货涨跌停: {trade_date}")
         df = self._pro.ft_limit(trade_date=trade_date, fields=",".join(FT_LIMIT_COLS))
         return _select_columns_or_empty(df, FT_LIMIT_COLS)
 
     def fetch_fut_weekly(self, trade_date: str) -> pd.DataFrame:
-        trade_date = _date_str(trade_date)
         logger.debug(f"拉取期货周线: {trade_date}")
         df = self._pro.fut_weekly_monthly(
             trade_date=trade_date, freq="week", fields=",".join(FUT_WEEKLY_COLS),
@@ -207,7 +184,6 @@ class TushareFetcher:
         return _select_columns_or_empty(df, FUT_WEEKLY_COLS)
 
     def fetch_fut_monthly(self, trade_date: str) -> pd.DataFrame:
-        trade_date = _date_str(trade_date)
         logger.debug(f"拉取期货月线: {trade_date}")
         df = self._pro.fut_weekly_monthly(
             trade_date=trade_date, freq="month", fields=",".join(FUT_MONTHLY_COLS),
@@ -215,7 +191,6 @@ class TushareFetcher:
         return _select_columns_or_empty(df, FUT_MONTHLY_COLS)
 
     def fetch_fut_index_daily(self, trade_date: str) -> pd.DataFrame:
-        trade_date = _date_str(trade_date)
         logger.debug(f"拉取南华期货指数: {trade_date}")
         parts = []
         for code in FUT_INDEX_CODES:
@@ -244,7 +219,6 @@ class TushareFetcher:
         return df[OPT_BASIC_COLS]
 
     def fetch_opt_daily(self, trade_date: str) -> pd.DataFrame:
-        trade_date = _date_str(trade_date)
         frames = []
         for exchange in OPTIONS_EXCHANGES:
             logger.debug(f"拉取期权日线: {trade_date} exchange={exchange}")
