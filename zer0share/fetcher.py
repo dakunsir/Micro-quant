@@ -32,6 +32,8 @@ INDEX_DAILY_CODES = [
 
 FUTURES_EXCHANGES = ["CZCE", "SHFE", "DCE", "CFFEX", "INE", "GFEX"]
 
+FUT_INDEX_CODES = ["NHCI.NH", "NHAI.NH", "NHMI.NH"]
+
 OPTIONS_EXCHANGES = ["SSE", "SZSE", "CFFEX", "DCE", "SHFE", "CZCE"]
 
 
@@ -216,10 +218,15 @@ class TushareFetcher:
     def fetch_fut_index_daily(self, trade_date: str) -> pd.DataFrame:
         trade_date = _date_str(trade_date)
         logger.debug(f"拉取南华期货指数: {trade_date}")
-        df = self._pro.fut_index_daily(
-            trade_date=trade_date, fields=",".join(FUT_INDEX_DAILY_COLS),
-        )
-        return _select_columns_or_empty(df, FUT_INDEX_DAILY_COLS)
+        parts = []
+        for code in FUT_INDEX_CODES:
+            df = self._pro.fut_index_daily(
+                ts_code=code, trade_date=trade_date, fields=",".join(FUT_INDEX_DAILY_COLS),
+            )
+            if df is not None and not df.empty:
+                parts.append(df)
+        combined = pd.concat(parts) if parts else pd.DataFrame(columns=FUT_INDEX_DAILY_COLS)
+        return _select_columns_or_empty(combined, FUT_INDEX_DAILY_COLS)
 
     def fetch_fut_weekly_detail(self, week: str) -> pd.DataFrame:
         logger.debug(f"拉取期货品种周报: {week}")
