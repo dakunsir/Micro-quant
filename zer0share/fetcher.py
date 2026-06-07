@@ -27,7 +27,6 @@ INDEX_DAILY_CODES = [
     "000688.SH",  # 科创50
     "399005.SZ",  # 中小板指
     "000922.SH",  # 中证红利
-    "932000.CSI", # 中证2000（代码待实测确认）
 ]
 
 FUTURES_EXCHANGES = ["CZCE", "SHFE", "DCE", "CFFEX", "INE", "GFEX"]
@@ -54,7 +53,7 @@ class TushareFetcher:
             list_status="L,D,P,G",
             fields=",".join(BASIC_COLS)
         )
-        return df[BASIC_COLS]
+        return _select_columns_or_empty(df, BASIC_COLS)
 
     def fetch_daily_kline(self, trade_date: str) -> pd.DataFrame:
         trade_date = _date_str(trade_date)
