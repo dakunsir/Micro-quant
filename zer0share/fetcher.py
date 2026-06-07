@@ -37,6 +37,8 @@ OPTIONS_EXCHANGES = ["SSE", "SZSE", "CFFEX", "DCE", "SHFE", "CZCE"]
 
 
 class TushareFetcher:
+    SW_VERSIONS = ("SW2014", "SW2021")
+
     def __init__(self, token: str):
         self._pro = ts.pro_api(token)
 
@@ -52,16 +54,12 @@ class TushareFetcher:
     def fetch_daily_kline(self, trade_date: str) -> pd.DataFrame:
         logger.debug(f"拉取日线行情: {trade_date}")
         df = self._pro.daily(trade_date=trade_date, fields=",".join(DAILY_COLS))
-        if df is None or df.empty:
-            return pd.DataFrame(columns=DAILY_COLS)
-        return df[DAILY_COLS]
+        return _select_columns_or_empty(df, DAILY_COLS)
 
     def fetch_adj_factor(self, trade_date: str) -> pd.DataFrame:
         logger.debug(f"拉取复权因子: {trade_date}")
         df = self._pro.adj_factor(trade_date=trade_date, fields=",".join(ADJ_FACTOR_COLS))
-        if df is None or df.empty:
-            return pd.DataFrame(columns=ADJ_FACTOR_COLS)
-        return df[ADJ_FACTOR_COLS]
+        return _select_columns_or_empty(df, ADJ_FACTOR_COLS)
 
     def fetch_daily_basic(self, trade_date: str) -> pd.DataFrame:
         logger.debug(f"拉取每日指标: {trade_date}")
@@ -142,9 +140,7 @@ class TushareFetcher:
             fut_type=fut_type,
             fields=",".join(FUT_BASIC_COLS),
         )
-        if df is None or df.empty:
-            return pd.DataFrame(columns=FUT_BASIC_COLS)
-        return df[FUT_BASIC_COLS]
+        return _select_columns_or_empty(df, FUT_BASIC_COLS)
 
     def fetch_fut_daily(self, trade_date: str) -> pd.DataFrame:
         logger.debug(f"拉取期货日线: {trade_date}")
@@ -207,18 +203,15 @@ class TushareFetcher:
         df = self._pro.fut_weekly_detail(
             week=week, fields=",".join(FUT_WEEKLY_DETAIL_COLS),
         )
-        if df is None or df.empty:
-            return pd.DataFrame(columns=FUT_WEEKLY_DETAIL_COLS)
-        return df[FUT_WEEKLY_DETAIL_COLS]
+        return _select_columns_or_empty(df, FUT_WEEKLY_DETAIL_COLS)
 
     def fetch_opt_basic(self, exchange: str) -> pd.DataFrame:
         logger.debug(f"拉取期权合约: exchange={exchange}")
         df = self._pro.opt_basic(exchange=exchange, fields=",".join(OPT_BASIC_COLS))
-        if df is None or df.empty:
-            return pd.DataFrame(columns=OPT_BASIC_COLS)
-        return df[OPT_BASIC_COLS]
+        return _select_columns_or_empty(df, OPT_BASIC_COLS)
 
     def fetch_opt_daily(self, trade_date: str) -> pd.DataFrame:
+        logger.debug(f"拉取期权日线: {trade_date}")
         frames = []
         for exchange in OPTIONS_EXCHANGES:
             logger.debug(f"拉取期权日线: {trade_date} exchange={exchange}")
@@ -230,8 +223,6 @@ class TushareFetcher:
             return pd.DataFrame(columns=OPT_DAILY_COLS)
         combined = pd.concat(frames, ignore_index=True)
         return _select_columns_or_empty(combined, OPT_DAILY_COLS)
-
-    SW_VERSIONS = ("SW2014", "SW2021")
 
     def fetch_sw_classify(self) -> pd.DataFrame:
         frames = []
