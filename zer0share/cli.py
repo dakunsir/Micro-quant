@@ -40,6 +40,25 @@ def cli():
     pass
 
 
+FUTURES_TABLES = [
+    "fut_basic",
+    "fut_daily",
+    "fut_holding",
+    "fut_wsr",
+    "fut_settle",
+    "fut_mapping",
+    "ft_limit",
+    "fut_weekly",
+    "fut_monthly",
+    "fut_index_daily",
+    "fut_weekly_detail",
+]
+
+OPTIONS_TABLES = [
+    "opt_basic",
+    "opt_daily",
+]
+
 SYNC_TABLES = [
     "daily_kline",
     "basic",
@@ -53,19 +72,8 @@ SYNC_TABLES = [
     "index_daily",
     "industry",
     "ci_member",
-    "fut_basic",
-    "fut_daily",
-    "fut_holding",
-    "fut_wsr",
-    "fut_settle",
-    "fut_mapping",
-    "ft_limit",
-    "fut_weekly",
-    "fut_monthly",
-    "fut_index_daily",
-    "fut_weekly_detail",
-    "opt_basic",
-    "opt_daily",
+    *FUTURES_TABLES,
+    *OPTIONS_TABLES,
 ]
 
 
@@ -76,11 +84,15 @@ SYNC_TABLES = [
     default=None,
 )
 @click.option("--all", "sync_all", is_flag=True, default=False)
+@click.option("--futures", "sync_futures", is_flag=True, default=False)
+@click.option("--options", "sync_options", is_flag=True, default=False)
 @click.option("--start-date", default=None, callback=_validate_date)
 @click.option("--end-date", default=None, callback=_validate_date)
 def sync(
     table: str | None,
     sync_all: bool,
+    sync_futures: bool,
+    sync_options: bool,
     start_date: str | None,
     end_date: str | None,
 ) -> None:
@@ -98,10 +110,16 @@ def sync(
 
         if sync_all:
             pipeline.run_all(start_date=start_date, end_date=end_date)
+        elif sync_futures:
+            for t in FUTURES_TABLES:
+                pipeline.run(t, start_date=start_date, end_date=end_date)
+        elif sync_options:
+            for t in OPTIONS_TABLES:
+                pipeline.run(t, start_date=start_date, end_date=end_date)
         elif table is not None:
             pipeline.run(table, start_date=start_date, end_date=end_date)
         else:
-            raise click.UsageError("需要指定 --table 或 --all")
+            raise click.UsageError("需要指定 --table、--futures、--options 或 --all")
 
 
 @cli.command("build-universe")
