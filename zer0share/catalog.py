@@ -106,6 +106,7 @@ SUSPEND_D_SPEC = DailyTableSpec(
     order_by="ts_code, trade_date",
     hive_partitioning=True,
     union_by_name=True,
+    first_date="20000104",
 )
 
 STK_LIMIT_SPEC = DailyTableSpec(
