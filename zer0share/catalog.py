@@ -83,6 +83,7 @@ DAILY_BASIC_SPEC = DailyTableSpec(
     order_by="ts_code, trade_date",
     hive_partitioning=True,
     union_by_name=True,
+    first_date="19901219",
 )
 
 STOCK_ST_SPEC = DailyTableSpec(
