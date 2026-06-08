@@ -117,6 +117,7 @@ STK_LIMIT_SPEC = DailyTableSpec(
     order_by="ts_code, trade_date",
     hive_partitioning=True,
     union_by_name=True,
+    first_date="20070104",
 )
 
 INDEX_DAILY_SPEC = DailyTableSpec(
