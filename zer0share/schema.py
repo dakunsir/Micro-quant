@@ -42,6 +42,7 @@ DAILY_BASIC_COLS = [
     "free_share",
     "total_mv",
     "circ_mv",
+    "limit_status",
 ]
 STOCK_ST_COLS = ["ts_code", "name", "trade_date", "type", "type_name"]
 SUSPEND_D_COLS = ["ts_code", "trade_date", "suspend_timing", "suspend_type"]
