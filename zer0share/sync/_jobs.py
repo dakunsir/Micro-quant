@@ -139,7 +139,8 @@ class DailySyncJob(SyncJob):
             if last_exc is not None:
                 logger.error(f"{self.spec.name}: fetch failed on {trade_date} after {attempt} attempts: {last_exc}")
                 rt.notifier.send(
-                    f"{self.spec.name} 同步失败 ({trade_date}): {last_exc}"
+                    f"{self.spec.name} 同步失败\n"
+                    f"日期：{trade_date}｜{last_exc}"
                 )
                 raise last_exc
 
@@ -177,9 +178,14 @@ class DailySyncJob(SyncJob):
             f"success={success} empty={empty} skipped={skipped_existing} "
             f"elapsed={_format_duration(elapsed)}"
         )
+        date_range = (
+            f"{trading_days[0]} ~ {trading_days[-1]}" if len(trading_days) > 1
+            else trading_days[0]
+        )
         rt.notifier.send(
-            f"{self.spec.name} 同步完成: "
-            f"写入={success} 空={empty} 已存在={skipped_existing}"
+            f"{self.spec.name} 同步完成\n"
+            f"日期：{date_range}\n"
+            f"写入 {success} 条｜空 {empty}｜已存在 {skipped_existing}｜耗时 {_format_duration(elapsed)}"
         )
 
 
@@ -223,4 +229,7 @@ class SnapshotSyncJob(SyncJob):
         self.store.write(df)
         rt.meta.update_last_date(self.spec.name, today)
         logger.info(f"{self.spec.name}: snapshot written ({len(df)} rows)")
-        rt.notifier.send(f"{self.spec.name} 同步完成: {len(df)} 行")
+        rt.notifier.send(
+            f"{self.spec.name} 同步完成\n"
+            f"日期：{today}｜{len(df)} 行"
+        )
