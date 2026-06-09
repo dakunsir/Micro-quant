@@ -7,31 +7,37 @@ db_path = "db/meta.duckdb"
 log_path = "logs/pipeline.log"
 
 [scheduler]
-trade_cal         = "09:00"
-basic             = "09:10"
-daily_kline       = "16:30"
-adj_factor        = "16:35"
-daily_basic       = "16:40"
-stock_st          = "16:45"
-suspend_d         = "16:50"
-stk_limit         = "16:55"
-index_weight      = "17:00"
-index_daily       = "17:05"
-industry          = "17:10"
-ci_member         = "17:15"
-fut_basic         = "17:20"
-fut_daily         = "17:25"
-fut_holding       = "17:30"
-fut_wsr           = "17:35"
-fut_settle        = "17:40"
-fut_mapping       = "17:45"
-ft_limit          = "17:50"
-fut_weekly        = "17:55"
-fut_monthly       = "18:00"
-fut_index_daily   = "18:05"
-fut_weekly_detail = "18:10"
-opt_basic         = "18:15"
-opt_daily         = "18:20"
+# 凌晨 — 静态参考数据（增量检查，数据已最新时零API消耗）
+trade_cal         = "02:00"
+basic             = "02:05"
+
+# 盘前 — Tushare 盘前推送
+stk_limit         = "08:50"   # 8:40 ready
+adj_factor        = "09:25"   # 9:15~9:20 ready
+stock_st          = "09:28"   # 9:20 ready
+
+# 收盘后第一波 — 日线行情（15:00~16:00 ready）
+daily_kline       = "16:10"
+
+# 收盘后第二波 — 每日指标及其余数据（3min 间隔，17:05~17:56）
+daily_basic       = "17:05"   # 15:00~17:00 ready
+suspend_d         = "17:08"
+index_daily       = "17:11"
+index_weight      = "17:14"
+industry          = "17:17"
+ci_member         = "17:20"
+fut_basic         = "17:23"
+fut_daily         = "17:26"
+fut_holding       = "17:29"
+fut_wsr           = "17:32"
+fut_settle        = "17:35"
+fut_mapping       = "17:38"
+ft_limit          = "17:41"
+fut_monthly       = "17:44"
+fut_index_daily   = "17:47"
+fut_weekly_detail = "17:50"
+opt_basic         = "17:53"
+opt_daily         = "17:56"
 
 [notifier]
 wecom_webhook_url = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY"
