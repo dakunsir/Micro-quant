@@ -6,7 +6,7 @@ import sys
 from zer0share import pro_api
 
 
-FIELDS = "ts_code,trade_date,open,high,low,close,pre_close,change,pct_chg,vol,amount"
+FIELDS = "index_code,con_code,trade_date,weight"
 
 
 def _print_frame(title, df, rows: int = 5) -> None:
@@ -18,65 +18,66 @@ def _print_frame(title, df, rows: int = 5) -> None:
     print(df.head(rows).to_string(index=False))
 
 
-def _pick_sample(pro, ts_code: str):
-    sample = pro.index_daily(ts_code=ts_code, limit=1, fields=FIELDS)
+def _pick_sample(pro, index_code: str):
+    sample = pro.index_weight(index_code=index_code, limit=1, fields=FIELDS)
     if sample.empty:
         raise ValueError(
-            f"no index_daily data found for ts_code={ts_code}; "
-            "ensure sync is complete or try a different --ts-code"
+            f"no index_weight data found for index_code={index_code}; "
+            "ensure sync is complete or try a different --index-code"
         )
     return sample.iloc[0]
 
 
-def run_smoke(ts_code: str, start_date: str, end_date: str,
+def run_smoke(index_code: str, start_date: str, end_date: str,
               offset: int, limit: int) -> None:
     pro = pro_api()
-    sample = _pick_sample(pro, ts_code=ts_code)
+    sample = _pick_sample(pro, index_code=index_code)
 
     trade_date = sample["trade_date"]
+    con_code = sample["con_code"]
 
     print("Sample values")
-    print(f"ts_code={ts_code}  trade_date(sample)={trade_date}")
+    print(f"index_code={index_code}  trade_date(sample)={trade_date}  con_code(sample)={con_code}")
     print(f"start_date={start_date}  end_date={end_date}")
     print(f"offset={offset}  limit={limit}")
 
     _print_frame(
-        "filter_by_ts_code",
-        pro.index_daily(ts_code=ts_code, limit=limit, fields=FIELDS),
+        "filter_by_index_code",
+        pro.index_weight(index_code=index_code, limit=limit, fields=FIELDS),
     )
     _print_frame(
         "filter_by_trade_date",
-        pro.index_daily(trade_date=trade_date, fields=FIELDS),
+        pro.index_weight(trade_date=trade_date, limit=limit, fields=FIELDS),
     )
     _print_frame(
-        "filter_by_ts_code_and_trade_date",
-        pro.index_daily(ts_code=ts_code, trade_date=trade_date, fields=FIELDS),
+        "filter_by_index_code_and_trade_date",
+        pro.index_weight(index_code=index_code, trade_date=trade_date, fields=FIELDS),
     )
     _print_frame(
         "filter_by_start_end_date",
-        pro.index_daily(ts_code=ts_code, start_date=start_date, end_date=end_date, fields=FIELDS),
+        pro.index_weight(index_code=index_code, start_date=start_date, end_date=end_date, fields=FIELDS),
     )
     _print_frame(
         "all_indices_on_trade_date",
-        pro.index_daily(trade_date=trade_date, limit=limit, fields=FIELDS),
+        pro.index_weight(trade_date=trade_date, fields=FIELDS),
     )
     _print_frame(
         "limit_only",
-        pro.index_daily(limit=limit, fields=FIELDS),
+        pro.index_weight(limit=limit, fields=FIELDS),
     )
     _print_frame(
         "offset_and_limit",
-        pro.index_daily(offset=offset, limit=limit, fields=FIELDS),
+        pro.index_weight(offset=offset, limit=limit, fields=FIELDS),
     )
     _print_frame(
         "no_fields_filter",
-        pro.index_daily(ts_code=ts_code, trade_date=trade_date),
+        pro.index_weight(index_code=index_code, trade_date=trade_date),
     )
     _print_frame(
         "query_dispatch",
         pro.query(
-            "index_daily",
-            ts_code=ts_code,
+            "index_weight",
+            index_code=index_code,
             start_date=start_date,
             end_date=end_date,
             offset=0,
@@ -88,11 +89,11 @@ def run_smoke(ts_code: str, start_date: str, end_date: str,
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Smoke-test index_daily local query parameters against synced Parquet data."
+        description="Smoke-test index_weight local query parameters against synced Parquet data."
     )
-    parser.add_argument("--ts-code", default="000001.SH")
-    parser.add_argument("--start-date", default="19930702")
-    parser.add_argument("--end-date", default="19930831")
+    parser.add_argument("--index-code", default="399300.SZ")
+    parser.add_argument("--start-date", default="20160101")
+    parser.add_argument("--end-date", default="20160331")
     parser.add_argument("--offset", type=int, default=1)
     parser.add_argument("--limit", type=int, default=5)
     return parser.parse_args()
@@ -102,7 +103,7 @@ def main() -> int:
     args = parse_args()
     try:
         run_smoke(
-            ts_code=args.ts_code,
+            index_code=args.index_code,
             start_date=args.start_date,
             end_date=args.end_date,
             offset=args.offset,
@@ -111,7 +112,7 @@ def main() -> int:
     except FileNotFoundError as exc:
         print(f"Missing local data: {exc}", file=sys.stderr)
         print("Run the relevant sync command first:", file=sys.stderr)
-        print("  uv run python main.py sync --table index_daily", file=sys.stderr)
+        print("  uv run python main.py sync --table index_weight", file=sys.stderr)
         return 1
     except ValueError as exc:
         print(f"Invalid sample query: {exc}", file=sys.stderr)

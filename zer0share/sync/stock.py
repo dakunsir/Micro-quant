@@ -13,6 +13,7 @@ def build_jobs(cfg, fetcher) -> list[SyncJob]:
             table_name=BASIC_SPEC.name, spec=BASIC_SPEC,
             fetch=fetcher.fetch_basic,
             store=SnapshotStore(d / "stock" / "basic" / "data.parquet"),
+            skip_non_trading=False,
         ),
         DailySyncJob(
             table_name=DAILY_KLINE_SPEC.name, spec=DAILY_KLINE_SPEC,
