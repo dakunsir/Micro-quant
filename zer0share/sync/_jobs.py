@@ -111,6 +111,7 @@ class DailySyncJob(SyncJob):
         )
 
         success = 0
+        total_rows = 0
         empty = 0
         skipped_existing = 0
         current_meta = rt.meta.get_last_date(self.spec.name)
@@ -149,6 +150,7 @@ class DailySyncJob(SyncJob):
             if df is not None and not df.empty:
                 self.store.write(trade_date, df)
                 success += 1
+                total_rows += len(df)
             elif self.write_empty:
                 self.store.write(trade_date, df if df is not None else pd.DataFrame())
                 empty += 1
@@ -185,7 +187,7 @@ class DailySyncJob(SyncJob):
         rt.notifier.send(
             f"{self.spec.name} 同步完成\n"
             f"日期：{date_range}\n"
-            f"写入 {success} 条｜空 {empty}｜已存在 {skipped_existing}｜耗时 {_format_duration(elapsed)}"
+            f"写入 {success} 天 / {total_rows} 条记录｜空 {empty}｜已存在 {skipped_existing}｜耗时 {_format_duration(elapsed)}"
         )
 
 
