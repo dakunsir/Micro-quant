@@ -48,7 +48,6 @@ FUTURES_TABLES = [
     "fut_settle",
     "fut_mapping",
     "ft_limit",
-    "fut_weekly",
     "fut_monthly",
     "fut_index_daily",
     "fut_weekly_detail",
