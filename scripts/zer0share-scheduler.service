@@ -1,0 +1,16 @@
+[Unit]
+Description=zer0share daily data scheduler
+After=network.target
+
+[Service]
+Type=simple
+User=admin
+WorkingDirectory=/data/projects/zer0share
+ExecStart=/home/admin/miniconda3/bin/python3 main.py scheduler start
+Restart=on-failure
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
