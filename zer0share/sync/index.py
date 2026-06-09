@@ -72,15 +72,16 @@ class IndexWeightSyncJob(SyncJob):
                 coverage_dates.append(frontier)
             except Exception as e:
                 logger.error(f"index_weight {index_code} 同步失败: {e}")
-                rt.notifier.send(f"index_weight {index_code} 同步失败: {e}")
+                rt.notifier.send(f"index_weight 同步失败\n指数：{index_code}｜{e}")
                 raise
 
         if coverage_dates:
             rt.meta.update_last_date("index_weight", min(coverage_dates))
 
         msg = (
-            f"index_weight 同步完成: 成功 {success}, 空窗口 {empty_months}, "
-            f"跳过 {skipped_existing}, 请求 {requests} 次"
+            f"index_weight 同步完成\n"
+            f"日期：{end}\n"
+            f"写入 {success} 天｜空窗口 {empty_months}｜已存在 {skipped_existing}"
         )
         logger.info(msg)
         rt.notifier.send(msg)
@@ -120,7 +121,7 @@ class IndexDailySyncJob(SyncJob):
                     all_frames.append(df)
             except Exception as e:
                 logger.error(f"index_daily {ts_code} 拉取失败: {e}")
-                rt.notifier.send(f"index_daily {ts_code} 拉取失败: {e}")
+                rt.notifier.send(f"index_daily 拉取失败\n指数：{ts_code}｜{e}")
 
         if not all_frames:
             msg = "index_daily 无数据，跳过"
@@ -129,8 +130,9 @@ class IndexDailySyncJob(SyncJob):
             return
 
         combined = pd.concat(all_frames, ignore_index=True)
-        success = skipped_existing = 0
+        success = skipped_existing = total_rows = 0
         frontier = last
+        first_written = last_written = None
 
         for trade_date_value, part in combined.groupby("trade_date"):
             trade_date = str(trade_date_value)
@@ -141,9 +143,21 @@ class IndexDailySyncJob(SyncJob):
             if frontier is None or trade_date > frontier:
                 rt.meta.update_last_date("index_daily", trade_date)
                 frontier = trade_date
+            total_rows += len(part)
+            if first_written is None:
+                first_written = trade_date
+            last_written = trade_date
             success += 1
 
-        msg = f"index_daily 同步完成: 成功 {success} 天, 跳过已存在 {skipped_existing} 天"
+        date_range = (
+            f"{first_written} ~ {last_written}" if success > 1
+            else (first_written or end)
+        )
+        msg = (
+            f"index_daily 同步完成\n"
+            f"日期：{date_range}\n"
+            f"写入 {success} 天 / {total_rows} 条记录｜已存在 {skipped_existing}"
+        )
         logger.info(msg)
         rt.notifier.send(msg)
 

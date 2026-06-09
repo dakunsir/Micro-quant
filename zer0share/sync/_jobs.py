@@ -225,7 +225,7 @@ class SnapshotSyncJob(SyncJob):
             df = self.fetch()
         except Exception as exc:
             logger.error(f"{self.spec.name}: fetch failed: {exc}")
-            rt.notifier.send(f"{self.spec.name} 同步失败: {exc}")
+            rt.notifier.send(f"{self.spec.name} 同步失败\n{exc}")
             raise
 
         self.store.write(df)
