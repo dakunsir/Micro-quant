@@ -20,18 +20,23 @@ class IndustrySyncJob(SyncJob):
             return
         today = rt.calendar.today()
         try:
-            df = self._fetch_classify()
-            self._store_classify.write(df)
+            df_classify = self._fetch_classify()
+            self._store_classify.write(df_classify)
             rt.meta.update_last_date("sw_classify", today)
-            logger.info(f"sw_classify 同步完成: {len(df)} 条")
+            logger.info(f"sw_classify 同步完成: {len(df_classify)} 条")
 
-            df = self._fetch_member()
-            self._store_member.write(df)
+            df_member = self._fetch_member()
+            self._store_member.write(df_member)
             rt.meta.update_last_date("sw_member", today)
-            logger.info(f"sw_member 同步完成: {len(df)} 条")
+            logger.info(f"sw_member 同步完成: {len(df_member)} 条")
+
+            rt.notifier.send(
+                f"industry 同步完成\n"
+                f"日期：{today}｜分类 {len(df_classify)} 条｜成分 {len(df_member)} 条"
+            )
         except Exception as e:
             logger.error(f"industry 同步失败: {e}")
-            rt.notifier.send(f"industry 同步失败: {e}")
+            rt.notifier.send(f"industry 同步失败\n{e}")
             raise
 
 
