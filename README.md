@@ -93,7 +93,6 @@ uv run python main.py sync --table fut_wsr            # 期货仓单日报
 uv run python main.py sync --table fut_settle         # 期货结算参数
 uv run python main.py sync --table fut_mapping        # 期货主力与连续合约映射
 uv run python main.py sync --table ft_limit           # 期货涨跌停价格
-uv run python main.py sync --table fut_weekly         # 期货周线行情
 uv run python main.py sync --table fut_monthly        # 期货月线行情
 uv run python main.py sync --table fut_index_daily    # 期货指数日线行情
 uv run python main.py sync --table fut_weekly_detail  # 期货交易所周度明细
@@ -163,7 +162,28 @@ uv run python main.py build-universe --date 2024-01-31
 uv run python main.py status
 ```
 
-### 6. 启动定时调度
+### 6. 定时调度
+
+**推荐：systemd 服务（服务器常驻）**
+
+```bash
+# 安装并启用服务
+sudo cp scripts/zer0share-scheduler.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable zer0share-scheduler
+sudo systemctl start zer0share-scheduler
+
+# 查看状态
+sudo systemctl status zer0share-scheduler
+
+# 查看实时日志
+journalctl -u zer0share-scheduler -f
+
+# 修改 settings.toml 后重启生效
+sudo systemctl restart zer0share-scheduler
+```
+
+**手动启动（调试用）**
 
 ```bash
 uv run python main.py scheduler start
@@ -246,7 +266,6 @@ opt_snapshot = pro.opt_daily(trade_date="20240102", exchange="SSE")   # 某日�
 | `fut_settle` | 查询已同步的期货结算参数 |
 | `fut_mapping` | 查询已同步的期货主力与连续合约映射 |
 | `ft_limit` | 查询已同步的期货涨跌停价格 |
-| `fut_weekly` | 查询已同步的期货周线行情 |
 | `fut_monthly` | 查询已同步的期货月线行情 |
 | `fut_index_daily` | 查询已同步的期货指数日线行情 |
 | `fut_weekly_detail` | 查询已同步的期货交易所周度明细 |
@@ -321,7 +340,6 @@ data/
 │   ├── fut_settle/date=YYYYMMDD/data.parquet
 │   ├── fut_mapping/date=YYYYMMDD/data.parquet
 │   ├── ft_limit/date=YYYYMMDD/data.parquet
-│   ├── fut_weekly/date=YYYYMMDD/data.parquet
 │   ├── fut_monthly/date=YYYYMMDD/data.parquet
 │   ├── fut_index_daily/date=YYYYMMDD/data.parquet
 │   └── fut_weekly_detail/date=YYYYMMDD/data.parquet
@@ -355,7 +373,6 @@ db/
 | `sync --table fut_settle` | 增量同步期货结算参数 |
 | `sync --table fut_mapping` | 增量同步期货主力与连续合约映射 |
 | `sync --table ft_limit` | 增量同步期货涨跌停价格 |
-| `sync --table fut_weekly` | 增量同步期货周线行情 |
 | `sync --table fut_monthly` | 增量同步期货月线行情 |
 | `sync --table fut_index_daily` | 增量同步期货指数日线行情 |
 | `sync --table fut_weekly_detail` | 增量同步期货交易所周度明细 |
@@ -380,13 +397,19 @@ db_path = "db/meta.duckdb" # DuckDB 文件路径
 log_path = "logs/pipeline.log"
 
 [scheduler]
-daily_kline_hour = 18      # 日线同步触发时间（小时）
-daily_kline_minute = 0
-basic_hour = 8             # 基础信息同步触发时间（小时）
-adj_factor_hour = 18       # 复权因子同步触发时间（小时）
-adj_factor_minute = 5
-futures_hour = 17          # 期货同步起始时间（小时）
-futures_start_minute = 0
+# 每个表单独配置触发时间（HH:MM），基于 Tushare 各接口实际入库时间设计
+# 凌晨 — 静态参考数据（增量检查，数据已最新时零API消耗）
+trade_cal         = "02:00"
+basic             = "02:05"
+# 盘前 — Tushare 盘前推送
+stk_limit         = "08:50"   # 8:40 ready
+adj_factor        = "09:25"   # 9:15~9:20 ready
+stock_st          = "09:28"   # 9:20 ready
+# 收盘后第一波 — 日线行情（15:00~16:00 ready）
+daily_kline       = "16:10"
+# 收盘后第二波 — 每日指标及其余数据（3min 间隔，17:05~17:56）
+daily_basic       = "17:05"
+# ... 完整示例见 config/settings.example.toml
 
 [notifier]
 wecom_webhook_url = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY"
