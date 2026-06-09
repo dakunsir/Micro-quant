@@ -4,9 +4,9 @@ from unittest.mock import patch
 import pandas as pd
 
 from zer0share.storage import (
-    write_basic,
-    write_daily_partition,
-    write_index_weight,
+    DailyPartitionStore,
+    IndexWeightStore,
+    SnapshotStore,
     write_trade_cal,
     write_universe,
 )
@@ -58,7 +58,7 @@ def _daily(codes: list[str], trade_date: date, amount: float = 20000.0) -> pd.Da
 def test_build_universe_detail_applies_core_filters(tmp_path):
     trade_date = date(2024, 1, 30)
     codes = [f"{i:06d}.SZ" for i in range(1, 21)]
-    write_basic(tmp_path, _basic(codes, trade_date))
+    SnapshotStore(tmp_path / "stock" / "basic" / "data.parquet").write(_basic(codes, trade_date))
 
     for offset in range(20):
         day = trade_date - timedelta(days=19 - offset)
@@ -67,7 +67,7 @@ def test_build_universe_detail_applies_core_filters(tmp_path):
         if day == trade_date:
             df.loc[df["ts_code"] == "000004.SZ", ["open", "high", "low", "close"]] = 12.0
             df.loc[df["ts_code"] == "000007.SZ", ["open", "high", "low", "close"]] = 8.0
-        write_daily_partition(tmp_path / "stock", "daily_kline", day, df)
+        DailyPartitionStore(tmp_path / "stock" / "daily_kline").write(day.strftime("%Y%m%d"), df)
 
     daily_basic = pd.DataFrame(
         {
@@ -91,12 +91,8 @@ def test_build_universe_detail_applies_core_filters(tmp_path):
             "circ_mv": list(range(20, 0, -1)),
         }
     )
-    write_daily_partition(tmp_path / "stock", "daily_basic", trade_date, daily_basic)
-    write_daily_partition(
-        tmp_path / "stock",
-        "stock_st",
-        trade_date,
-        pd.DataFrame(
+    DailyPartitionStore(tmp_path / "stock" / "daily_basic").write(trade_date.strftime("%Y%m%d"), daily_basic)
+    DailyPartitionStore(tmp_path / "stock" / "stock_st").write(trade_date.strftime("%Y%m%d"), pd.DataFrame(
             {
                 "ts_code": ["000002.SZ"],
                 "name": ["ST示例"],
@@ -104,26 +100,16 @@ def test_build_universe_detail_applies_core_filters(tmp_path):
                 "type": ["ST"],
                 "type_name": ["风险警示板"],
             }
-        ),
-    )
-    write_daily_partition(
-        tmp_path / "stock",
-        "suspend_d",
-        trade_date,
-        pd.DataFrame(
+        ))
+    DailyPartitionStore(tmp_path / "stock" / "suspend_d").write(trade_date.strftime("%Y%m%d"), pd.DataFrame(
             {
                 "ts_code": ["000003.SZ"],
                 "trade_date": [trade_date],
                 "suspend_timing": [None],
                 "suspend_type": ["S"],
             }
-        ),
-    )
-    write_daily_partition(
-        tmp_path / "stock",
-        "stk_limit",
-        trade_date,
-        pd.DataFrame(
+        ))
+    DailyPartitionStore(tmp_path / "stock" / "stk_limit").write(trade_date.strftime("%Y%m%d"), pd.DataFrame(
             {
                 "trade_date": [trade_date] * len(codes),
                 "ts_code": codes,
@@ -131,8 +117,7 @@ def test_build_universe_detail_applies_core_filters(tmp_path):
                 "up_limit": [12.0] * len(codes),
                 "down_limit": [8.0] * len(codes),
             }
-        ),
-    )
+        ))
 
     detail = build_universe_detail(tmp_path, trade_date).set_index("ts_code")
 
@@ -148,10 +133,10 @@ def test_build_universe_detail_applies_core_filters(tmp_path):
 def test_build_universes_writes_index_intersections(tmp_path):
     trade_date = date(2024, 1, 30)
     codes = [f"{i:06d}.SZ" for i in range(1, 21)]
-    write_basic(tmp_path, _basic(codes, trade_date))
+    SnapshotStore(tmp_path / "stock" / "basic" / "data.parquet").write(_basic(codes, trade_date))
     for offset in range(20):
         day = trade_date - timedelta(days=19 - offset)
-        write_daily_partition(tmp_path / "stock", "daily_kline", day, _daily(codes, day))
+        DailyPartitionStore(tmp_path / "stock" / "daily_kline").write(day.strftime("%Y%m%d"), _daily(codes, day))
 
     daily_basic = pd.DataFrame(
         {
@@ -175,14 +160,10 @@ def test_build_universes_writes_index_intersections(tmp_path):
             "circ_mv": list(range(1, 21)),
         }
     )
-    write_daily_partition(tmp_path / "stock", "daily_basic", trade_date, daily_basic)
-    write_daily_partition(tmp_path / "stock", "stock_st", trade_date, pd.DataFrame(columns=["ts_code", "name", "trade_date", "type", "type_name"]))
-    write_daily_partition(tmp_path / "stock", "suspend_d", trade_date, pd.DataFrame(columns=["ts_code", "trade_date", "suspend_timing", "suspend_type"]))
-    write_daily_partition(
-        tmp_path / "stock",
-        "stk_limit",
-        trade_date,
-        pd.DataFrame(
+    DailyPartitionStore(tmp_path / "stock" / "daily_basic").write(trade_date.strftime("%Y%m%d"), daily_basic)
+    DailyPartitionStore(tmp_path / "stock" / "stock_st").write(trade_date.strftime("%Y%m%d"), pd.DataFrame(columns=["ts_code", "name", "trade_date", "type", "type_name"]))
+    DailyPartitionStore(tmp_path / "stock" / "suspend_d").write(trade_date.strftime("%Y%m%d"), pd.DataFrame(columns=["ts_code", "trade_date", "suspend_timing", "suspend_type"]))
+    DailyPartitionStore(tmp_path / "stock" / "stk_limit").write(trade_date.strftime("%Y%m%d"), pd.DataFrame(
             {
                 "trade_date": [trade_date] * len(codes),
                 "ts_code": codes,
@@ -190,22 +171,16 @@ def test_build_universes_writes_index_intersections(tmp_path):
                 "up_limit": [12.0] * len(codes),
                 "down_limit": [8.0] * len(codes),
             }
-        ),
-    )
+        ))
     for index_code in ["399300.SZ", "000905.SH", "000852.SH"]:
-        write_index_weight(
-            tmp_path,
-            index_code,
-            trade_date,
-            pd.DataFrame(
+        IndexWeightStore(tmp_path / "index" / "index_weight").write(index_code, trade_date.strftime("%Y%m%d"), pd.DataFrame(
                 {
                     "index_code": [index_code, index_code],
                     "con_code": ["000001.SZ", "000002.SZ"],
                     "trade_date": [trade_date, trade_date],
                     "weight": [50.0, 50.0],
                 }
-            ),
-        )
+            ))
 
     counts = build_universes(tmp_path, trade_date)
 
@@ -220,7 +195,7 @@ def test_build_universes_range_skips_existing_partitions(tmp_path):
     first_date = date(2024, 1, 30)
     second_date = date(2024, 1, 31)
     codes = [f"{i:06d}.SZ" for i in range(1, 21)]
-    write_basic(tmp_path, _basic(codes, first_date))
+    SnapshotStore(tmp_path / "stock" / "basic" / "data.parquet").write(_basic(codes, first_date))
     write_trade_cal(
         tmp_path,
         "SSE",
@@ -236,14 +211,10 @@ def test_build_universes_range_skips_existing_partitions(tmp_path):
 
     for offset in range(21):
         day = second_date - timedelta(days=20 - offset)
-        write_daily_partition(tmp_path / "stock", "daily_kline", day, _daily(codes, day))
+        DailyPartitionStore(tmp_path / "stock" / "daily_kline").write(day.strftime("%Y%m%d"), _daily(codes, day))
 
     for trade_date in [first_date, second_date]:
-        write_daily_partition(
-            tmp_path / "stock",
-            "daily_basic",
-            trade_date,
-            pd.DataFrame(
+        DailyPartitionStore(tmp_path / "stock" / "daily_basic").write(trade_date.strftime("%Y%m%d"), pd.DataFrame(
                 {
                     "ts_code": codes,
                     "trade_date": [trade_date] * len(codes),
@@ -264,25 +235,10 @@ def test_build_universes_range_skips_existing_partitions(tmp_path):
                     "total_mv": list(range(1, 21)),
                     "circ_mv": list(range(1, 21)),
                 }
-            ),
-        )
-        write_daily_partition(
-            tmp_path / "stock",
-            "stock_st",
-            trade_date,
-            pd.DataFrame(columns=["ts_code", "name", "trade_date", "type", "type_name"]),
-        )
-        write_daily_partition(
-            tmp_path / "stock",
-            "suspend_d",
-            trade_date,
-            pd.DataFrame(columns=["ts_code", "trade_date", "suspend_timing", "suspend_type"]),
-        )
-        write_daily_partition(
-            tmp_path / "stock",
-            "stk_limit",
-            trade_date,
-            pd.DataFrame(
+            ))
+        DailyPartitionStore(tmp_path / "stock" / "stock_st").write(trade_date.strftime("%Y%m%d"), pd.DataFrame(columns=["ts_code", "name", "trade_date", "type", "type_name"]))
+        DailyPartitionStore(tmp_path / "stock" / "suspend_d").write(trade_date.strftime("%Y%m%d"), pd.DataFrame(columns=["ts_code", "trade_date", "suspend_timing", "suspend_type"]))
+        DailyPartitionStore(tmp_path / "stock" / "stk_limit").write(trade_date.strftime("%Y%m%d"), pd.DataFrame(
                 {
                     "trade_date": [trade_date] * len(codes),
                     "ts_code": codes,
@@ -290,22 +246,16 @@ def test_build_universes_range_skips_existing_partitions(tmp_path):
                     "up_limit": [12.0] * len(codes),
                     "down_limit": [8.0] * len(codes),
                 }
-            ),
-        )
+            ))
         for index_code in ["399300.SZ", "000905.SH", "000852.SH"]:
-            write_index_weight(
-                tmp_path,
-                index_code,
-                trade_date,
-                pd.DataFrame(
+            IndexWeightStore(tmp_path / "index" / "index_weight").write(index_code, trade_date.strftime("%Y%m%d"), pd.DataFrame(
                     {
                         "index_code": [index_code],
                         "con_code": ["000002.SZ"],
                         "trade_date": [trade_date],
                         "weight": [50.0],
                     }
-                ),
-            )
+                ))
 
     build_universes(tmp_path, first_date)
     summary = build_universes_range(tmp_path, first_date, second_date)
@@ -371,7 +321,7 @@ def test_build_universes_range_defaults_end_to_latest_complete_source_date(tmp_p
     complete_date = date(2024, 1, 30)
     incomplete_date = date(2024, 1, 31)
     codes = [f"{i:06d}.SZ" for i in range(1, 21)]
-    write_basic(tmp_path, _basic(codes, complete_date))
+    SnapshotStore(tmp_path / "stock" / "basic" / "data.parquet").write(_basic(codes, complete_date))
     write_trade_cal(
         tmp_path,
         "SSE",
@@ -386,14 +336,10 @@ def test_build_universes_range_defaults_end_to_latest_complete_source_date(tmp_p
     )
     for offset in range(20):
         day = complete_date - timedelta(days=19 - offset)
-        write_daily_partition(tmp_path / "stock", "daily_kline", day, _daily(codes, day))
-    write_daily_partition(tmp_path / "stock", "daily_kline", incomplete_date, _daily(codes, incomplete_date))
+        DailyPartitionStore(tmp_path / "stock" / "daily_kline").write(day.strftime("%Y%m%d"), _daily(codes, day))
+    DailyPartitionStore(tmp_path / "stock" / "daily_kline").write(incomplete_date.strftime("%Y%m%d"), _daily(codes, incomplete_date))
 
-    write_daily_partition(
-        tmp_path / "stock",
-        "daily_basic",
-        complete_date,
-        pd.DataFrame(
+    DailyPartitionStore(tmp_path / "stock" / "daily_basic").write(complete_date.strftime("%Y%m%d"), pd.DataFrame(
             {
                 "ts_code": codes,
                 "trade_date": [complete_date] * len(codes),
@@ -414,25 +360,10 @@ def test_build_universes_range_defaults_end_to_latest_complete_source_date(tmp_p
                 "total_mv": list(range(1, 21)),
                 "circ_mv": list(range(1, 21)),
             }
-        ),
-    )
-    write_daily_partition(
-        tmp_path / "stock",
-        "stock_st",
-        complete_date,
-        pd.DataFrame(columns=["ts_code", "name", "trade_date", "type", "type_name"]),
-    )
-    write_daily_partition(
-        tmp_path / "stock",
-        "suspend_d",
-        complete_date,
-        pd.DataFrame(columns=["ts_code", "trade_date", "suspend_timing", "suspend_type"]),
-    )
-    write_daily_partition(
-        tmp_path / "stock",
-        "stk_limit",
-        complete_date,
-        pd.DataFrame(
+        ))
+    DailyPartitionStore(tmp_path / "stock" / "stock_st").write(complete_date.strftime("%Y%m%d"), pd.DataFrame(columns=["ts_code", "name", "trade_date", "type", "type_name"]))
+    DailyPartitionStore(tmp_path / "stock" / "suspend_d").write(complete_date.strftime("%Y%m%d"), pd.DataFrame(columns=["ts_code", "trade_date", "suspend_timing", "suspend_type"]))
+    DailyPartitionStore(tmp_path / "stock" / "stk_limit").write(complete_date.strftime("%Y%m%d"), pd.DataFrame(
             {
                 "trade_date": [complete_date] * len(codes),
                 "ts_code": codes,
@@ -440,22 +371,16 @@ def test_build_universes_range_defaults_end_to_latest_complete_source_date(tmp_p
                 "up_limit": [12.0] * len(codes),
                 "down_limit": [8.0] * len(codes),
             }
-        ),
-    )
+        ))
     for index_code in ["399300.SZ", "000905.SH", "000852.SH"]:
-        write_index_weight(
-            tmp_path,
-            index_code,
-            complete_date,
-            pd.DataFrame(
+        IndexWeightStore(tmp_path / "index" / "index_weight").write(index_code, complete_date.strftime("%Y%m%d"), pd.DataFrame(
                 {
                     "index_code": [index_code],
                     "con_code": ["000002.SZ"],
                     "trade_date": [complete_date],
                     "weight": [50.0],
                 }
-            ),
-        )
+            ))
 
     summary = build_universes_range(tmp_path, start_date=complete_date)
 
@@ -488,12 +413,7 @@ def test_build_universes_range_defaults_start_after_latest_complete_universe(tmp
     )
     for table_name in ["daily_kline", "daily_basic", "stock_st", "suspend_d", "stk_limit"]:
         for trade_date in [complete_date, next_date]:
-            write_daily_partition(
-                tmp_path / "stock",
-                table_name,
-                trade_date,
-                pd.DataFrame({"ts_code": ["000001.SZ"], "trade_date": [trade_date]}),
-            )
+            DailyPartitionStore(tmp_path / "stock" / table_name).write(trade_date.strftime("%Y%m%d"), pd.DataFrame({"ts_code": ["000001.SZ"], "trade_date": [trade_date]}))
     for trade_date in [complete_date, next_date]:
         for name in [
             "univ_research_base",

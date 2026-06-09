@@ -16,14 +16,9 @@ import pytest
 from zer0share.pipeline import Pipeline
 from zer0share.sync.calendar import EXCHANGES, ALL_EXCHANGES
 from zer0share.storage import (
-    read_sw_classify,
-    read_sw_member,
-    read_ci_member,
-    write_basic,
-    write_trade_cal,
-    daily_partition_exists,
     DailyPartitionStore,
-    write_daily_partition,
+    SnapshotStore,
+    write_trade_cal,
 )
 from zer0share.fetcher import INDEX_DAILY_CODES, FUTURES_EXCHANGES, OPTIONS_EXCHANGES
 from zer0share.catalog import INDEX_WEIGHT_SPEC
@@ -282,7 +277,7 @@ def test_sync_basic_runs_on_non_trading_day(pipeline, cfg, fetcher, notifier):
 # ---------------------------------------------------------------------------
 
 def test_sync_daily_kline_writes_parquet(pipeline, cfg, fetcher):
-    write_basic(cfg.data_dir, _basic_df())
+    SnapshotStore(cfg.data_dir / "stock" / "basic" / "data.parquet").write(_basic_df())
     _setup_trade_cal_sse(pipeline, cfg)
     fetcher.fetch_daily_kline.return_value = _kline_df("20240102")
     pipeline._runtime.meta.update_last_date("daily_kline", "20240101")
@@ -291,7 +286,7 @@ def test_sync_daily_kline_writes_parquet(pipeline, cfg, fetcher):
 
 
 def test_sync_daily_kline_skips_empty_dates(pipeline, cfg, fetcher):
-    write_basic(cfg.data_dir, _basic_df())
+    SnapshotStore(cfg.data_dir / "stock" / "basic" / "data.parquet").write(_basic_df())
     _setup_trade_cal_sse(pipeline, cfg)
     fetcher.fetch_daily_kline.return_value = pd.DataFrame()
     pipeline._runtime.meta.update_last_date("daily_kline", "20240101")
@@ -300,7 +295,7 @@ def test_sync_daily_kline_skips_empty_dates(pipeline, cfg, fetcher):
 
 
 def test_sync_daily_kline_sends_completion_notification(pipeline, cfg, fetcher, notifier):
-    write_basic(cfg.data_dir, _basic_df())
+    SnapshotStore(cfg.data_dir / "stock" / "basic" / "data.parquet").write(_basic_df())
     _setup_trade_cal_sse(pipeline, cfg)
     fetcher.fetch_daily_kline.return_value = _kline_df("20240102")
     pipeline._runtime.meta.update_last_date("daily_kline", "20240101")
@@ -311,7 +306,7 @@ def test_sync_daily_kline_sends_completion_notification(pipeline, cfg, fetcher, 
 
 
 def test_sync_daily_kline_already_up_to_date(pipeline, cfg, fetcher):
-    write_basic(cfg.data_dir, _basic_df())
+    SnapshotStore(cfg.data_dir / "stock" / "basic" / "data.parquet").write(_basic_df())
     pipeline._runtime.calendar._today_fn = lambda: "20240102"
     pipeline._runtime.meta.update_last_date("daily_kline", "20240102")
     pipeline.run("daily_kline")
@@ -319,7 +314,7 @@ def test_sync_daily_kline_already_up_to_date(pipeline, cfg, fetcher):
 
 
 def test_sync_daily_kline_failure_sends_alert_and_raises(pipeline, cfg, fetcher, notifier):
-    write_basic(cfg.data_dir, _basic_df())
+    SnapshotStore(cfg.data_dir / "stock" / "basic" / "data.parquet").write(_basic_df())
     _setup_trade_cal_sse(pipeline, cfg)
     fetcher.fetch_daily_kline.side_effect = RuntimeError("API error")
     pipeline._runtime.meta.update_last_date("daily_kline", "20240101")
@@ -354,7 +349,7 @@ def test_sync_daily_kline_raises_if_no_trade_cal(pipeline, cfg, fetcher):
 
 
 def test_sync_daily_kline_range_skips_existing_partitions(pipeline, cfg, fetcher):
-    write_basic(cfg.data_dir, _basic_df())
+    SnapshotStore(cfg.data_dir / "stock" / "basic" / "data.parquet").write(_basic_df())
     trade_cal = pd.DataFrame({
         "exchange": ["SSE", "SSE", "SSE"],
         "cal_date": ["20240102", "20240103", "20240104"],
@@ -366,7 +361,7 @@ def test_sync_daily_kline_range_skips_existing_partitions(pipeline, cfg, fetcher
     pipeline._runtime.meta.update_last_date("trade_cal", "20240104")
 
     existing_df = _kline_df("20240103")
-    write_daily_partition(cfg.data_dir / "stock", "daily_kline", "20240103", existing_df)
+    DailyPartitionStore(cfg.data_dir / "stock" / "daily_kline").write("20240103", existing_df)
 
     fetcher.fetch_daily_kline.side_effect = [
         _kline_df("20240102"),
@@ -379,7 +374,7 @@ def test_sync_daily_kline_range_skips_existing_partitions(pipeline, cfg, fetcher
 
 
 def test_sync_daily_kline_old_range_does_not_rewind_meta(pipeline, cfg, fetcher):
-    write_basic(cfg.data_dir, _basic_df())
+    SnapshotStore(cfg.data_dir / "stock" / "basic" / "data.parquet").write(_basic_df())
     trade_cal = pd.DataFrame({
         "exchange": ["SSE", "SSE"],
         "cal_date": ["20240102", "20240103"],
@@ -398,7 +393,7 @@ def test_sync_daily_kline_old_range_does_not_rewind_meta(pipeline, cfg, fetcher)
 
 
 def test_sync_daily_kline_range_defaults_end_date_to_today(pipeline, cfg, fetcher):
-    write_basic(cfg.data_dir, _basic_df())
+    SnapshotStore(cfg.data_dir / "stock" / "basic" / "data.parquet").write(_basic_df())
     trade_cal = pd.DataFrame({
         "exchange": ["SSE", "SSE"],
         "cal_date": ["20240102", "20240103"],
@@ -418,7 +413,7 @@ def test_sync_daily_kline_range_defaults_end_date_to_today(pipeline, cfg, fetche
 
 
 def test_sync_daily_kline_sleeps_between_requests(pipeline, cfg, fetcher):
-    write_basic(cfg.data_dir, _basic_df())
+    SnapshotStore(cfg.data_dir / "stock" / "basic" / "data.parquet").write(_basic_df())
     trade_cal = pd.DataFrame({
         "exchange": ["SSE", "SSE"],
         "cal_date": ["20240102", "20240103"],
@@ -615,8 +610,8 @@ def test_sync_industry_writes_sw_classify_and_member(pipeline, cfg, fetcher):
 
     pipeline.run("industry")
 
-    assert read_sw_classify(cfg.data_dir).equals(classify_df)
-    assert read_sw_member(cfg.data_dir).equals(member_df)
+    assert SnapshotStore(cfg.data_dir / "stock" / "industry" / "sw_classify" / "data.parquet").read().equals(classify_df)
+    assert SnapshotStore(cfg.data_dir / "stock" / "industry" / "sw_member" / "data.parquet").read().equals(member_df)
     assert pipeline._runtime.meta.get_last_date("sw_classify") == "20240518"
     assert pipeline._runtime.meta.get_last_date("sw_member") == "20240518"
 
@@ -656,7 +651,7 @@ def test_sync_ci_member_writes_parquet(pipeline, cfg, fetcher):
 
     pipeline.run("ci_member")
 
-    assert read_ci_member(cfg.data_dir).equals(member_df)
+    assert SnapshotStore(cfg.data_dir / "stock" / "industry" / "ci_member" / "data.parquet").read().equals(member_df)
     assert pipeline._runtime.meta.get_last_date("ci_member") == "20240518"
 
 
@@ -702,12 +697,12 @@ def test_sync_index_daily_writes_date_partitions(pipeline, cfg, fetcher):
     with patch("zer0share.sync.index.time.sleep"):
         pipeline.run("index_daily")
 
-    assert daily_partition_exists(cfg.data_dir / "index", "index_daily", "20240102")
+    assert DailyPartitionStore(cfg.data_dir / "index" / "index_daily").exists("20240102")
 
 
 def test_sync_index_daily_skips_existing_partitions(pipeline, cfg, fetcher):
     existing = _index_daily_df(ts_code="000300.SH", trade_date="20240102")
-    write_daily_partition(cfg.data_dir / "index", "index_daily", "20240102", existing)
+    DailyPartitionStore(cfg.data_dir / "index" / "index_daily").write("20240102", existing)
     pipeline._runtime.calendar._today_fn = lambda: "20240102"
 
     fetcher.fetch_index_daily.side_effect = [
@@ -718,7 +713,7 @@ def test_sync_index_daily_skips_existing_partitions(pipeline, cfg, fetcher):
     with patch("zer0share.sync.index.time.sleep"):
         pipeline.run("index_daily")
 
-    assert daily_partition_exists(cfg.data_dir / "index", "index_daily", "20240102")
+    assert DailyPartitionStore(cfg.data_dir / "index" / "index_daily").exists("20240102")
 
 
 def test_sync_index_daily_up_to_date_skips_fetch(pipeline, cfg, fetcher):
@@ -841,10 +836,7 @@ def test_sync_fut_daily_skips_existing_partitions(pipeline, cfg, fetcher):
     fetcher.fetch_fut_daily.return_value = pd.DataFrame()
     pipeline._runtime.meta.update_last_date("fut_daily", "20240101")
 
-    write_daily_partition(
-        cfg.data_dir / "futures", "fut_daily", "20240102",
-        pd.DataFrame({"ts_code": ["CU2401.SHF"], "trade_date": ["20240102"]}),
-    )
+    DailyPartitionStore(cfg.data_dir / "futures" / "fut_daily").write("20240102", pd.DataFrame({"ts_code": ["CU2401.SHF"], "trade_date": ["20240102"]}))
 
     with patch("zer0share.sync._jobs.time.sleep"):
         pipeline.run("fut_daily")
@@ -1089,10 +1081,7 @@ def test_sync_opt_daily_skips_existing_partitions(pipeline, cfg, fetcher):
     fetcher.fetch_opt_daily.return_value = pd.DataFrame()
     pipeline._runtime.meta.update_last_date("opt_daily", "20240101")
 
-    write_daily_partition(
-        cfg.data_dir / "options", "opt_daily", "20240102",
-        pd.DataFrame({"ts_code": ["10004462.SH"], "trade_date": ["20240102"]}),
-    )
+    DailyPartitionStore(cfg.data_dir / "options" / "opt_daily").write("20240102", pd.DataFrame({"ts_code": ["10004462.SH"], "trade_date": ["20240102"]}))
 
     with patch("zer0share.sync._jobs.time.sleep"):
         pipeline.run("opt_daily")

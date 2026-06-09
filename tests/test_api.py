@@ -3,12 +3,8 @@ import pytest
 
 from zer0share.api import LocalPro
 from zer0share.storage import (
-    write_basic,
-    write_ci_member,
-    write_daily_partition,
-    write_opt_basic,
-    write_sw_classify,
-    write_sw_member,
+    DailyPartitionStore,
+    SnapshotStore,
     write_trade_cal,
     write_universe,
 )
@@ -36,7 +32,7 @@ def test_stock_basic_filters_and_formats_dates(tmp_path):
             "act_ent_type": ["Local SOE", "Local SOE"],
         }
     )
-    write_basic(tmp_path, df)
+    SnapshotStore(tmp_path / "stock" / "basic" / "data.parquet").write(df)
 
     pro = LocalPro(tmp_path)
     result = pro.stock_basic(
@@ -107,8 +103,7 @@ def test_api_date_filters_reject_dash_separated_dates(tmp_path):
 
 
 def test_daily_filters_multiple_codes_by_date_range_and_formats_dates(tmp_path):
-    write_daily_partition(
-        tmp_path / "stock", "daily_kline", "20240102", pd.DataFrame(
+    DailyPartitionStore(tmp_path / "stock" / "daily_kline").write("20240102", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ", "600000.SH"],
                 "trade_date": ["20240102", "20240102"],
@@ -122,10 +117,8 @@ def test_daily_filters_multiple_codes_by_date_range_and_formats_dates(tmp_path):
                 "vol": [1000.0, 2000.0],
                 "amount": [10000.0, 20000.0],
             }
-        ),
-    )
-    write_daily_partition(
-        tmp_path / "stock", "daily_kline", "20240103", pd.DataFrame(
+        ))
+    DailyPartitionStore(tmp_path / "stock" / "daily_kline").write("20240103", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ", "600000.SH"],
                 "trade_date": ["20240103", "20240103"],
@@ -139,8 +132,7 @@ def test_daily_filters_multiple_codes_by_date_range_and_formats_dates(tmp_path):
                 "vol": [1100.0, 2100.0],
                 "amount": [11000.0, 21000.0],
             }
-        ),
-    )
+        ))
 
     pro = LocalPro(tmp_path)
     result = pro.daily(
@@ -157,17 +149,8 @@ def test_daily_filters_multiple_codes_by_date_range_and_formats_dates(tmp_path):
 
 
 def test_daily_partitioned_query_handles_empty_partitions(tmp_path):
-    write_daily_partition(
-        tmp_path / "stock",
-        "stock_st",
-        "20240102",
-        pd.DataFrame(columns=["ts_code", "name", "trade_date", "type", "type_name"]),
-    )
-    write_daily_partition(
-        tmp_path / "stock",
-        "stock_st",
-        "20240103",
-        pd.DataFrame(
+    DailyPartitionStore(tmp_path / "stock" / "stock_st").write("20240102", pd.DataFrame(columns=["ts_code", "name", "trade_date", "type", "type_name"]))
+    DailyPartitionStore(tmp_path / "stock" / "stock_st").write("20240103", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "name": ["ST Test"],
@@ -175,8 +158,7 @@ def test_daily_partitioned_query_handles_empty_partitions(tmp_path):
                 "type": ["ST"],
                 "type_name": ["Risk"],
             }
-        ),
-    )
+        ))
 
     pro = LocalPro(tmp_path)
     result = pro.stock_st(
@@ -239,15 +221,13 @@ def test_universe_filters_by_name_date_and_code(tmp_path):
 
 
 def test_adj_factor_filters_trade_date_and_formats_dates(tmp_path):
-    write_daily_partition(
-        tmp_path / "stock", "adj_factor", "20240102", pd.DataFrame(
+    DailyPartitionStore(tmp_path / "stock" / "adj_factor").write("20240102", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ", "600000.SH"],
                 "trade_date": ["20240102", "20240102"],
                 "adj_factor": [100.1, 200.2],
             }
-        ),
-    )
+        ))
 
     pro = LocalPro(tmp_path)
     result = pro.adj_factor(trade_date="20240102", fields="ts_code,trade_date,adj_factor")
@@ -266,15 +246,13 @@ def test_daily_rejects_ambiguous_trade_date_and_range(tmp_path):
 
 
 def test_query_dispatches_to_named_api(tmp_path):
-    write_daily_partition(
-        tmp_path / "stock", "adj_factor", "20240102", pd.DataFrame(
+    DailyPartitionStore(tmp_path / "stock" / "adj_factor").write("20240102", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "trade_date": ["20240102"],
                 "adj_factor": [100.1],
             }
-        ),
-    )
+        ))
 
     pro = LocalPro(tmp_path)
     result = pro.query("adj_factor", ts_code="000001.SZ")
@@ -292,9 +270,7 @@ def test_unknown_query_api_raises_value_error(tmp_path):
 
 
 def test_unknown_field_raises_value_error(tmp_path):
-    write_basic(
-        tmp_path,
-        pd.DataFrame(
+    SnapshotStore(tmp_path / "stock" / "basic" / "data.parquet").write(pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "symbol": ["000001"],
@@ -314,8 +290,7 @@ def test_unknown_field_raises_value_error(tmp_path):
                 "act_name": ["Shenzhen Investment Holdings"],
                 "act_ent_type": ["Local SOE"],
             }
-        ),
-    )
+        ))
     pro = LocalPro(tmp_path)
 
     with pytest.raises(ValueError, match="unknown fields"):
@@ -349,8 +324,7 @@ def test_invalid_date_format_raises_value_error(tmp_path):
 
 
 def test_invalid_date_range_raises_value_error(tmp_path):
-    write_daily_partition(
-        tmp_path / "stock", "daily_kline", "20240102", pd.DataFrame(
+    DailyPartitionStore(tmp_path / "stock" / "daily_kline").write("20240102", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "trade_date": ["20240102"],
@@ -364,8 +338,7 @@ def test_invalid_date_range_raises_value_error(tmp_path):
                 "vol": [1000.0],
                 "amount": [10000.0],
             }
-        ),
-    )
+        ))
     pro = LocalPro(tmp_path)
 
     with pytest.raises(ValueError, match="start_date"):
@@ -392,8 +365,7 @@ def test_trade_cal_invalid_date_range_raises_value_error(tmp_path):
 
 
 def test_pro_bar_returns_qfq_prices_using_end_date_factor(tmp_path):
-    write_daily_partition(
-        tmp_path / "stock", "daily_kline", "20240102", pd.DataFrame(
+    DailyPartitionStore(tmp_path / "stock" / "daily_kline").write("20240102", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "trade_date": ["20240102"],
@@ -407,10 +379,8 @@ def test_pro_bar_returns_qfq_prices_using_end_date_factor(tmp_path):
                 "vol": [1000.0],
                 "amount": [11000.0],
             }
-        ),
-    )
-    write_daily_partition(
-        tmp_path / "stock", "daily_kline", "20240103", pd.DataFrame(
+        ))
+    DailyPartitionStore(tmp_path / "stock" / "daily_kline").write("20240103", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "trade_date": ["20240103"],
@@ -424,26 +394,21 @@ def test_pro_bar_returns_qfq_prices_using_end_date_factor(tmp_path):
                 "vol": [2000.0],
                 "amount": [42000.0],
             }
-        ),
-    )
-    write_daily_partition(
-        tmp_path / "stock", "adj_factor", "20240102", pd.DataFrame(
+        ))
+    DailyPartitionStore(tmp_path / "stock" / "adj_factor").write("20240102", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "trade_date": ["20240102"],
                 "adj_factor": [2.0],
             }
-        ),
-    )
-    write_daily_partition(
-        tmp_path / "stock", "adj_factor", "20240103", pd.DataFrame(
+        ))
+    DailyPartitionStore(tmp_path / "stock" / "adj_factor").write("20240103", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "trade_date": ["20240103"],
                 "adj_factor": [4.0],
             }
-        ),
-    )
+        ))
 
     pro = LocalPro(tmp_path)
     result = pro.pro_bar(
@@ -486,8 +451,7 @@ def test_pro_bar_returns_qfq_prices_using_end_date_factor(tmp_path):
 
 
 def test_pro_bar_returns_hfq_prices(tmp_path):
-    write_daily_partition(
-        tmp_path / "stock", "daily_kline", "20240102", pd.DataFrame(
+    DailyPartitionStore(tmp_path / "stock" / "daily_kline").write("20240102", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "trade_date": ["20240102"],
@@ -501,17 +465,14 @@ def test_pro_bar_returns_hfq_prices(tmp_path):
                 "vol": [1000.0],
                 "amount": [11000.0],
             }
-        ),
-    )
-    write_daily_partition(
-        tmp_path / "stock", "adj_factor", "20240102", pd.DataFrame(
+        ))
+    DailyPartitionStore(tmp_path / "stock" / "adj_factor").write("20240102", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "trade_date": ["20240102"],
                 "adj_factor": [2.0],
             }
-        ),
-    )
+        ))
 
     pro = LocalPro(tmp_path)
     result = pro.pro_bar(ts_code="000001.SZ", trade_date="20240102", adj="hfq")
@@ -522,8 +483,7 @@ def test_pro_bar_returns_hfq_prices(tmp_path):
 
 
 def test_pro_bar_rounds_adjusted_prices_to_two_decimals(tmp_path):
-    write_daily_partition(
-        tmp_path / "stock", "daily_kline", "20240102", pd.DataFrame(
+    DailyPartitionStore(tmp_path / "stock" / "daily_kline").write("20240102", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "trade_date": ["20240102"],
@@ -537,17 +497,14 @@ def test_pro_bar_rounds_adjusted_prices_to_two_decimals(tmp_path):
                 "vol": [1000.0],
                 "amount": [10000.0],
             }
-        ),
-    )
-    write_daily_partition(
-        tmp_path / "stock", "adj_factor", "20240102", pd.DataFrame(
+        ))
+    DailyPartitionStore(tmp_path / "stock" / "adj_factor").write("20240102", pd.DataFrame(
             {
                 "ts_code": ["000001.SZ"],
                 "trade_date": ["20240102"],
                 "adj_factor": [1.234],
             }
-        ),
-    )
+        ))
 
     pro = LocalPro(tmp_path)
     result = pro.pro_bar(ts_code="000001.SZ", trade_date="20240102", adj="hfq")
@@ -572,8 +529,7 @@ def test_pro_bar_supports_multiple_codes_with_qfq_base_per_stock(tmp_path):
             ],
         ),
     ]:
-        write_daily_partition(
-            tmp_path / "stock", "daily_kline", day, pd.DataFrame(
+        DailyPartitionStore(tmp_path / "stock" / "daily_kline").write(day, pd.DataFrame(
                 {
                     "ts_code": [row[0] for row in rows],
                     "trade_date": [day, day],
@@ -587,21 +543,18 @@ def test_pro_bar_supports_multiple_codes_with_qfq_base_per_stock(tmp_path):
                     "vol": [1000.0, 2000.0],
                     "amount": [10000.0, 20000.0],
                 }
-            ),
-        )
+            ))
     for day, factors in [
         ("20240101", [1.0, 10.0]),
         ("20240102", [2.0, 20.0]),
     ]:
-        write_daily_partition(
-            tmp_path / "stock", "adj_factor", day, pd.DataFrame(
+        DailyPartitionStore(tmp_path / "stock" / "adj_factor").write(day, pd.DataFrame(
                 {
                     "ts_code": ["000001.SZ", "000002.SZ"],
                     "trade_date": [day, day],
                     "adj_factor": factors,
                 }
-            ),
-        )
+            ))
 
     pro = LocalPro(tmp_path)
     result = pro.pro_bar(
@@ -630,7 +583,7 @@ def test_pro_bar_rejects_unsupported_asset_and_freq(tmp_path):
 
 
 def test_index_classify_filters_by_level(tmp_path):
-    write_sw_classify(tmp_path, pd.DataFrame({
+    SnapshotStore(tmp_path / "stock" / "industry" / "sw_classify" / "data.parquet").write(pd.DataFrame({
         "index_code": ["801010.SI", "801016.SI"],
         "industry_name": ["农林牧渔", "种植业"],
         "level": ["L1", "L2"],
@@ -646,7 +599,7 @@ def test_index_classify_filters_by_level(tmp_path):
 
 
 def test_index_classify_filters_by_src(tmp_path):
-    write_sw_classify(tmp_path, pd.DataFrame({
+    SnapshotStore(tmp_path / "stock" / "industry" / "sw_classify" / "data.parquet").write(pd.DataFrame({
         "index_code": ["801010.SI", "801010.SI"],
         "industry_name": ["农林牧渔", "农林牧渔"],
         "level": ["L1", "L1"],
@@ -661,7 +614,7 @@ def test_index_classify_filters_by_src(tmp_path):
 
 
 def test_index_classify_no_filter_returns_all(tmp_path):
-    write_sw_classify(tmp_path, pd.DataFrame({
+    SnapshotStore(tmp_path / "stock" / "industry" / "sw_classify" / "data.parquet").write(pd.DataFrame({
         "index_code": ["801010.SI", "801016.SI"],
         "industry_name": ["农林牧渔", "种植业"],
         "level": ["L1", "L2"],
@@ -676,7 +629,7 @@ def test_index_classify_no_filter_returns_all(tmp_path):
 
 
 def test_index_member_all_filters_by_ts_code(tmp_path):
-    write_sw_member(tmp_path, pd.DataFrame({
+    SnapshotStore(tmp_path / "stock" / "industry" / "sw_member" / "data.parquet").write(pd.DataFrame({
         "l1_code": ["801010.SI", "801030.SI"],
         "l1_name": ["农林牧渔", "化工"],
         "l2_code": ["801016.SI", "801033.SI"],
@@ -696,7 +649,7 @@ def test_index_member_all_filters_by_ts_code(tmp_path):
 
 
 def test_index_member_all_filters_by_is_new(tmp_path):
-    write_sw_member(tmp_path, pd.DataFrame({
+    SnapshotStore(tmp_path / "stock" / "industry" / "sw_member" / "data.parquet").write(pd.DataFrame({
         "l1_code": ["801010.SI", "801010.SI"],
         "l1_name": ["农林牧渔", "农林牧渔"],
         "l2_code": ["801016.SI", "801016.SI"],
@@ -716,7 +669,7 @@ def test_index_member_all_filters_by_is_new(tmp_path):
 
 
 def test_index_member_all_filters_by_l1_code(tmp_path):
-    write_sw_member(tmp_path, pd.DataFrame({
+    SnapshotStore(tmp_path / "stock" / "industry" / "sw_member" / "data.parquet").write(pd.DataFrame({
         "l1_code": ["801010.SI", "801030.SI"],
         "l1_name": ["农林牧渔", "化工"],
         "l2_code": ["801016.SI", "801033.SI"],
@@ -735,7 +688,7 @@ def test_index_member_all_filters_by_l1_code(tmp_path):
 
 
 def test_index_member_all_supports_multi_ts_code(tmp_path):
-    write_sw_member(tmp_path, pd.DataFrame({
+    SnapshotStore(tmp_path / "stock" / "industry" / "sw_member" / "data.parquet").write(pd.DataFrame({
         "l1_code": ["801010.SI", "801030.SI", "801040.SI"],
         "l1_name": ["农林牧渔", "化工", "钢铁"],
         "l2_code": ["801016.SI", "801033.SI", "801043.SI"],
@@ -754,7 +707,7 @@ def test_index_member_all_supports_multi_ts_code(tmp_path):
 
 
 def test_index_member_all_formats_dates(tmp_path):
-    write_sw_member(tmp_path, pd.DataFrame({
+    SnapshotStore(tmp_path / "stock" / "industry" / "sw_member" / "data.parquet").write(pd.DataFrame({
         "l1_code": ["801010.SI"],
         "l1_name": ["农林牧渔"],
         "l2_code": ["801016.SI"],
@@ -774,7 +727,7 @@ def test_index_member_all_formats_dates(tmp_path):
 
 
 def test_ci_index_member_filters_by_ts_code(tmp_path):
-    write_ci_member(tmp_path, pd.DataFrame({
+    SnapshotStore(tmp_path / "stock" / "industry" / "ci_member" / "data.parquet").write(pd.DataFrame({
         "l1_code": ["CI005001.CI", "CI005002.CI"],
         "l1_name": ["农林牧渔", "采掘"],
         "l2_code": ["CI005005.CI", "CI005010.CI"],
@@ -794,7 +747,7 @@ def test_ci_index_member_filters_by_ts_code(tmp_path):
 
 
 def test_ci_index_member_filters_by_is_new(tmp_path):
-    write_ci_member(tmp_path, pd.DataFrame({
+    SnapshotStore(tmp_path / "stock" / "industry" / "ci_member" / "data.parquet").write(pd.DataFrame({
         "l1_code": ["CI005001.CI", "CI005001.CI"],
         "l1_name": ["农林牧渔", "农林牧渔"],
         "l2_code": ["CI005005.CI", "CI005005.CI"],
@@ -813,7 +766,7 @@ def test_ci_index_member_filters_by_is_new(tmp_path):
 
 
 def test_ci_index_member_formats_dates(tmp_path):
-    write_ci_member(tmp_path, pd.DataFrame({
+    SnapshotStore(tmp_path / "stock" / "industry" / "ci_member" / "data.parquet").write(pd.DataFrame({
         "l1_code": ["CI005001.CI"],
         "l1_name": ["农林牧渔"],
         "l2_code": ["CI005005.CI"],
@@ -833,7 +786,7 @@ def test_ci_index_member_formats_dates(tmp_path):
 
 
 def test_query_dispatches_index_classify(tmp_path):
-    write_sw_classify(tmp_path, pd.DataFrame({
+    SnapshotStore(tmp_path / "stock" / "industry" / "sw_classify" / "data.parquet").write(pd.DataFrame({
         "index_code": ["801010.SI"],
         "industry_name": ["农林牧渔"],
         "level": ["L1"],
@@ -848,7 +801,7 @@ def test_query_dispatches_index_classify(tmp_path):
 
 
 def test_query_dispatches_index_member_all(tmp_path):
-    write_sw_member(tmp_path, pd.DataFrame({
+    SnapshotStore(tmp_path / "stock" / "industry" / "sw_member" / "data.parquet").write(pd.DataFrame({
         "l1_code": ["801010.SI"], "l1_name": ["农林牧渔"],
         "l2_code": ["801016.SI"], "l2_name": ["种植业"],
         "l3_code": ["850111.SI"], "l3_name": ["种子"],
@@ -861,7 +814,7 @@ def test_query_dispatches_index_member_all(tmp_path):
 
 
 def test_query_dispatches_ci_index_member(tmp_path):
-    write_ci_member(tmp_path, pd.DataFrame({
+    SnapshotStore(tmp_path / "stock" / "industry" / "ci_member" / "data.parquet").write(pd.DataFrame({
         "l1_code": ["CI005001.CI"], "l1_name": ["农林牧渔"],
         "l2_code": ["CI005005.CI"], "l2_name": ["农产品加工"],
         "l3_code": ["CI005006.CI"], "l3_name": ["粮油加工"],
@@ -909,8 +862,8 @@ def _index_daily_partition(trade_date: str, ts_codes: list[str] | None = None) -
 
 
 def test_index_daily_returns_all_on_no_filter(tmp_path):
-    write_daily_partition(tmp_path / "index", "index_daily", "20240102", _index_daily_partition("20240102"))
-    write_daily_partition(tmp_path / "index", "index_daily", "20240103", _index_daily_partition("20240103"))
+    DailyPartitionStore(tmp_path / "index" / "index_daily").write("20240102", _index_daily_partition("20240102"))
+    DailyPartitionStore(tmp_path / "index" / "index_daily").write("20240103", _index_daily_partition("20240103"))
 
     pro = LocalPro(tmp_path)
     result = pro.index_daily()
@@ -919,7 +872,7 @@ def test_index_daily_returns_all_on_no_filter(tmp_path):
 
 
 def test_index_daily_filters_by_ts_code(tmp_path):
-    write_daily_partition(tmp_path / "index", "index_daily", "20240102", _index_daily_partition("20240102"))
+    DailyPartitionStore(tmp_path / "index" / "index_daily").write("20240102", _index_daily_partition("20240102"))
 
     pro = LocalPro(tmp_path)
     result = pro.index_daily(ts_code="000300.SH")
@@ -929,8 +882,8 @@ def test_index_daily_filters_by_ts_code(tmp_path):
 
 
 def test_index_daily_filters_by_trade_date(tmp_path):
-    write_daily_partition(tmp_path / "index", "index_daily", "20240102", _index_daily_partition("20240102"))
-    write_daily_partition(tmp_path / "index", "index_daily", "20240103", _index_daily_partition("20240103"))
+    DailyPartitionStore(tmp_path / "index" / "index_daily").write("20240102", _index_daily_partition("20240102"))
+    DailyPartitionStore(tmp_path / "index" / "index_daily").write("20240103", _index_daily_partition("20240103"))
 
     pro = LocalPro(tmp_path)
     result = pro.index_daily(trade_date="20240102")
@@ -940,9 +893,9 @@ def test_index_daily_filters_by_trade_date(tmp_path):
 
 
 def test_index_daily_filters_by_date_range(tmp_path):
-    write_daily_partition(tmp_path / "index", "index_daily", "20240102", _index_daily_partition("20240102"))
-    write_daily_partition(tmp_path / "index", "index_daily", "20240103", _index_daily_partition("20240103"))
-    write_daily_partition(tmp_path / "index", "index_daily", "20240104", _index_daily_partition("20240104"))
+    DailyPartitionStore(tmp_path / "index" / "index_daily").write("20240102", _index_daily_partition("20240102"))
+    DailyPartitionStore(tmp_path / "index" / "index_daily").write("20240103", _index_daily_partition("20240103"))
+    DailyPartitionStore(tmp_path / "index" / "index_daily").write("20240104", _index_daily_partition("20240104"))
 
     pro = LocalPro(tmp_path)
     result = pro.index_daily(start_date="20240102", end_date="20240103")
@@ -960,7 +913,7 @@ def test_index_daily_raises_when_data_missing(tmp_path):
 
 
 def test_index_daily_fields_filter(tmp_path):
-    write_daily_partition(tmp_path / "index", "index_daily", "20240102", _index_daily_partition("20240102"))
+    DailyPartitionStore(tmp_path / "index" / "index_daily").write("20240102", _index_daily_partition("20240102"))
 
     pro = LocalPro(tmp_path)
     result = pro.index_daily(ts_code="000300.SH", fields="ts_code,trade_date,close")
@@ -969,7 +922,7 @@ def test_index_daily_fields_filter(tmp_path):
 
 
 def test_index_daily_in_query_dispatch(tmp_path):
-    write_daily_partition(tmp_path / "index", "index_daily", "20240102", _index_daily_partition("20240102"))
+    DailyPartitionStore(tmp_path / "index" / "index_daily").write("20240102", _index_daily_partition("20240102"))
 
     pro = LocalPro(tmp_path)
     result = pro.query("index_daily", ts_code="000300.SH")
@@ -979,7 +932,7 @@ def test_index_daily_in_query_dispatch(tmp_path):
 
 # --- Futures API tests ---
 
-from zer0share.storage import write_daily_partition
+from zer0share.storage import DailyPartitionStore
 from zer0share.fetcher import (
     FUT_BASIC_COLS, FUT_DAILY_COLS, FUT_HOLDING_COLS,
     FUT_WSR_COLS, FUT_SETTLE_COLS, FUT_MAPPING_COLS,
@@ -1010,7 +963,7 @@ def _write_fut_daily_data(data_dir, trade_date, ts_codes=None):
         })
     df = pd.DataFrame(rows)
     futures_dir = data_dir / "futures"
-    write_daily_partition(futures_dir, "fut_daily", trade_date, df)
+    DailyPartitionStore(futures_dir / "fut_daily").write(trade_date, df)
     return df
 
 
@@ -1112,7 +1065,7 @@ def test_fut_holding_query_returns_data(tmp_path):
         "short_chg": [-100, 300],
         "exchange": ["SHFE", "SHFE"],
     })
-    write_daily_partition(tmp_path / "futures", "fut_holding", "20240102", df)
+    DailyPartitionStore(tmp_path / "futures" / "fut_holding").write("20240102", df)
 
     result = api.fut_holding(trade_date="20240102")
     assert len(result) == 2
@@ -1125,7 +1078,7 @@ def test_fut_mapping_query_returns_data(tmp_path):
         "trade_date": ["20240102", "20240102"],
         "mapping_ts_code": ["CU2401.SHF", "AG2401.SHF"],
     })
-    write_daily_partition(tmp_path / "futures", "fut_mapping", "20240102", df)
+    DailyPartitionStore(tmp_path / "futures" / "fut_mapping").write("20240102", df)
 
     result = api.fut_mapping(trade_date="20240102")
     assert len(result) == 2
@@ -1150,7 +1103,7 @@ def test_ft_limit_query_returns_data(tmp_path):
         "up_limit": [51000.0], "down_limit": [49000.0],
         "m_ratio": [0.10], "cont": ["CU"], "exchange": ["SHFE"],
     })
-    write_daily_partition(tmp_path / "futures", "ft_limit", "20240102", df)
+    DailyPartitionStore(tmp_path / "futures" / "ft_limit").write("20240102", df)
 
     result = api.ft_limit(trade_date="20240102")
     assert len(result) == 1
@@ -1166,7 +1119,7 @@ def test_fut_weekly_query_returns_data(tmp_path):
         "amount": [251250.0], "oi": [50000.0], "oi_chg": [500.0],
         "exchange": ["SHFE"], "change1": [200.0], "change2": [150.0],
     })
-    write_daily_partition(tmp_path / "futures", "fut_weekly", "20240102", df)
+    DailyPartitionStore(tmp_path / "futures" / "fut_weekly").write("20240102", df)
 
     result = api.fut_weekly(trade_date="20240102")
     assert len(result) == 1
@@ -1182,7 +1135,7 @@ def test_fut_monthly_query_returns_data(tmp_path):
         "amount": [251250.0], "oi": [50000.0], "oi_chg": [500.0],
         "exchange": ["SHFE"], "change1": [200.0], "change2": [150.0],
     })
-    write_daily_partition(tmp_path / "futures", "fut_monthly", "20240102", df)
+    DailyPartitionStore(tmp_path / "futures" / "fut_monthly").write("20240102", df)
 
     result = api.fut_monthly(trade_date="20240102")
     assert len(result) == 1
@@ -1199,7 +1152,7 @@ def test_fut_index_daily_query_returns_data(tmp_path):
         "pct_chg": [0.2, 0.25], "vol": [50000.0, 30000.0],
         "amount": [50000000.0, 24000000.0],
     })
-    write_daily_partition(tmp_path / "futures", "fut_index_daily", "20240102", df)
+    DailyPartitionStore(tmp_path / "futures" / "fut_index_daily").write("20240102", df)
 
     result = api.fut_index_daily(trade_date="20240102")
     assert len(result) == 2
@@ -1219,7 +1172,7 @@ def test_fut_weekly_detail_query_returns_data(tmp_path):
         "mc_close": [50300.0, 5000.0], "close_wow": [0.5, -0.3],
         "week": ["202401", "202401"], "week_date": ["20240101", "20240101"],
     })
-    write_daily_partition(tmp_path / "futures", "fut_weekly_detail", "20240101", df)
+    DailyPartitionStore(tmp_path / "futures" / "fut_weekly_detail").write("20240101", df)
 
     result = api.fut_weekly_detail()
     assert len(result) == 2
@@ -1232,7 +1185,7 @@ def test_batch2_query_dispatch(tmp_path):
         "name": ["沪铜2401"], "up_limit": [51000.0], "down_limit": [49000.0],
         "m_ratio": [0.10], "cont": ["CU"], "exchange": ["SHFE"],
     })
-    write_daily_partition(tmp_path / "futures", "ft_limit", "20240102", df)
+    DailyPartitionStore(tmp_path / "futures" / "ft_limit").write("20240102", df)
 
     result = api.query("ft_limit", trade_date="20240102")
     assert len(result) == 1
@@ -1263,7 +1216,7 @@ def _write_opt_daily_data(data_dir, trade_date, ts_codes=None):
             "oi": 20000.0,
         })
     df = pd.DataFrame(rows)
-    write_daily_partition(data_dir / "options", "opt_daily", trade_date, df)
+    DailyPartitionStore(data_dir / "options" / "opt_daily").write(trade_date, df)
     return df
 
 
@@ -1292,7 +1245,7 @@ def _make_opt_basic_df():
 
 
 def test_opt_basic_query_returns_data(tmp_path):
-    write_opt_basic(tmp_path / "options", _make_opt_basic_df())
+    SnapshotStore(tmp_path / "options" / "opt_basic" / "data.parquet").write(_make_opt_basic_df())
 
     api = LocalPro(tmp_path)
     result = api.opt_basic()
@@ -1305,7 +1258,7 @@ def test_opt_basic_query_returns_data(tmp_path):
 
 
 def test_opt_basic_query_filters_by_call_put(tmp_path):
-    write_opt_basic(tmp_path / "options", _make_opt_basic_df())
+    SnapshotStore(tmp_path / "options" / "opt_basic" / "data.parquet").write(_make_opt_basic_df())
 
     api = LocalPro(tmp_path)
     result = api.opt_basic(call_put="C")
@@ -1314,7 +1267,7 @@ def test_opt_basic_query_filters_by_call_put(tmp_path):
 
 
 def test_opt_basic_filters_by_name_and_list_date(tmp_path):
-    write_opt_basic(tmp_path / "options", _make_opt_basic_df())
+    SnapshotStore(tmp_path / "options" / "opt_basic" / "data.parquet").write(_make_opt_basic_df())
 
     api = LocalPro(tmp_path)
     result = api.opt_basic(
@@ -1341,7 +1294,7 @@ def test_opt_basic_filters_by_name_and_list_date(tmp_path):
 
 
 def test_opt_basic_supports_limit_and_offset(tmp_path):
-    write_opt_basic(tmp_path / "options", _make_opt_basic_df())
+    SnapshotStore(tmp_path / "options" / "opt_basic" / "data.parquet").write(_make_opt_basic_df())
 
     api = LocalPro(tmp_path)
     result = api.opt_basic(limit=1, offset=1, fields="ts_code")
@@ -1352,7 +1305,7 @@ def test_opt_basic_supports_limit_and_offset(tmp_path):
 
 
 def test_opt_basic_combines_new_filters_with_fields(tmp_path):
-    write_opt_basic(tmp_path / "options", _make_opt_basic_df())
+    SnapshotStore(tmp_path / "options" / "opt_basic" / "data.parquet").write(_make_opt_basic_df())
 
     api = LocalPro(tmp_path)
     result = api.opt_basic(
@@ -1423,7 +1376,7 @@ def test_opt_daily_query_filters_by_exchange(tmp_path):
         "close": 0.205, "settle": 0.204,
         "vol": 3000.0, "amount": 6120000.0, "oi": 10000.0,
     })
-    write_daily_partition(tmp_path / "options", "opt_daily", "20240102", pd.DataFrame(rows))
+    DailyPartitionStore(tmp_path / "options" / "opt_daily").write("20240102", pd.DataFrame(rows))
 
     api = LocalPro(tmp_path)
     result = api.opt_daily(trade_date="20240102", exchange="SSE")
@@ -1455,7 +1408,7 @@ def test_query_dispatch_supports_options(tmp_path):
 
 
 def test_query_dispatch_supports_opt_basic(tmp_path):
-    write_opt_basic(tmp_path / "options", _make_opt_basic_df().head(1))
+    SnapshotStore(tmp_path / "options" / "opt_basic" / "data.parquet").write(_make_opt_basic_df().head(1))
 
     api = LocalPro(tmp_path)
     result = api.query("opt_basic")

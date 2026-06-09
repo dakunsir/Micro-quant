@@ -137,48 +137,6 @@ class MetaStore:
         self._conn.close()
 
 
-def write_daily_partition(
-    data_dir: Path, table_name: str, trade_date: str, df: pd.DataFrame
-) -> None:
-    trade_date = _date_str(trade_date)
-    partition_dir = data_dir / table_name / f"date={trade_date}"
-    partition_dir.mkdir(parents=True, exist_ok=True)
-    table = pa.Table.from_pandas(df, preserve_index=False)
-    pq.write_table(table, partition_dir / "data.parquet")
-
-
-def daily_partition_exists(data_dir: Path, table_name: str, trade_date: str) -> bool:
-    trade_date = _date_str(trade_date)
-    path = data_dir / table_name / f"date={trade_date}" / "data.parquet"
-    return path.exists()
-
-
-def read_daily_partition(data_dir: Path, table_name: str, trade_date: str) -> pd.DataFrame:
-    trade_date = _date_str(trade_date)
-    path = data_dir / table_name / f"date={trade_date}" / "data.parquet"
-    if not path.exists():
-        return pd.DataFrame()
-    return pq.read_table(path).to_pandas()
-
-
-def write_index_weight(data_dir: Path, index_code: str, trade_date: str, df: pd.DataFrame) -> None:
-    trade_date = _date_str(trade_date)
-    partition_dir = (
-        data_dir / "index" / "index_weight" / f"index_code={index_code}" / f"date={trade_date}"
-    )
-    partition_dir.mkdir(parents=True, exist_ok=True)
-    table = pa.Table.from_pandas(df, preserve_index=False)
-    pq.write_table(table, partition_dir / "data.parquet")
-
-
-def index_weight_partition_exists(data_dir: Path, index_code: str, trade_date: str) -> bool:
-    trade_date = _date_str(trade_date)
-    path = (
-        data_dir / "index" / "index_weight" / f"index_code={index_code}" / f"date={trade_date}" / "data.parquet"
-    )
-    return path.exists()
-
-
 def write_universe(data_dir: Path, universe_name: str, trade_date: str, df: pd.DataFrame) -> None:
     trade_date = _date_str(trade_date)
     partition_dir = (
@@ -187,27 +145,6 @@ def write_universe(data_dir: Path, universe_name: str, trade_date: str, df: pd.D
     partition_dir.mkdir(parents=True, exist_ok=True)
     table = pa.Table.from_pandas(df, preserve_index=False)
     pq.write_table(table, partition_dir / "data.parquet")
-
-
-def write_basic(data_dir: Path, df: pd.DataFrame) -> None:
-    basic_dir = data_dir / "stock" / "basic"
-    basic_dir.mkdir(parents=True, exist_ok=True)
-    table = pa.Table.from_pandas(df, preserve_index=False)
-    pq.write_table(table, basic_dir / "data.parquet")
-
-
-def read_basic(data_dir: Path) -> pd.DataFrame:
-    path = data_dir / "stock" / "basic" / "data.parquet"
-    if not path.exists():
-        return pd.DataFrame()
-    return pq.read_table(path).to_pandas()
-
-
-def write_opt_basic(data_dir: Path, df: pd.DataFrame) -> None:
-    opt_basic_dir = data_dir / "opt_basic"
-    opt_basic_dir.mkdir(parents=True, exist_ok=True)
-    table = pa.Table.from_pandas(df, preserve_index=False)
-    pq.write_table(table, opt_basic_dir / "data.parquet")
 
 
 def write_trade_cal(data_dir: Path, exchange: str, df: pd.DataFrame) -> None:
@@ -222,48 +159,6 @@ def read_trade_cal(data_dir: Path, exchange: str) -> pd.DataFrame:
     if not path.exists():
         return pd.DataFrame()
     return pq.read_table(path, schema=pq.read_schema(path)).to_pandas()
-
-
-def write_sw_classify(data_dir: Path, df: pd.DataFrame) -> None:
-    classify_dir = data_dir / "stock" / "industry" / "sw_classify"
-    classify_dir.mkdir(parents=True, exist_ok=True)
-    table = pa.Table.from_pandas(df, preserve_index=False)
-    pq.write_table(table, classify_dir / "data.parquet")
-
-
-def read_sw_classify(data_dir: Path) -> pd.DataFrame:
-    path = data_dir / "stock" / "industry" / "sw_classify" / "data.parquet"
-    if not path.exists():
-        return pd.DataFrame()
-    return pq.read_table(path).to_pandas()
-
-
-def write_sw_member(data_dir: Path, df: pd.DataFrame) -> None:
-    member_dir = data_dir / "stock" / "industry" / "sw_member"
-    member_dir.mkdir(parents=True, exist_ok=True)
-    table = pa.Table.from_pandas(df, preserve_index=False)
-    pq.write_table(table, member_dir / "data.parquet")
-
-
-def read_sw_member(data_dir: Path) -> pd.DataFrame:
-    path = data_dir / "stock" / "industry" / "sw_member" / "data.parquet"
-    if not path.exists():
-        return pd.DataFrame()
-    return pq.read_table(path).to_pandas()
-
-
-def write_ci_member(data_dir: Path, df: pd.DataFrame) -> None:
-    member_dir = data_dir / "stock" / "industry" / "ci_member"
-    member_dir.mkdir(parents=True, exist_ok=True)
-    table = pa.Table.from_pandas(df, preserve_index=False)
-    pq.write_table(table, member_dir / "data.parquet")
-
-
-def read_ci_member(data_dir: Path) -> pd.DataFrame:
-    path = data_dir / "stock" / "industry" / "ci_member" / "data.parquet"
-    if not path.exists():
-        return pd.DataFrame()
-    return pq.read_table(path).to_pandas()
 
 
 class DailyPartitionStore:
