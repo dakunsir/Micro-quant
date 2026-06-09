@@ -61,7 +61,8 @@ def index_member_all(ctx: QueryContext, l1_code=None, l2_code=None, l3_code=None
     return repo.query(fields=fields, filters=filters, limit=limit, offset=offset)
 
 
-def ci_index_member(ctx: QueryContext, l1_code=None, ts_code=None, is_new=None, fields=None,
+def ci_index_member(ctx: QueryContext, l1_code=None, l2_code=None, l3_code=None,
+                    ts_code=None, is_new=None, fields=None,
                     limit: int | None = None, offset: int | None = None) -> pd.DataFrame:
     """Query China Securities Index (CI) industry membership."""
     repo = BaseParquetRepository(
@@ -78,6 +79,10 @@ def ci_index_member(ctx: QueryContext, l1_code=None, ts_code=None, is_new=None, 
     filters = []
     if l1_code is not None:
         filters.append(eq_filter("l1_code", l1_code, CI_MEMBER_COLS))
+    if l2_code is not None:
+        filters.append(eq_filter("l2_code", l2_code, CI_MEMBER_COLS))
+    if l3_code is not None:
+        filters.append(eq_filter("l3_code", l3_code, CI_MEMBER_COLS))
     if ts_code is not None:
         filters.append(in_filter("ts_code", ts_code, CI_MEMBER_COLS))
     if is_new is not None:
