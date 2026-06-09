@@ -271,11 +271,10 @@ def test_sync_basic_failure_sends_alert_and_raises(pipeline, cfg, fetcher, notif
     assert "basic 同步失败" in msg
 
 
-def test_sync_basic_skips_non_trading_day(pipeline, cfg, fetcher, notifier):
+def test_sync_basic_runs_on_non_trading_day(pipeline, cfg, fetcher, notifier):
     _setup_non_trading_day(pipeline, cfg)
     pipeline.run("basic")
-    fetcher.fetch_basic.assert_not_called()
-    notifier.send.assert_not_called()
+    fetcher.fetch_basic.assert_called_once()
 
 
 # ---------------------------------------------------------------------------

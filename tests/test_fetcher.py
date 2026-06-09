@@ -193,7 +193,7 @@ def test_fetch_trade_cal_uses_date_range(mock_pro):
     })
     fetcher = TushareFetcher("fake_token")
 
-    fetcher.fetch_trade_cal("SSE", date(2024, 1, 1), date(2024, 12, 31))
+    fetcher.fetch_trade_cal("SSE", "20240101", "20241231")
 
     mock_pro.trade_cal.assert_called_once_with(
         exchange="SSE",
@@ -510,7 +510,7 @@ def test_fetch_index_daily_calls_api_with_correct_params(mock_pro):
     mock_pro.index_daily.return_value = pd.DataFrame([_index_daily_row()])
     fetcher = TushareFetcher("fake_token")
 
-    fetcher.fetch_index_daily("000300.SH", date(2024, 1, 1), date(2024, 1, 31))
+    fetcher.fetch_index_daily("000300.SH", "20240101", "20240131")
 
     mock_pro.index_daily.assert_called_once_with(
         ts_code="000300.SH",
@@ -679,7 +679,7 @@ def test_fetch_fut_daily_calls_api_with_date(mock_pro):
     mock_pro.fut_daily.return_value = pd.DataFrame([_fut_daily_row()])
     fetcher = TushareFetcher("fake_token")
 
-    fetcher.fetch_fut_daily(date(2024, 1, 2))
+    fetcher.fetch_fut_daily("20240102")
 
     mock_pro.fut_daily.assert_called_once_with(
         trade_date="20240102",
@@ -811,7 +811,7 @@ def test_fetch_ft_limit_calls_api_correctly(mock_pro):
     })
     fetcher = TushareFetcher("fake_token")
 
-    fetcher.fetch_ft_limit(date(2024, 1, 2))
+    fetcher.fetch_ft_limit("20240102")
 
     mock_pro.ft_limit.assert_called_once_with(
         trade_date="20240102",
@@ -861,7 +861,7 @@ def test_fetch_fut_weekly_calls_api_with_freq_week(mock_pro):
     })
     fetcher = TushareFetcher("fake_token")
 
-    fetcher.fetch_fut_weekly(date(2024, 1, 2))
+    fetcher.fetch_fut_weekly("20240102")
 
     mock_pro.fut_weekly_monthly.assert_called_once_with(
         trade_date="20240102", freq="week", fields=",".join(FUT_WEEKLY_COLS),
@@ -879,7 +879,7 @@ def test_fetch_fut_monthly_calls_api_with_freq_month(mock_pro):
     })
     fetcher = TushareFetcher("fake_token")
 
-    fetcher.fetch_fut_monthly(date(2024, 1, 2))
+    fetcher.fetch_fut_monthly("20240102")
 
     mock_pro.fut_weekly_monthly.assert_called_once_with(
         trade_date="20240102", freq="month", fields=",".join(FUT_MONTHLY_COLS),
@@ -911,10 +911,11 @@ def test_fetch_fut_index_daily_calls_api_with_trade_date(mock_pro):
     })
     fetcher = TushareFetcher("fake_token")
 
-    fetcher.fetch_fut_index_daily(date(2024, 1, 2))
+    fetcher.fetch_fut_index_daily("20240102")
 
-    mock_pro.fut_index_daily.assert_called_once_with(
-        trade_date="20240102", fields=",".join(FUT_INDEX_DAILY_COLS),
+    assert mock_pro.fut_index_daily.call_count == 3
+    mock_pro.fut_index_daily.assert_any_call(
+        ts_code="NHCI.NH", trade_date="20240102", fields=",".join(FUT_INDEX_DAILY_COLS),
     )
 
 
@@ -1102,7 +1103,7 @@ def test_fetch_opt_daily_calls_api_with_date(mock_pro):
     fetcher = TushareFetcher("fake_token")
 
     with patch("zer0share.fetcher.time.sleep"):
-        fetcher.fetch_opt_daily(date(2024, 1, 2))
+        fetcher.fetch_opt_daily("20240102")
 
     assert mock_pro.opt_daily.call_count == 6
     for exchange in ("SSE", "SZSE", "CFFEX", "DCE", "SHFE", "CZCE"):

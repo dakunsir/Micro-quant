@@ -67,7 +67,7 @@ def test_build_universe_detail_applies_core_filters(tmp_path):
         if day == trade_date:
             df.loc[df["ts_code"] == "000004.SZ", ["open", "high", "low", "close"]] = 12.0
             df.loc[df["ts_code"] == "000007.SZ", ["open", "high", "low", "close"]] = 8.0
-        write_daily_partition(tmp_path, "daily_kline", day, df)
+        write_daily_partition(tmp_path / "stock", "daily_kline", day, df)
 
     daily_basic = pd.DataFrame(
         {
@@ -91,9 +91,9 @@ def test_build_universe_detail_applies_core_filters(tmp_path):
             "circ_mv": list(range(20, 0, -1)),
         }
     )
-    write_daily_partition(tmp_path, "daily_basic", trade_date, daily_basic)
+    write_daily_partition(tmp_path / "stock", "daily_basic", trade_date, daily_basic)
     write_daily_partition(
-        tmp_path,
+        tmp_path / "stock",
         "stock_st",
         trade_date,
         pd.DataFrame(
@@ -107,7 +107,7 @@ def test_build_universe_detail_applies_core_filters(tmp_path):
         ),
     )
     write_daily_partition(
-        tmp_path,
+        tmp_path / "stock",
         "suspend_d",
         trade_date,
         pd.DataFrame(
@@ -120,7 +120,7 @@ def test_build_universe_detail_applies_core_filters(tmp_path):
         ),
     )
     write_daily_partition(
-        tmp_path,
+        tmp_path / "stock",
         "stk_limit",
         trade_date,
         pd.DataFrame(
@@ -151,7 +151,7 @@ def test_build_universes_writes_index_intersections(tmp_path):
     write_basic(tmp_path, _basic(codes, trade_date))
     for offset in range(20):
         day = trade_date - timedelta(days=19 - offset)
-        write_daily_partition(tmp_path, "daily_kline", day, _daily(codes, day))
+        write_daily_partition(tmp_path / "stock", "daily_kline", day, _daily(codes, day))
 
     daily_basic = pd.DataFrame(
         {
@@ -175,11 +175,11 @@ def test_build_universes_writes_index_intersections(tmp_path):
             "circ_mv": list(range(1, 21)),
         }
     )
-    write_daily_partition(tmp_path, "daily_basic", trade_date, daily_basic)
-    write_daily_partition(tmp_path, "stock_st", trade_date, pd.DataFrame(columns=["ts_code", "name", "trade_date", "type", "type_name"]))
-    write_daily_partition(tmp_path, "suspend_d", trade_date, pd.DataFrame(columns=["ts_code", "trade_date", "suspend_timing", "suspend_type"]))
+    write_daily_partition(tmp_path / "stock", "daily_basic", trade_date, daily_basic)
+    write_daily_partition(tmp_path / "stock", "stock_st", trade_date, pd.DataFrame(columns=["ts_code", "name", "trade_date", "type", "type_name"]))
+    write_daily_partition(tmp_path / "stock", "suspend_d", trade_date, pd.DataFrame(columns=["ts_code", "trade_date", "suspend_timing", "suspend_type"]))
     write_daily_partition(
-        tmp_path,
+        tmp_path / "stock",
         "stk_limit",
         trade_date,
         pd.DataFrame(
@@ -211,7 +211,7 @@ def test_build_universes_writes_index_intersections(tmp_path):
 
     assert counts["univ_trade_hs300"] == 1
     hs300 = pd.read_parquet(
-        tmp_path / "universe" / "name=univ_trade_hs300" / "date=20240130" / "data.parquet"
+        tmp_path / "stock" / "universe" / "name=univ_trade_hs300" / "date=20240130" / "data.parquet"
     )
     assert hs300["ts_code"].tolist() == ["000002.SZ"]
 
@@ -236,11 +236,11 @@ def test_build_universes_range_skips_existing_partitions(tmp_path):
 
     for offset in range(21):
         day = second_date - timedelta(days=20 - offset)
-        write_daily_partition(tmp_path, "daily_kline", day, _daily(codes, day))
+        write_daily_partition(tmp_path / "stock", "daily_kline", day, _daily(codes, day))
 
     for trade_date in [first_date, second_date]:
         write_daily_partition(
-            tmp_path,
+            tmp_path / "stock",
             "daily_basic",
             trade_date,
             pd.DataFrame(
@@ -267,19 +267,19 @@ def test_build_universes_range_skips_existing_partitions(tmp_path):
             ),
         )
         write_daily_partition(
-            tmp_path,
+            tmp_path / "stock",
             "stock_st",
             trade_date,
             pd.DataFrame(columns=["ts_code", "name", "trade_date", "type", "type_name"]),
         )
         write_daily_partition(
-            tmp_path,
+            tmp_path / "stock",
             "suspend_d",
             trade_date,
             pd.DataFrame(columns=["ts_code", "trade_date", "suspend_timing", "suspend_type"]),
         )
         write_daily_partition(
-            tmp_path,
+            tmp_path / "stock",
             "stk_limit",
             trade_date,
             pd.DataFrame(
@@ -315,6 +315,7 @@ def test_build_universes_range_skips_existing_partitions(tmp_path):
     assert summary["skipped_days"] == 1
     assert (
         tmp_path
+        / "stock"
         / "universe"
         / "name=univ_trade_base"
         / "date=20240131"
@@ -385,11 +386,11 @@ def test_build_universes_range_defaults_end_to_latest_complete_source_date(tmp_p
     )
     for offset in range(20):
         day = complete_date - timedelta(days=19 - offset)
-        write_daily_partition(tmp_path, "daily_kline", day, _daily(codes, day))
-    write_daily_partition(tmp_path, "daily_kline", incomplete_date, _daily(codes, incomplete_date))
+        write_daily_partition(tmp_path / "stock", "daily_kline", day, _daily(codes, day))
+    write_daily_partition(tmp_path / "stock", "daily_kline", incomplete_date, _daily(codes, incomplete_date))
 
     write_daily_partition(
-        tmp_path,
+        tmp_path / "stock",
         "daily_basic",
         complete_date,
         pd.DataFrame(
@@ -416,19 +417,19 @@ def test_build_universes_range_defaults_end_to_latest_complete_source_date(tmp_p
         ),
     )
     write_daily_partition(
-        tmp_path,
+        tmp_path / "stock",
         "stock_st",
         complete_date,
         pd.DataFrame(columns=["ts_code", "name", "trade_date", "type", "type_name"]),
     )
     write_daily_partition(
-        tmp_path,
+        tmp_path / "stock",
         "suspend_d",
         complete_date,
         pd.DataFrame(columns=["ts_code", "trade_date", "suspend_timing", "suspend_type"]),
     )
     write_daily_partition(
-        tmp_path,
+        tmp_path / "stock",
         "stk_limit",
         complete_date,
         pd.DataFrame(
@@ -488,7 +489,7 @@ def test_build_universes_range_defaults_start_after_latest_complete_universe(tmp
     for table_name in ["daily_kline", "daily_basic", "stock_st", "suspend_d", "stk_limit"]:
         for trade_date in [complete_date, next_date]:
             write_daily_partition(
-                tmp_path,
+                tmp_path / "stock",
                 table_name,
                 trade_date,
                 pd.DataFrame({"ts_code": ["000001.SZ"], "trade_date": [trade_date]}),

@@ -154,7 +154,7 @@ def test_write_and_read_trade_cal(tmp_path):
     write_trade_cal(tmp_path, "SSE", df)
     result = read_trade_cal(tmp_path, "SSE")
     assert len(result) == 2
-    assert (tmp_path / "trade_cal" / "exchange=SSE" / "data.parquet").exists()
+    assert (tmp_path / "stock" / "trade_cal" / "exchange=SSE" / "data.parquet").exists()
 
 
 def test_read_trade_cal_returns_empty_if_not_exists(tmp_path):
@@ -269,7 +269,7 @@ def test_write_and_read_sw_classify(tmp_path):
     result = read_sw_classify(tmp_path)
     assert len(result) == 2
     assert result.iloc[0]["industry_name"] == "农林牧渔"
-    assert (tmp_path / "industry" / "sw_classify" / "data.parquet").exists()
+    assert (tmp_path / "stock" / "industry" / "sw_classify" / "data.parquet").exists()
 
 
 def test_sw_classify_overwrites_on_second_write(tmp_path):
@@ -326,7 +326,7 @@ def test_write_and_read_sw_member(tmp_path):
     result = read_sw_member(tmp_path)
     assert len(result) == 2
     assert result.iloc[0]["ts_code"] == "002041.SZ"
-    assert (tmp_path / "industry" / "sw_member" / "data.parquet").exists()
+    assert (tmp_path / "stock" / "industry" / "sw_member" / "data.parquet").exists()
 
 
 def test_sw_member_overwrites_on_second_write(tmp_path):
@@ -391,7 +391,7 @@ def test_write_and_read_ci_member(tmp_path):
     result = read_ci_member(tmp_path)
     assert len(result) == 2
     assert result.iloc[0]["ts_code"] == "000876.SZ"
-    assert (tmp_path / "industry" / "ci_member" / "data.parquet").exists()
+    assert (tmp_path / "stock" / "industry" / "ci_member" / "data.parquet").exists()
 
 
 def test_ci_member_overwrites_on_second_write(tmp_path):

@@ -13,7 +13,7 @@ import pyarrow.parquet as pq
 
 
 def _write_trade_cal_fixture(data_dir, exchange, df):
-    cal_dir = data_dir / "trade_cal" / f"exchange={exchange}"
+    cal_dir = data_dir / "stock" / "trade_cal" / f"exchange={exchange}"
     cal_dir.mkdir(parents=True, exist_ok=True)
     pq.write_table(pa.Table.from_pandas(df, preserve_index=False), cal_dir / "data.parquet")
 
