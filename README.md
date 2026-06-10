@@ -402,7 +402,7 @@ log_path = "logs/pipeline.log"
 trade_cal         = "02:00"
 basic             = "02:05"
 # 盘前 — Tushare 盘前推送
-stk_limit         = "08:50"   # 8:40 ready
+stk_limit         = "09:15"   # 8:40 ready; delayed to avoid early empty responses
 adj_factor        = "09:25"   # 9:15~9:20 ready
 stock_st          = "09:28"   # 9:20 ready
 # 收盘后第一波 — 日线行情（15:00~16:00 ready）
