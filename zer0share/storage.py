@@ -143,6 +143,11 @@ def write_universe(data_dir: Path, universe_name: str, trade_date: str, df: pd.D
         data_dir / "stock" / "universe" / f"name={universe_name}" / f"date={trade_date}"
     )
     partition_dir.mkdir(parents=True, exist_ok=True)
+    if "trade_date" in df.columns:
+        # 与其他表保持一致：trade_date 统一存为 YYYYMMDD 字符串
+        df = df.assign(
+            trade_date=pd.to_datetime(df["trade_date"]).dt.strftime("%Y%m%d")
+        )
     table = pa.Table.from_pandas(df, preserve_index=False)
     pq.write_table(table, partition_dir / "data.parquet")
 
