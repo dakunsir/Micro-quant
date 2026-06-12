@@ -283,10 +283,13 @@ def _rolling_avg_amount_20d(data_dir: Path, trade_date: dt.date) -> pd.DataFrame
     sql = """
         SELECT ts_code, trade_date, amount
         FROM read_parquet(?, hive_partitioning=true)
-        WHERE trade_date >= ? AND trade_date <= ?
+        WHERE replace(CAST(trade_date AS VARCHAR), '-', '') >= ?
+          AND replace(CAST(trade_date AS VARCHAR), '-', '') <= ?
         ORDER BY ts_code, trade_date
     """
-    daily = duckdb.connect().execute(sql, [str(pattern), start, trade_date]).fetchdf()
+    daily = duckdb.connect().execute(
+        sql, [str(pattern), start.strftime("%Y%m%d"), trade_date.strftime("%Y%m%d")]
+    ).fetchdf()
     if daily.empty:
         return pd.DataFrame(columns=["ts_code", "avg_amount_20d"])
     tail = daily.groupby("ts_code", group_keys=False).tail(20)
@@ -303,10 +306,13 @@ def _latest_index_members(data_dir: Path, index_code: str, trade_date: dt.date) 
     sql = """
         SELECT con_code, trade_date
         FROM read_parquet(?, hive_partitioning=true)
-        WHERE index_code = ? AND trade_date <= ?
+        WHERE index_code = ?
+          AND replace(CAST(trade_date AS VARCHAR), '-', '') <= ?
         QUALIFY trade_date = max(trade_date) OVER ()
     """
-    df = duckdb.connect().execute(sql, [str(pattern), index_code, trade_date]).fetchdf()
+    df = duckdb.connect().execute(
+        sql, [str(pattern), index_code, trade_date.strftime("%Y%m%d")]
+    ).fetchdf()
     return set(df["con_code"]) if not df.empty else set()
 
 
