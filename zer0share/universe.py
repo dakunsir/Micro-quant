@@ -112,12 +112,13 @@ def _open_trading_days(data_dir: Path, start: dt.date, end: dt.date) -> list[dt.
         raise FileNotFoundError(
             "SSE trade_cal data not found; run `python main.py sync --table trade_cal` first"
         )
+    cal_dates = pd.to_datetime(trade_cal["cal_date"], format="%Y%m%d").dt.date
     mask = (
-        (trade_cal["cal_date"] >= start)
-        & (trade_cal["cal_date"] <= end)
+        (cal_dates >= start)
+        & (cal_dates <= end)
         & (trade_cal["is_open"] == True)
     )
-    return sorted(trade_cal.loc[mask, "cal_date"].tolist())
+    return sorted(cal_dates[mask].tolist())
 
 
 def _universe_partitions_exist(data_dir: Path, trade_date: dt.date) -> bool:
