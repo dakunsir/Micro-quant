@@ -105,14 +105,14 @@ uv run python main.py sync --table opt_daily          # 期权日线行情
 首次验证建议先同步一个小区间，确认 Tushare 权限和字段可用后再全量回填：
 
 ```bash
-uv run python main.py sync --table daily_basic --start-date 2024-01-01 --end-date 2024-01-31
-uv run python main.py sync --table stock_st --start-date 2024-01-01 --end-date 2024-01-31
-uv run python main.py sync --table suspend_d --start-date 2024-01-01 --end-date 2024-01-31
-uv run python main.py sync --table stk_limit --start-date 2024-01-01 --end-date 2024-01-31
-uv run python main.py sync --table index_weight --start-date 2024-01-01 --end-date 2024-01-31
-uv run python main.py sync --table fut_daily --start-date 2024-01-01 --end-date 2024-01-31
-uv run python main.py sync --table ft_limit --start-date 2024-01-01 --end-date 2024-01-31
-uv run python main.py sync --table opt_daily --start-date 2024-01-01 --end-date 2024-01-31
+uv run python main.py sync --table daily_basic --start-date 20240101 --end-date 20240131
+uv run python main.py sync --table stock_st --start-date 20240101 --end-date 20240131
+uv run python main.py sync --table suspend_d --start-date 20240101 --end-date 20240131
+uv run python main.py sync --table stk_limit --start-date 20240101 --end-date 20240131
+uv run python main.py sync --table index_weight --start-date 20240101 --end-date 20240131
+uv run python main.py sync --table fut_daily --start-date 20240101 --end-date 20240131
+uv run python main.py sync --table ft_limit --start-date 20240101 --end-date 20240131
+uv run python main.py sync --table opt_daily --start-date 20240101 --end-date 20240131
 ```
 
 ### 4. 构建股票池
@@ -126,8 +126,8 @@ uv run python main.py build-universe
 也可以指定区间或构建单日：
 
 ```bash
-uv run python main.py build-universe --start-date 2024-01-01 --end-date 2024-01-31
-uv run python main.py build-universe --date 2024-01-31
+uv run python main.py build-universe --start-date 20240101 --end-date 20240131
+uv run python main.py build-universe --date 20240131
 ```
 
 生成的股票池包括：
@@ -380,8 +380,8 @@ db/
 | `sync --table opt_daily` | 增量同步期权日线行情 |
 | `sync --all` | 按顺序同步全部 |
 | `build-universe` | 从 2016-01-01 到今天增量构建 5 个股票池 |
-| `build-universe --start-date YYYY-MM-DD --end-date YYYY-MM-DD` | 构建指定区间的 5 个股票池 |
-| `build-universe --date YYYY-MM-DD` | 构建指定交易日的 5 个股票池 |
+| `build-universe --start-date YYYYMMDD --end-date YYYYMMDD` | 构建指定区间的 5 个股票池 |
+| `build-universe --date YYYYMMDD` | 构建指定交易日的 5 个股票池 |
 | `status` | 查看各表最后同步时间 |
 | `scheduler start` | 启动定时调度 |
 
