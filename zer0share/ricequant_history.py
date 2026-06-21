@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import calendar
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 import duckdb
+import pyarrow.parquet as pq
+from loguru import logger
+
+from zer0share.storage import DailyPartitionStore
 
 
 def parse_bytes(value: str | None) -> int | None:
@@ -227,4 +232,164 @@ class RiceQuantHistoryManifest:
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
         self.close()
+        return False
+
+
+class RiceQuantHistoryRunner:
+    """Orchestrates day-by-day historical sync for RiceQuant stock minute data."""
+
+    def __init__(
+        self,
+        pipeline,
+        manifest: RiceQuantHistoryManifest,
+        calendar,
+        data_dir: Path,
+        notifier,
+        get_quota=None,
+    ) -> None:
+        self._pipeline = pipeline
+        self._manifest = manifest
+        self._calendar = calendar
+        self._data_dir = Path(data_dir)
+        self._notifier = notifier
+        self._get_quota = get_quota
+        self._store = DailyPartitionStore(
+            self._data_dir / "ricequant" / "stock_minute"
+        )
+
+    # ------------------------------------------------------------------
+    # Public interface
+    # ------------------------------------------------------------------
+
+    def run(
+        self,
+        start_date: str,
+        end_date: str,
+        chunk: str = "month",
+        max_bytes: int | None = None,
+        stop_remaining_below: int | None = None,
+        retries: int = 3,
+    ) -> None:
+        """Sync historical data from start_date to end_date, one day at a time."""
+        logger.info(f"开始同步 {start_date}~{end_date}")
+        self._notifier.notify_start(start_date, end_date)
+
+        chunks = month_chunks(start_date, end_date)
+
+        for chunk_start, chunk_end in chunks:
+            logger.info(f"月份 {chunk_start}~{chunk_end} 开始")
+
+            trading_days = self._calendar.get_trading_days("SSE", chunk_start, chunk_end)
+
+            for trade_date in trading_days:
+                stop = self._sync_day(
+                    trade_date,
+                    max_bytes=max_bytes,
+                    stop_remaining_below=stop_remaining_below,
+                    retries=retries,
+                )
+                if stop:
+                    logger.info(f"完成 {start_date}~{end_date}")
+                    return
+
+            logger.info(f"月份 {chunk_start}~{chunk_end} 完成")
+            self._notifier.notify_stage_done(chunk_start, chunk_end)
+
+        logger.info(f"完成 {start_date}~{end_date}")
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _sync_day(
+        self,
+        trade_date: str,
+        max_bytes: int | None,
+        stop_remaining_below: int | None,
+        retries: int,
+    ) -> bool:
+        """Sync a single trading day.  Returns True if the caller should stop."""
+        # Skip if already recorded in manifest
+        if self._manifest.is_day_done(trade_date):
+            return False
+
+        # Skip if parquet partition exists and has rows
+        if self._store.exists(trade_date):
+            df = self._store.read(trade_date)
+            if len(df) > 0:
+                logger.info(f"跳过 {trade_date}: existing partition")
+                self._manifest.record_day_skipped(trade_date, "existing partition")
+                return False
+
+        logger.info(f"开始同步 {trade_date}")
+
+        # Log quota before
+        bytes_used_before = 0
+        if self._get_quota is not None:
+            used, remaining = self._get_quota()
+            bytes_used_before = used
+            logger.info(f"quota: used={used} remaining={remaining}")
+
+        # Attempt sync with retries
+        t_start = time.monotonic()
+        last_error: Exception | None = None
+
+        for attempt in range(retries):
+            try:
+                self._pipeline.run("ricequant_stock_minute", trade_date, trade_date)
+                last_error = None
+                break
+            except Exception as exc:
+                last_error = exc
+                logger.warning(f"失败 {trade_date}: {exc}")
+                if attempt < retries - 1:
+                    time.sleep(0.5)
+
+        elapsed = time.monotonic() - t_start
+
+        if last_error is not None:
+            logger.error(f"放弃 {trade_date}: {last_error}")
+            self._manifest.record_day_failure(trade_date, str(last_error))
+            return False
+
+        # Collect parquet stats
+        rows, symbols, parquet_size = 0, 0, 0
+        if self._store.exists(trade_date):
+            df = self._store.read(trade_date)
+            rows = len(df)
+            symbols = df["symbol"].nunique() if "symbol" in df.columns else 0
+            parquet_path = (
+                self._data_dir / "ricequant" / "stock_minute"
+                / f"date={trade_date}" / "data.parquet"
+            )
+            parquet_size = parquet_path.stat().st_size if parquet_path.exists() else 0
+
+        # Log quota after and check stop conditions
+        bytes_used_after = bytes_used_before
+        if self._get_quota is not None:
+            used, remaining = self._get_quota()
+            bytes_used_after = used
+            logger.info(f"quota: used={used} remaining={remaining}")
+
+            if max_bytes is not None and used >= max_bytes:
+                logger.info(f"已达 max_bytes={max_bytes}，停止同步")
+                self._manifest.record_day_success(
+                    trade_date, rows, symbols, parquet_size,
+                    bytes_used_before, bytes_used_after, elapsed,
+                )
+                return True
+
+            if stop_remaining_below is not None and remaining < stop_remaining_below:
+                logger.info(f"剩余 {remaining} < stop_remaining_below={stop_remaining_below}，停止同步")
+                self._manifest.record_day_success(
+                    trade_date, rows, symbols, parquet_size,
+                    bytes_used_before, bytes_used_after, elapsed,
+                )
+                return True
+
+        self._manifest.record_day_success(
+            trade_date, rows, symbols, parquet_size,
+            bytes_used_before, bytes_used_after, elapsed,
+        )
+        logger.info(f"完成 {trade_date}")
         return False
