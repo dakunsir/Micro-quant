@@ -15,7 +15,7 @@
 - Create `zer0share/sources/__init__.py`: `DataSources` container and source exports.
 - Create `zer0share/sources/tushare.py`: moved Tushare fetcher implementation.
 - Modify `zer0share/fetcher.py`: compatibility shim that re-exports Tushare names.
-- Create `zer0share/sources/ricequant.py`: optional `rqdatac` adapter and RiceQuant code conversion helpers.
+- Create `zer0share/sources/ricequant.py`: optional `rqdatac` adapter and a Tushare-to-RiceQuant request-code helper used only to build sync requests from the local `stock/basic` table.
 - Modify `zer0share/config.py`: add `RiceQuantConfig` and optional `[ricequant]` parsing.
 - Modify `config/settings.example.toml`: add disabled RiceQuant example and `ricequant_stock_minute` schedule.
 - Modify `pyproject.toml`: add `rqdatac` dependency only if the private environment should install it through `uv`; otherwise keep optional import only. Prefer adding it on this private branch.
@@ -312,7 +312,6 @@ import pytest
 
 from zer0share.sources.ricequant import (
     RiceQuantFetcher,
-    ricequant_to_ts_code,
     ts_code_to_ricequant,
 )
 
@@ -322,18 +321,13 @@ def test_ts_code_to_ricequant_converts_a_share_suffixes():
     assert ts_code_to_ricequant("600000.SH") == "600000.XSHG"
 
 
-def test_ricequant_to_ts_code_converts_a_share_suffixes():
-    assert ricequant_to_ts_code("000001.XSHE") == "000001.SZ"
-    assert ricequant_to_ts_code("600000.XSHG") == "600000.SH"
-
-
 def test_ricequant_code_conversion_rejects_unknown_suffix():
-    with pytest.raises(ValueError, match="unsupported RiceQuant code"):
-        ricequant_to_ts_code("IF2403")
     with pytest.raises(ValueError, match="unsupported ts_code"):
         ts_code_to_ricequant("IF2403.CFFEX")
 
 
+# This helper is only for deriving RiceQuant request order_book_id values
+# from local stock/basic rows. RiceQuant Parquet output must not add ts_code.
 def _fake_rqdatac(monkeypatch, source_df):
     calls = {}
     fake_rqdatac = types.SimpleNamespace()
@@ -427,7 +421,6 @@ def test_fetch_stock_minute_normalizes_multi_index(monkeypatch):
             "volume": 1000.0,
             "extra_vendor_field": "a",
             "trade_date": "20240102",
-            "ts_code": "000001.SZ",
         },
         {
             "order_book_id": "000001.XSHE",
@@ -437,7 +430,6 @@ def test_fetch_stock_minute_normalizes_multi_index(monkeypatch):
             "volume": 1200.0,
             "extra_vendor_field": "b",
             "trade_date": "20240102",
-            "ts_code": "000001.SZ",
         },
     ]
 
@@ -453,7 +445,7 @@ def test_fetch_stock_minute_empty_response_preserves_minimum_columns(monkeypatch
     df = fetcher.fetch_stock_minute("000001.XSHE", "20240102", "20240102")
 
     assert df.empty
-    assert list(df.columns) == ["order_book_id", "datetime", "trade_date", "ts_code"]
+    assert list(df.columns) == ["order_book_id", "datetime", "trade_date"]
 ```
 
 - [ ] **Step 2: Run tests to verify failure**
@@ -517,14 +509,7 @@ def ts_code_to_ricequant(ts_code: str) -> str:
     raise ValueError(f"unsupported ts_code for RiceQuant A-share minute data: {ts_code}")
 
 
-def ricequant_to_ts_code(order_book_id: str) -> str:
-    if order_book_id.endswith(".XSHE"):
-        return order_book_id[:-5] + ".SZ"
-    if order_book_id.endswith(".XSHG"):
-        return order_book_id[:-5] + ".SH"
-    raise ValueError(f"unsupported RiceQuant code for A-share minute data: {order_book_id}")
-
-
+# Sync input helper only. Do not add ts_code to RiceQuant output DataFrames.
 class RiceQuantFetcher:
     def __init__(
         self,
@@ -569,7 +554,7 @@ class RiceQuantFetcher:
             expect_df=True,
         )
         if df is None or df.empty:
-            return pd.DataFrame(columns=["order_book_id", "datetime", "trade_date", "ts_code"])
+            return pd.DataFrame(columns=["order_book_id", "datetime", "trade_date"])
         result = df.reset_index()
         if "order_book_id" not in result.columns:
             result.insert(0, "order_book_id", order_book_id)
@@ -577,7 +562,6 @@ class RiceQuantFetcher:
             raise ValueError("RiceQuant minute data must include datetime index or column")
         result["datetime"] = pd.to_datetime(result["datetime"])
         result["trade_date"] = result["datetime"].dt.strftime("%Y%m%d")
-        result["ts_code"] = result["order_book_id"].map(ricequant_to_ts_code)
         return result
 ```
 
@@ -858,7 +842,6 @@ def _minute_df(order_book_id):
             "open": [10.0],
             "close": [10.1],
             "trade_date": ["20240102"],
-            "ts_code": ["000001.SZ" if order_book_id.endswith("XSHE") else "600000.SH"],
         }
     )
 
@@ -1136,7 +1119,6 @@ def _write_minute(data_dir, trade_date="20240102"):
                 "volume": [1000.0, 2000.0],
                 "extra_vendor_field": ["a", "b"],
                 "trade_date": ["20240102", "20240102"],
-                "ts_code": ["000001.SZ", "600000.SH"],
             }
         ),
     )
@@ -1177,12 +1159,12 @@ def test_get_price_filters_multiple_order_book_ids(tmp_path):
         start_date="20240102",
         end_date="20240102",
         frequency="1m",
-        fields="order_book_id,ts_code,close",
+        fields="order_book_id,trade_date,close",
     )
 
     assert result.to_dict("records") == [
-        {"order_book_id": "000001.XSHE", "ts_code": "000001.SZ", "close": 10.1},
-        {"order_book_id": "600000.XSHG", "ts_code": "600000.SH", "close": 20.1},
+        {"order_book_id": "000001.XSHE", "trade_date": "20240102", "close": 10.1},
+        {"order_book_id": "600000.XSHG", "trade_date": "20240102", "close": 20.1},
     ]
 
 
@@ -1264,7 +1246,6 @@ TABLE_COLUMNS = [
     "num_trades",
     "prev_close",
     "trade_date",
-    "ts_code",
 ]
 
 

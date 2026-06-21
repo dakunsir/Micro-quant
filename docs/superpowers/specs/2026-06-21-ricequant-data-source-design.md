@@ -6,7 +6,7 @@
 
 1. RiceQuant 与 Tushare 在拉取层解耦，认证、代码体系、字段语义不混在同一个 fetcher 中。
 2. RiceQuant 本地查询层独立，不挂到现有 `pro_api()` 的 Tushare-like 接口上。
-3. 分钟线保留 RiceQuant 返回的所有字段，只补充本地查询需要的派生字段。
+3. 分钟线保留 RiceQuant 返回的字段形态，不补充 Tushare 风格字段，不做跨数据源字段转换。
 4. 继续复用现有 Parquet + DuckDB 本地存储模型和 sync meta 机制。
 5. 为后续 RiceQuant tick、指数分钟线、ETF 分钟线、期货分钟线留出自然扩展路径。
 
@@ -30,10 +30,10 @@ RiceQuant 初始化需要兼容两种认证形态：
 
 ## 设计原则
 
-- **数据源是 adapter**：每个上游供应商有自己的 adapter，封装认证、调用方式、代码转换、字段归一化。
+- **数据源是 adapter**：每个上游供应商有自己的 adapter，封装认证和调用方式；数据落盘保持供应商自己的字段语义。
 - **查询语义跟随数据源**：Tushare-like 数据继续走 `pro_api()`；RiceQuant-like 数据走新增 `rq_api()`。
 - **存储可以共享，接口不共享**：RiceQuant 可以复用 Parquet、DuckDB 和 meta，但查询入口与表命名独立。
-- **保留原始字段优先**：RiceQuant 返回新增字段时，存储层不能因为本地 schema 未列出而丢弃。
+- **保留原始字段优先**：RiceQuant 返回新增字段时，存储层不能因为本地 schema 未列出而丢弃，也不能额外写入 Tushare 风格派生字段。
 - **先做窄而完整的垂直切片**：第一期只做 A 股 1 分钟行情，不同时设计 tick 和实时推送。
 
 ## 模块结构
@@ -151,7 +151,7 @@ class RiceQuantFetcher:
 - 使用 `rqdatac.get_price(..., frequency="1m", fields=None, expect_df=True)`。
 - 对返回的 MultiIndex 执行 `reset_index()`，保留 `order_book_id` 和 `datetime`。
 - 补充 `trade_date`，格式为 `YYYYMMDD`。
-- 补充 `ts_code`，把 `000001.XSHE` 转为 `000001.SZ`，`600000.XSHG` 转为 `600000.SH`。
+- 不补充 `ts_code`，不把 `000001.XSHE` 转为 `000001.SZ`。RiceQuant 数据表只保存 RiceQuant 代码体系。
 - 不使用 `_select_columns_or_empty()`，不截断 RiceQuant 返回字段。
 
 ## 同步设计
@@ -211,14 +211,13 @@ num_trades
 prev_close
 ```
 
-本地派生字段：
+本地派生字段只允许：
 
 ```text
-ts_code
-trade_date
+trade_date   # 从 datetime 得出，仅用于按交易日分区和过滤
 ```
 
-派生字段只用于本地过滤和跨数据源研究便利，不改变 RiceQuant 原始字段含义。
+不写入 `ts_code` 等 Tushare 风格字段。若研究代码需要跨数据源映射，应在研究层显式 join 映射表，而不是污染 RiceQuant 原始行情表。
 
 ### 拉取策略
 
@@ -294,7 +293,7 @@ class RQLocal:
 - `market="cn"`。
 - `expect_df=True`。
 - `order_book_ids` 支持单个字符串或字符串列表。
-- `fields` 支持 RiceQuant 字段名及派生字段。
+- `fields` 支持 RiceQuant 字段名及 `trade_date`。
 - `start_date` / `end_date` 支持 `YYYYMMDD` 字符串。
 
 第一期明确不支持：
@@ -364,11 +363,11 @@ rq.get_price(..., frequency="1m")
 
 - `Config` 能解析 `[ricequant]`，默认禁用。
 - RiceQuant 未安装时，只有初始化 RiceQuant 数据源才报错。
-- `RiceQuantFetcher` 能把 MultiIndex 返回值转为普通列，并补充 `ts_code` / `trade_date`。
+- `RiceQuantFetcher` 能把 MultiIndex 返回值转为普通列，并补充 `trade_date`，但不补充 `ts_code`。
 - `ricequant_stock_minute` 同步作业写入 `data/ricequant/stock_minute/date=YYYYMMDD/data.parquet`。
 - 单只股票失败时继续同步并记录失败；全失败时不推进 meta。
 - `rq_api().get_price()` 能按 `order_book_ids` 和日期范围过滤。
-- `rq_api().get_price(fields=...)` 能选择 RiceQuant 原字段和派生字段。
+- `rq_api().get_price(fields=...)` 能选择 RiceQuant 原字段和 `trade_date`。
 - `pro_api().query("ricequant_stock_minute")` 报 unknown api。
 
 ### Smoke Test
