@@ -145,3 +145,13 @@ def test_runner_retries_failed_day_then_records_success(tmp_path):
     row = manifest.get_day("20260506")
     assert row is not None
     assert row["status"] == "success"
+
+
+def test_history_script_parser_defaults():
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+    from sync_ricequant_history import build_parser
+    parser = build_parser()
+    args = parser.parse_args(["--start-date", "20160101", "--end-date", "20160131"])
+    assert args.chunk == "month"
+    assert args.retries == 3
