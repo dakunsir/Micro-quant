@@ -272,7 +272,7 @@ class RiceQuantHistoryRunner:
     ) -> None:
         """Sync historical data from start_date to end_date, one day at a time."""
         logger.info(f"开始同步 {start_date}~{end_date}")
-        self._notifier.notify_start(start_date, end_date)
+        self._notifier.notify_start("ricequant_history", {"range": f"{start_date}~{end_date}"})
 
         chunks = month_chunks(start_date, end_date)
 
@@ -293,7 +293,7 @@ class RiceQuantHistoryRunner:
                     return
 
             logger.info(f"月份 {chunk_start}~{chunk_end} 完成")
-            self._notifier.notify_stage_done(chunk_start, chunk_end)
+            self._notifier.notify_stage_done(chunk_start, {}, 0.0)
 
         logger.info(f"完成 {start_date}~{end_date}")
 

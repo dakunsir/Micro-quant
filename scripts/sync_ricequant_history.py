@@ -39,7 +39,7 @@ def main() -> None:
     from zer0share.logging import init_logger
     from zer0share.notifier import Notifier
     from zer0share.pipeline import Pipeline
-    from zer0share.sources import DataSources, RiceQuantFetcher
+    from zer0share.sources import DataSources, RiceQuantFetcher, TushareFetcher
     from zer0share.storage import MetaStore
     from zer0share.trading_calendar import TradingCalendar
     from zer0share.ricequant_history import (
@@ -64,7 +64,7 @@ def main() -> None:
         if cfg.ricequant.enabled
         else None
     )
-    sources = DataSources(tushare=None, ricequant=ricequant_fetcher)
+    sources = DataSources(tushare=TushareFetcher(cfg.tushare_token), ricequant=ricequant_fetcher)
 
     pipeline = Pipeline(cfg, sources, notifier)
     manifest = RiceQuantHistoryManifest(cfg.db_path)
