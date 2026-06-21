@@ -49,6 +49,7 @@ def test_load_config_defaults_ricequant_disabled(tmp_path):
     assert cfg.ricequant.enabled is False
     assert cfg.ricequant.username == ""
     assert cfg.ricequant.password == ""
+    assert cfg.ricequant.license_key == ""
     assert cfg.ricequant.request_sleep_seconds == 0.2
     assert cfg.ricequant.adjust_type == "none"
     assert cfg.ricequant.skip_suspended is True
@@ -64,6 +65,7 @@ def test_load_config_parses_ricequant_section(tmp_path):
 enabled = true
 username = "rq_user"
 password = "rq_password"
+license_key = ""
 request_sleep_seconds = 0.5
 adjust_type = "none"
 skip_suspended = false
@@ -76,9 +78,66 @@ skip_suspended = false
     assert cfg.ricequant.enabled is True
     assert cfg.ricequant.username == "rq_user"
     assert cfg.ricequant.password == "rq_password"
+    assert cfg.ricequant.license_key == ""
     assert cfg.ricequant.request_sleep_seconds == 0.5
     assert cfg.ricequant.adjust_type == "none"
     assert cfg.ricequant.skip_suspended is False
+
+
+def test_load_config_parses_ricequant_license_key(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        VALID_TOML
+        + """
+
+[ricequant]
+enabled = true
+license_key = "rq_license_key"
+""",
+        encoding="utf-8",
+    )
+
+    cfg = load_config(cfg_file)
+
+    assert cfg.ricequant.enabled is True
+    assert cfg.ricequant.username == ""
+    assert cfg.ricequant.password == ""
+    assert cfg.ricequant.license_key == "rq_license_key"
+
+
+def test_load_config_rejects_ambiguous_ricequant_credentials(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        VALID_TOML
+        + """
+
+[ricequant]
+enabled = true
+username = "rq_user"
+password = "rq_password"
+license_key = "rq_license_key"
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="ricequant credentials"):
+        load_config(cfg_file)
+
+
+def test_load_config_rejects_enabled_ricequant_without_credentials(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        VALID_TOML
+        + """
+
+[ricequant]
+enabled = true
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="ricequant credentials"):
+        load_config(cfg_file)
 
 
 def test_load_config_rejects_unsupported_ricequant_adjust_type(tmp_path):
@@ -120,6 +179,7 @@ class RiceQuantConfig:
     enabled: bool
     username: str
     password: str
+    license_key: str
     request_sleep_seconds: float
     adjust_type: str
     skip_suspended: bool
@@ -145,10 +205,20 @@ def _parse_ricequant(raw: dict) -> RiceQuantConfig:
     adjust_type = raw_rq.get("adjust_type", "none")
     if adjust_type != "none":
         raise ValueError("ricequant.adjust_type currently only supports 'none'")
+    enabled = bool(raw_rq.get("enabled", False))
+    username = str(raw_rq.get("username", ""))
+    password = str(raw_rq.get("password", ""))
+    license_key = str(raw_rq.get("license_key", ""))
+    has_user_password = bool(username or password)
+    if enabled and license_key and has_user_password:
+        raise ValueError("ricequant credentials must use either license_key or username/password, not both")
+    if enabled and license_key == "" and not (username and password):
+        raise ValueError("ricequant credentials require license_key or both username and password")
     return RiceQuantConfig(
-        enabled=bool(raw_rq.get("enabled", False)),
-        username=str(raw_rq.get("username", "")),
-        password=str(raw_rq.get("password", "")),
+        enabled=enabled,
+        username=username,
+        password=password,
+        license_key=license_key,
         request_sleep_seconds=float(raw_rq.get("request_sleep_seconds", 0.2)),
         adjust_type=adjust_type,
         skip_suspended=bool(raw_rq.get("skip_suspended", True)),
@@ -170,6 +240,7 @@ Add to `config/settings.example.toml`:
 enabled = false
 username = ""
 password = ""
+license_key = ""
 request_sleep_seconds = 0.2
 adjust_type = "none"
 skip_suspended = true
@@ -249,26 +320,8 @@ def test_ricequant_code_conversion_rejects_unknown_suffix():
         ts_code_to_ricequant("IF2403.CFFEX")
 
 
-def test_fetch_stock_minute_normalizes_multi_index(monkeypatch):
+def _fake_rqdatac(monkeypatch, source_df):
     calls = {}
-
-    idx = pd.MultiIndex.from_tuples(
-        [
-            ("000001.XSHE", pd.Timestamp("2024-01-02 09:31:00")),
-            ("000001.XSHE", pd.Timestamp("2024-01-02 09:32:00")),
-        ],
-        names=["order_book_id", "datetime"],
-    )
-    source_df = pd.DataFrame(
-        {
-            "open": [10.0, 10.1],
-            "close": [10.1, 10.2],
-            "volume": [1000.0, 1200.0],
-            "extra_vendor_field": ["a", "b"],
-        },
-        index=idx,
-    )
-
     fake_rqdatac = types.SimpleNamespace()
 
     def init(username, password):
@@ -281,8 +334,57 @@ def test_fetch_stock_minute_normalizes_multi_index(monkeypatch):
     fake_rqdatac.init = init
     fake_rqdatac.get_price = get_price
     monkeypatch.setitem(sys.modules, "rqdatac", fake_rqdatac)
+    return calls
 
-    fetcher = RiceQuantFetcher("user", "password")
+
+def _source_minute_df():
+    idx = pd.MultiIndex.from_tuples(
+        [
+            ("000001.XSHE", pd.Timestamp("2024-01-02 09:31:00")),
+            ("000001.XSHE", pd.Timestamp("2024-01-02 09:32:00")),
+        ],
+        names=["order_book_id", "datetime"],
+    )
+    return pd.DataFrame(
+        {
+            "open": [10.0, 10.1],
+            "close": [10.1, 10.2],
+            "volume": [1000.0, 1200.0],
+            "extra_vendor_field": ["a", "b"],
+        },
+        index=idx,
+    )
+
+
+def test_ricequant_fetcher_init_uses_username_password(monkeypatch):
+    calls = _fake_rqdatac(monkeypatch, _source_minute_df())
+
+    RiceQuantFetcher(username="user", password="password")
+
+    assert calls["init"] == ("user", "password")
+
+
+def test_ricequant_fetcher_init_uses_license_key(monkeypatch):
+    calls = _fake_rqdatac(monkeypatch, _source_minute_df())
+
+    RiceQuantFetcher(license_key="rq_license_key")
+
+    assert calls["init"] == ("license", "rq_license_key")
+
+
+def test_ricequant_fetcher_init_rejects_missing_or_ambiguous_credentials(monkeypatch):
+    _fake_rqdatac(monkeypatch, _source_minute_df())
+
+    with pytest.raises(ValueError, match="RiceQuant credentials"):
+        RiceQuantFetcher()
+    with pytest.raises(ValueError, match="RiceQuant credentials"):
+        RiceQuantFetcher(username="user", password="password", license_key="rq_license_key")
+
+
+def test_fetch_stock_minute_normalizes_multi_index(monkeypatch):
+    calls = _fake_rqdatac(monkeypatch, _source_minute_df())
+
+    fetcher = RiceQuantFetcher(username="user", password="password")
     df = fetcher.fetch_stock_minute(
         "000001.XSHE",
         "20240102",
@@ -333,7 +435,7 @@ def test_fetch_stock_minute_empty_response_preserves_minimum_columns(monkeypatch
     )
     monkeypatch.setitem(sys.modules, "rqdatac", fake_rqdatac)
 
-    fetcher = RiceQuantFetcher("user", "password")
+    fetcher = RiceQuantFetcher(username="user", password="password")
     df = fetcher.fetch_stock_minute("000001.XSHE", "20240102", "20240102")
 
     assert df.empty
@@ -410,14 +512,27 @@ def ricequant_to_ts_code(order_book_id: str) -> str:
 
 
 class RiceQuantFetcher:
-    def __init__(self, username: str, password: str):
+    def __init__(
+        self,
+        username: str = "",
+        password: str = "",
+        license_key: str = "",
+    ):
         try:
             rqdatac = importlib.import_module("rqdatac")
         except ImportError as exc:
             raise ImportError(
                 "rqdatac is required for RiceQuant sync; install it or disable [ricequant].enabled"
             ) from exc
-        rqdatac.init(username=username, password=password)
+        has_user_password = bool(username or password)
+        if license_key and has_user_password:
+            raise ValueError("RiceQuant credentials must use either license_key or username/password, not both")
+        if license_key:
+            rqdatac.init(username="license", password=license_key)
+        elif username and password:
+            rqdatac.init(username=username, password=password)
+        else:
+            raise ValueError("RiceQuant credentials require license_key or both username and password")
         self._rqdatac = rqdatac
 
     def fetch_stock_minute(
@@ -585,7 +700,11 @@ def _make_pipeline(config_path: str = "config/settings.toml") -> Pipeline:
     sources = DataSources(
         tushare=TushareFetcher(cfg.tushare_token),
         ricequant=(
-            RiceQuantFetcher(cfg.ricequant.username, cfg.ricequant.password)
+            RiceQuantFetcher(
+                username=cfg.ricequant.username,
+                password=cfg.ricequant.password,
+                license_key=cfg.ricequant.license_key,
+            )
             if cfg.ricequant.enabled
             else None
         ),
@@ -606,7 +725,11 @@ Replace the fetcher construction in `start_scheduler` with:
 sources = DataSources(
     tushare=TushareFetcher(cfg.tushare_token),
     ricequant=(
-        RiceQuantFetcher(cfg.ricequant.username, cfg.ricequant.password)
+        RiceQuantFetcher(
+            username=cfg.ricequant.username,
+            password=cfg.ricequant.password,
+            license_key=cfg.ricequant.license_key,
+        )
         if cfg.ricequant.enabled
         else None
     ),
@@ -1297,6 +1420,23 @@ Add a RiceQuant subsection near sync commands:
 
 RiceQuant 数据源通过独立入口同步和查询，不混入 `pro_api()`。
 
+认证支持 license key 或用户名/密码二选一：
+
+```toml
+[ricequant]
+enabled = true
+license_key = "your_ricequant_license_key"
+```
+
+或：
+
+```toml
+[ricequant]
+enabled = true
+username = "your_username"
+password = "your_password"
+```
+
 ```bash
 uv run python main.py sync --table ricequant_stock_minute --start-date 20240102 --end-date 20240102
 ```
@@ -1323,7 +1463,7 @@ Add to `docs/SYNC_GUIDE.md`:
 ~~~markdown
 ## RiceQuant 私有数据源
 
-`ricequant_stock_minute` 需要 `[ricequant].enabled = true`，并配置 RiceQuant 用户名和密码。同步前需要先完成 `basic` 和 `trade_cal`：
+`ricequant_stock_minute` 需要 `[ricequant].enabled = true`，并配置 RiceQuant `license_key` 或 `username/password`。同步前需要先完成 `basic` 和 `trade_cal`：
 
 ```bash
 uv run python main.py sync --table basic

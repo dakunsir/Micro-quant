@@ -21,6 +21,11 @@
 
 RiceQuant RQData 的分钟行情接口是 `rqdatac.get_price(..., frequency="1m")`。官方文档说明该接口支持周线、日线、分钟线和 tick 数据；大量分钟或 tick 数据建议按单只合约长区间拉取；返回的 bar 数据字段包含 `open`、`close`、`high`、`low`、`limit_up`、`limit_down`、`total_turnover`、`volume`、`num_trades`、`prev_close` 等。RQData 需要安装 `rqdatac` 并在首次调用 API 前执行 `rqdatac.init()`。
 
+RiceQuant 初始化需要兼容两种认证形态：
+
+- 用户名/密码：`rqdatac.init(username="<user>", password="<password>")`
+- License key：`rqdatac.init(username="license", password="<license_key>")`
+
 这些约束说明 RiceQuant 不应伪装成 Tushare 的表，也不应直接塞进 `LocalPro`。
 
 ## 设计原则
@@ -72,6 +77,7 @@ from zer0share.sources.tushare import TushareFetcher
 enabled = false
 username = ""
 password = ""
+license_key = ""
 request_sleep_seconds = 0.2
 adjust_type = "none"
 skip_suspended = true
@@ -105,6 +111,7 @@ class DataSources:
 
 - Tushare 保持必需，兼容现有功能。
 - RiceQuant 只有在 `[ricequant].enabled = true` 时初始化。
+- RiceQuant 认证支持 `license_key` 或 `username/password` 二选一；两者同时配置时报错，启用但两者都缺失时报错。
 - 如果用户同步 RiceQuant 表但 RiceQuant 未启用，报明确配置错误。
 
 ### RiceQuantFetcher
@@ -113,7 +120,12 @@ class DataSources:
 
 ```python
 class RiceQuantFetcher:
-    def __init__(self, username: str, password: str):
+    def __init__(
+        self,
+        username: str = "",
+        password: str = "",
+        license_key: str = "",
+    ):
         ...
 
     def fetch_stock_minute(
@@ -130,7 +142,9 @@ class RiceQuantFetcher:
 实现要求：
 
 - 内部导入 `rqdatac`，避免没有安装时影响 Tushare 用户。
-- 初始化时调用 `rqdatac.init(username=username, password=password)`。
+- 如果传入 `license_key`，初始化时调用 `rqdatac.init(username="license", password=license_key)`。
+- 如果传入用户名/密码，初始化时调用 `rqdatac.init(username=username, password=password)`。
+- 如果认证参数为空或同时提供 license key 与用户名/密码，抛 `ValueError`。
 - 使用 `rqdatac.get_price(..., frequency="1m", fields=None, expect_df=True)`。
 - 对返回的 MultiIndex 执行 `reset_index()`，保留 `order_book_id` 和 `datetime`。
 - 补充 `trade_date`，格式为 `YYYYMMDD`。
@@ -367,7 +381,7 @@ uv run python -c "from zer0share import rq_api; print(rq_api().get_price('000001
 
 实现时需要同步更新：
 
-- `README.md`：新增 RiceQuant 数据源配置、同步命令、本地查询示例。
+- `README.md`：新增 RiceQuant 数据源配置、license key/用户名密码认证、同步命令、本地查询示例。
 - `docs/SYNC_GUIDE.md`：新增 `ricequant_stock_minute` 调度说明和账号前置条件。
 - `skills/zer0share-data/references/api.md`：补充 `rq_api()` 的本地查询入口说明。
 - `config/settings.example.toml`：新增 `[ricequant]` 示例配置。
