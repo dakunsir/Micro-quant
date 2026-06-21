@@ -155,3 +155,52 @@ def test_history_script_parser_defaults():
     args = parser.parse_args(["--start-date", "20160101", "--end-date", "20160131"])
     assert args.chunk == "month"
     assert args.retries == 3
+
+
+def test_runner_stops_when_quota_exceeded(tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    manifest = RiceQuantHistoryManifest(tmp_path / "meta.duckdb")
+
+    call_count = {"n": 0}
+
+    class FakeCalendar:
+        def get_trading_days(self, exchange, start, end):
+            return ["20260506", "20260507"]
+
+    class FakePipeline:
+        def run(self, table_name, start_date, end_date):
+            call_count["n"] += 1
+
+    class FakeNotifier:
+        def notify_start(self, *a, **kw): pass
+        def notify_progress(self, *a, **kw): pass
+        def notify_stage_done(self, *a, **kw): pass
+        def notify_error(self, *a, **kw): pass
+        def send(self, *a, **kw): pass
+
+    quota_calls = [
+        (500 * 1024**2, 9 * 1024**3),   # before day 1: used 500M, remaining 9G
+        (1 * 1024**3, 9 * 1024**3),     # after day 1: used 1G, remaining 9G (no stop)
+        (1 * 1024**3, 9 * 1024**3),     # before day 2: used 1G, remaining 9G
+        (2 * 1024**3, 1 * 1024**3),     # after day 2: used 2G, remaining 1G → stop
+    ]
+    quota_idx = {"i": 0}
+
+    def fake_quota():
+        q = quota_calls[quota_idx["i"]]
+        quota_idx["i"] += 1
+        return q
+
+    runner = RiceQuantHistoryRunner(
+        pipeline=FakePipeline(),
+        manifest=manifest,
+        calendar=FakeCalendar(),
+        data_dir=data_dir,
+        notifier=FakeNotifier(),
+        get_quota=fake_quota,
+    )
+    runner.run("20260506", "20260507", stop_remaining_below=2 * 1024**3)
+    # After day 2 remaining=1G < stop_remaining_below=2G → runner stops
+    # Both days were processed (pipeline called twice before stop check triggered after day 2)
+    assert call_count["n"] == 2

@@ -36,7 +36,7 @@ def parse_bytes(value: str | None) -> int | None:
     for suffix, multiplier in _suffixes.items():
         if upper.endswith(suffix):
             number_part = value[: -len(suffix)]
-            return int(number_part) * multiplier
+            return int(float(number_part) * multiplier)
     # bare integer
     return int(value)
 
@@ -278,6 +278,9 @@ class RiceQuantHistoryRunner:
 
         for chunk_start, chunk_end in chunks:
             logger.info(f"月份 {chunk_start}~{chunk_end} 开始")
+            _chunk_t0 = time.monotonic()
+            _synced = 0
+            _skipped = 0
 
             trading_days = self._calendar.get_trading_days("SSE", chunk_start, chunk_end)
 
@@ -288,12 +291,22 @@ class RiceQuantHistoryRunner:
                     stop_remaining_below=stop_remaining_below,
                     retries=retries,
                 )
+                day_row = self._manifest.get_day(trade_date)
+                if day_row and day_row.get("status") == "success":
+                    _synced += 1
+                elif day_row and day_row.get("status") == "skipped":
+                    _skipped += 1
                 if stop:
                     logger.info(f"完成 {start_date}~{end_date}")
                     return
 
+            _elapsed = time.monotonic() - _chunk_t0
             logger.info(f"月份 {chunk_start}~{chunk_end} 完成")
-            self._notifier.notify_stage_done(chunk_start, {}, 0.0)
+            self._notifier.notify_stage_done(
+                chunk_start,
+                {"同步": str(_synced), "跳过": str(_skipped)},
+                round(_elapsed, 1),
+            )
 
         logger.info(f"完成 {start_date}~{end_date}")
 
@@ -350,6 +363,7 @@ class RiceQuantHistoryRunner:
         if last_error is not None:
             logger.error(f"放弃 {trade_date}: {last_error}")
             self._manifest.record_day_failure(trade_date, str(last_error))
+            self._notifier.notify_error("ricequant_history", f"{trade_date}: {last_error}")
             return False
 
         # Collect parquet stats
@@ -357,7 +371,7 @@ class RiceQuantHistoryRunner:
         if self._store.exists(trade_date):
             df = self._store.read(trade_date)
             rows = len(df)
-            symbols = df["symbol"].nunique() if "symbol" in df.columns else 0
+            symbols = df["order_book_id"].nunique() if "order_book_id" in df.columns else 0
             parquet_path = (
                 self._data_dir / "ricequant" / "stock_minute"
                 / f"date={trade_date}" / "data.parquet"
