@@ -13,6 +13,25 @@ class RiceQuantStockMinuteConfig:
 
 
 @dataclass(frozen=True)
+class WeComNotifierConfig:
+    enabled: bool
+    webhook_url: str
+
+
+@dataclass(frozen=True)
+class FeishuNotifierConfig:
+    enabled: bool
+    webhook_url: str
+
+
+@dataclass(frozen=True)
+class NotifierConfig:
+    enabled: bool
+    wecom: WeComNotifierConfig
+    feishu: FeishuNotifierConfig
+
+
+@dataclass(frozen=True)
 class RiceQuantConfig:
     enabled: bool
     username: str
@@ -30,6 +49,7 @@ class Config:
     schedule: dict[str, str]  # table_name → "HH:MM"
     wecom_webhook_url: str
     notifier_enabled: bool
+    notifier: NotifierConfig
     ricequant: RiceQuantConfig
 
 
@@ -75,6 +95,29 @@ def _parse_schedule(raw_scheduler: dict) -> dict[str, str]:
     return schedule
 
 
+def _parse_notifier(raw: dict) -> NotifierConfig:
+    raw_notifier = raw.get("notifier", {})
+    enabled = bool(raw_notifier.get("enabled", False))
+    raw_wecom = raw_notifier.get("wecom", {})
+    raw_feishu = raw_notifier.get("feishu", {})
+    legacy_wecom_url = str(raw_notifier.get("wecom_webhook_url", ""))
+    legacy_webhook_url = str(raw_notifier.get("webhook_url", ""))
+
+    wecom_url = str(raw_wecom.get("webhook_url", legacy_wecom_url))
+    feishu_url = str(raw_feishu.get("webhook_url", legacy_webhook_url))
+    return NotifierConfig(
+        enabled=enabled,
+        wecom=WeComNotifierConfig(
+            enabled=bool(raw_wecom.get("enabled", enabled and bool(wecom_url))),
+            webhook_url=wecom_url,
+        ),
+        feishu=FeishuNotifierConfig(
+            enabled=bool(raw_feishu.get("enabled", enabled and bool(feishu_url))),
+            webhook_url=feishu_url,
+        ),
+    )
+
+
 def load_config(path: Path = Path("config/settings.toml")) -> Config:
     if not path.exists():
         raise FileNotFoundError(f"配置文件不存在: {path}")
@@ -84,16 +127,16 @@ def load_config(path: Path = Path("config/settings.toml")) -> Config:
     except tomllib.TOMLDecodeError as e:
         raise ValueError(f"配置文件格式错误: {e}") from e
     try:
-        notifier_raw = raw["notifier"]
-        webhook_url = notifier_raw.get("webhook_url", notifier_raw.get("wecom_webhook_url", ""))
+        notifier = _parse_notifier(raw)
         return Config(
             tushare_token=raw["tushare"]["token"],
             data_dir=Path(raw["paths"]["data_dir"]),
             db_path=Path(raw["paths"]["db_path"]),
             log_path=Path(raw["paths"]["log_path"]),
             schedule=_parse_schedule(raw["scheduler"]),
-            wecom_webhook_url=webhook_url,
-            notifier_enabled=notifier_raw["enabled"],
+            wecom_webhook_url=notifier.wecom.webhook_url,
+            notifier_enabled=notifier.enabled,
+            notifier=notifier,
             ricequant=_parse_ricequant(raw),
         )
     except KeyError as e:

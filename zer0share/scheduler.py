@@ -6,7 +6,7 @@ from loguru import logger
 
 from zer0share.config import load_config
 from zer0share.logging import init_logger
-from zer0share.notifier import Notifier
+from zer0share.notifier import build_notifier
 from zer0share.pipeline import Pipeline
 from zer0share.sources import DataSources, RiceQuantFetcher, TushareFetcher
 
@@ -27,7 +27,7 @@ def start_scheduler(config_path: str = "config/settings.toml") -> None:
             else None
         ),
     )
-    notifier = Notifier(cfg.wecom_webhook_url, cfg.notifier_enabled)
+    notifier = build_notifier(cfg.notifier)
 
     with Pipeline(cfg, sources, notifier) as pipeline:
         scheduler = BlockingScheduler()

@@ -40,6 +40,11 @@ def test_load_config_returns_schedule_dict(tmp_path):
     }
     assert cfg.wecom_webhook_url == "https://example.com/webhook"
     assert cfg.notifier_enabled is False
+    assert cfg.notifier.enabled is False
+    assert cfg.notifier.wecom.webhook_url == "https://example.com/webhook"
+    assert cfg.notifier.wecom.enabled is False
+    assert cfg.notifier.feishu.webhook_url == ""
+    assert cfg.notifier.feishu.enabled is False
 
 
 def test_load_config_notifier_enabled_true(tmp_path):
@@ -251,14 +256,33 @@ adjust_type = "pre"
         load_config(cfg_file)
 
 
-def test_load_config_accepts_notifier_webhook_url(tmp_path):
+def test_load_config_parses_wecom_and_feishu_notifier_sections(tmp_path):
     cfg_file = tmp_path / "settings.toml"
     cfg_file.write_text(
-        VALID_TOML.replace(
-            'wecom_webhook_url = "https://example.com/webhook"',
-            'webhook_url = "https://open.feishu.cn/open-apis/bot/v2/hook/example"',
-        ),
+        VALID_TOML
+        + """
+
+[notifier.wecom]
+enabled = true
+webhook_url = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=example"
+
+[notifier.feishu]
+enabled = true
+webhook_url = "https://open.feishu.cn/open-apis/bot/v2/hook/example"
+""",
         encoding="utf-8",
     )
     cfg = load_config(cfg_file)
-    assert cfg.wecom_webhook_url == "https://open.feishu.cn/open-apis/bot/v2/hook/example"
+    assert cfg.notifier.enabled is False
+    assert cfg.notifier.wecom.enabled is True
+    assert cfg.notifier.wecom.webhook_url == "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=example"
+    assert cfg.notifier.feishu.enabled is True
+    assert cfg.notifier.feishu.webhook_url == "https://open.feishu.cn/open-apis/bot/v2/hook/example"
+
+
+def test_load_config_keeps_legacy_wecom_webhook_url_compatibility(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(VALID_TOML, encoding="utf-8")
+    cfg = load_config(cfg_file)
+    assert cfg.wecom_webhook_url == "https://example.com/webhook"
+    assert cfg.notifier.wecom.webhook_url == "https://example.com/webhook"

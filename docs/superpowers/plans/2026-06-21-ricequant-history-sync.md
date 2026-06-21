@@ -10,6 +10,10 @@
 
 ---
 
+## Implementation Update: Notification Channels
+
+The notification design was revised after the initial plan: `zer0share.notifier` now exposes explicit `WeComNotifier`, `FeishuNotifier`, `CompositeNotifier`, and `NullNotifier` implementations. Enterprise WeChat uses the existing text webhook payload, while Feishu uses the `zer0factor`-style interactive card payload. Config supports `[notifier.wecom]` and `[notifier.feishu]`, with legacy `[notifier].wecom_webhook_url` still mapped to the WeCom channel.
+
 ## File Map
 
 - Modify `zer0share/notifier.py`: keep `send(message)` and add `notify_start`, `notify_progress`, `notify_stage_done`, `notify_error`; change log wording from 企业微信 to webhook/飞书-compatible.

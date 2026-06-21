@@ -2,11 +2,10 @@ import datetime as dt
 from pathlib import Path
 
 import click
-from loguru import logger
 
 from zer0share.config import load_config
 from zer0share.logging import init_logger
-from zer0share.notifier import Notifier
+from zer0share.notifier import build_notifier
 from zer0share.pipeline import Pipeline
 from zer0share.sources import DataSources, RiceQuantFetcher, TushareFetcher
 from zer0share.storage import MetaStore
@@ -42,7 +41,7 @@ def _make_pipeline(config_path: str = "config/settings.toml") -> Pipeline:
             else None
         ),
     )
-    notifier = Notifier(cfg.wecom_webhook_url, cfg.notifier_enabled)
+    notifier = build_notifier(cfg.notifier)
     return Pipeline(cfg, sources, notifier)
 
 

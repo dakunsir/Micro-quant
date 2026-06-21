@@ -37,7 +37,7 @@ def main() -> None:
 
     from zer0share.config import load_config
     from zer0share.logging import init_logger
-    from zer0share.notifier import Notifier
+    from zer0share.notifier import build_notifier
     from zer0share.pipeline import Pipeline
     from zer0share.sources import DataSources, RiceQuantFetcher, TushareFetcher
     from zer0share.storage import MetaStore
@@ -53,7 +53,7 @@ def main() -> None:
 
     print(f"[sync_ricequant_history] {args.start_date}~{args.end_date}")
 
-    notifier = Notifier(cfg.wecom_webhook_url, cfg.notifier_enabled)
+    notifier = build_notifier(cfg.notifier)
 
     ricequant_fetcher = (
         RiceQuantFetcher(
