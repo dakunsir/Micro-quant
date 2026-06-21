@@ -2,13 +2,14 @@
 
 ## 目标
 
-新增 RiceQuant 作为独立数据源 adapter，并优先接入 A 股 1 分钟行情数据。设计必须满足：
+新增 RiceQuant 作为独立数据源 adapter，并优先接入 A 股基础信息与 1 分钟行情数据。设计必须满足：
 
 1. RiceQuant 与 Tushare 在拉取层解耦，认证、代码体系、字段语义不混在同一个 fetcher 中。
 2. RiceQuant 本地查询层独立，不挂到现有 `pro_api()` 的 Tushare-like 接口上。
 3. 分钟线保留 RiceQuant 返回的字段形态，不补充 Tushare 风格字段，不做跨数据源字段转换。
 4. 继续复用现有 Parquet + DuckDB 本地存储模型和 sync meta 机制。
-5. 为后续 RiceQuant tick、指数分钟线、ETF 分钟线、期货分钟线留出自然扩展路径。
+5. 分钟线同步使用 RiceQuant 自己的基础信息表作为股票列表来源，不依赖 Tushare `stock/basic`。
+6. 为后续 RiceQuant tick、指数分钟线、ETF 分钟线、期货分钟线留出自然扩展路径。
 
 ## 背景
 
@@ -20,6 +21,8 @@
 - `zer0share/api.py` 暴露 `pro_api()`，本地查询接口刻意模拟 Tushare Pro。
 
 RiceQuant RQData 的分钟行情接口是 `rqdatac.get_price(..., frequency="1m")`。官方文档说明该接口支持周线、日线、分钟线和 tick 数据；大量分钟或 tick 数据建议按单只合约长区间拉取；返回的 bar 数据字段包含 `open`、`close`、`high`、`low`、`limit_up`、`limit_down`、`total_turnover`、`volume`、`num_trades`、`prev_close` 等。RQData 需要安装 `rqdatac` 并在首次调用 API 前执行 `rqdatac.init()`。
+
+RiceQuant 基础信息接口使用 `all_instruments(type=None, date=None, market='cn')`。其中 `type='CS'` 代表股票，返回 pandas DataFrame，字段以 RiceQuant 实际返回为准。`instruments(order_book_ids, market='cn')` 可查询单个或多个合约的详细对象；第一期先用 `all_instruments(type='CS', market='cn')` 做股票基础表。
 
 RiceQuant 初始化需要兼容两种认证形态：
 
@@ -50,7 +53,7 @@ zer0share/
 │   ├── stock.py            # Tushare 股票日频等
 │   ├── futures.py
 │   ├── options.py
-│   └── ricequant.py        # RiceQuant 表同步作业
+│   └── ricequant.py        # RiceQuant 基础信息和分钟线同步作业
 ├── query/
 │   ├── stock.py            # 现有 Tushare-like 查询
 │   ├── futures.py
@@ -161,6 +164,7 @@ class RiceQuantFetcher:
 同步表名使用数据源前缀：
 
 ```text
+ricequant_basic
 ricequant_stock_minute
 ```
 
@@ -185,6 +189,8 @@ RiceQuant 新表进入独立目录：
 ```text
 data/
   ricequant/
+    basic/
+      data.parquet
     stock_minute/
       date=YYYYMMDD/
         data.parquet
@@ -192,7 +198,17 @@ data/
 
 不迁移现有 Tushare 数据目录。已有 `data/stock`、`data/index`、`data/futures`、`data/options` 保持不变。
 
-### 字段
+### 基础信息字段
+
+`ricequant_basic` 通过 `rqdatac.all_instruments(type="CS", market="cn")` 拉取并写入单文件快照：
+
+```text
+data/ricequant/basic/data.parquet
+```
+
+存储层保留 RiceQuant 返回的所有列，不定义固定列集合，不把字段改名为 Tushare 风格。分钟线同步从该表读取 `order_book_id` 作为请求列表。
+
+### 分钟线字段
 
 存储层保留 RiceQuant 返回的所有字段。第一期已知核心字段：
 
@@ -224,16 +240,17 @@ trade_date   # 从 datetime 得出，仅用于按交易日分区和过滤
 RiceQuant 文档建议大量分钟数据按单只合约拉取。同步作业采用：
 
 1. 按交易日推进，复用现有 `TradingCalendar` 和 `DailyPartitionStore`。
-2. 每个交易日读取股票池。
+2. 每个交易日从 `data/ricequant/basic/data.parquet` 读取 `order_book_id` 列作为股票池。
 3. 对每只股票调用 `fetch_stock_minute(order_book_id, trade_date, trade_date)`。
 4. 合并所有非空 DataFrame。
 5. 写入 `data/ricequant/stock_minute/date=YYYYMMDD/data.parquet`。
 6. 更新 `sync_meta.ricequant_stock_minute`。
 
-股票池来源第一期使用本地 `stock/basic/data.parquet`：
+股票池来源第一期使用本地 `ricequant/basic/data.parquet`：
 
-- 默认包含 `list_status` 为 `L` 的 A 股。
-- 后续可扩展为按历史上市/退市日期过滤，减少无效请求。
+- 默认读取 `all_instruments(type="CS", market="cn")` 返回的全部股票基础信息。
+- 如果返回中存在 `status` 字段，可优先使用 `status == "Active"` 的合约作为分钟线请求列表；若没有该字段，则使用所有 `order_book_id`。
+- 后续可扩展为按 `listed_date`、`de_listed_date` 或 `all_instruments(date=...)` 做历史日期可交易过滤。
 
 错误策略：
 
@@ -250,6 +267,7 @@ RiceQuant 文档建议大量分钟数据按单只合约拉取。同步作业采�
 from zer0share import rq_api
 
 rq = rq_api()
+basic = rq.all_instruments(type="CS", market="cn")
 df = rq.get_price(
     order_book_ids="000001.XSHE",
     start_date="20240102",
@@ -285,6 +303,17 @@ class RQLocal:
         offset=None,
     ) -> pd.DataFrame:
         ...
+
+    def all_instruments(
+        self,
+        type=None,
+        date=None,
+        market="cn",
+        fields=None,
+        limit=None,
+        offset=None,
+    ) -> pd.DataFrame:
+        ...
 ```
 
 第一期支持范围：
@@ -295,6 +324,7 @@ class RQLocal:
 - `order_book_ids` 支持单个字符串或字符串列表。
 - `fields` 支持 RiceQuant 字段名及 `trade_date`。
 - `start_date` / `end_date` 支持 `YYYYMMDD` 字符串。
+- `all_instruments(type="CS", market="cn")` 读取本地 `ricequant_basic` 快照；第一期不支持 `date` 参数的历史可交易过滤。
 
 第一期明确不支持：
 
@@ -363,10 +393,13 @@ rq.get_price(..., frequency="1m")
 
 - `Config` 能解析 `[ricequant]`，默认禁用。
 - RiceQuant 未安装时，只有初始化 RiceQuant 数据源才报错。
+- `RiceQuantFetcher` 能调用 `all_instruments(type="CS", market="cn")` 并保留所有返回列。
+- `ricequant_basic` 同步作业写入 `data/ricequant/basic/data.parquet`。
 - `RiceQuantFetcher` 能把 MultiIndex 返回值转为普通列，并补充 `trade_date`，但不补充 `ts_code`。
 - `ricequant_stock_minute` 同步作业写入 `data/ricequant/stock_minute/date=YYYYMMDD/data.parquet`。
 - 单只股票失败时继续同步并记录失败；全失败时不推进 meta。
 - `rq_api().get_price()` 能按 `order_book_ids` 和日期范围过滤。
+- `rq_api().all_instruments()` 能按 `type`、`market` 和 `fields` 查询本地 RiceQuant 基础信息。
 - `rq_api().get_price(fields=...)` 能选择 RiceQuant 原字段和 `trade_date`。
 - `pro_api().query("ricequant_stock_minute")` 报 unknown api。
 

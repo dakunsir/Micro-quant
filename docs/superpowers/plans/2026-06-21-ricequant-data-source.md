@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add RiceQuant as a private, isolated data source with A-share 1-minute sync and an independent local `rq_api()` query entrypoint.
+**Goal:** Add RiceQuant as a private, isolated data source with A-share basic information, 1-minute sync, and an independent local `rq_api()` query entrypoint.
 
-**Architecture:** Keep Tushare behavior behind the existing `pro_api()` path and add RiceQuant behind separate source, sync, storage path, and query modules. RiceQuant stock minute data is stored under `data/ricequant/stock_minute/date=YYYYMMDD/data.parquet`, uses `ricequant_stock_minute` as the sync table name, and is queried through `rq_api().get_price(order_book_ids, frequency="1m")`.
+**Architecture:** Keep Tushare behavior behind the existing `pro_api()` path and add RiceQuant behind separate source, sync, storage path, and query modules. RiceQuant basic data is stored under `data/ricequant/basic/data.parquet`; RiceQuant stock minute data is stored under `data/ricequant/stock_minute/date=YYYYMMDD/data.parquet`. Sync table names are `ricequant_basic` and `ricequant_stock_minute`, queried through `rq_api().all_instruments(...)` and `rq_api().get_price(order_book_ids, frequency="1m")`.
 
 **Tech Stack:** Python 3.11, pandas, pyarrow Parquet, DuckDB, click, pytest, optional `rqdatac`.
 
@@ -15,12 +15,12 @@
 - Create `zer0share/sources/__init__.py`: `DataSources` container and source exports.
 - Create `zer0share/sources/tushare.py`: moved Tushare fetcher implementation.
 - Modify `zer0share/fetcher.py`: compatibility shim that re-exports Tushare names.
-- Create `zer0share/sources/ricequant.py`: optional `rqdatac` adapter and a Tushare-to-RiceQuant request-code helper used only to build sync requests from the local `stock/basic` table.
+- Create `zer0share/sources/ricequant.py`: optional `rqdatac` adapter for RiceQuant basic information and minute bars.
 - Modify `zer0share/config.py`: add `RiceQuantConfig` and optional `[ricequant]` parsing.
 - Modify `config/settings.example.toml`: add disabled RiceQuant example and `ricequant_stock_minute` schedule.
 - Modify `pyproject.toml`: add `rqdatac` dependency only if the private environment should install it through `uv`; otherwise keep optional import only. Prefer adding it on this private branch.
 - Modify `zer0share/pipeline.py`, `zer0share/cli.py`, `zer0share/scheduler.py`: construct and pass `DataSources`.
-- Create `zer0share/sync/ricequant.py`: `RiceQuantStockMinuteSyncJob`.
+- Create `zer0share/sync/ricequant.py`: `RiceQuantBasicSyncJob` and `RiceQuantStockMinuteSyncJob`.
 - Create `zer0share/query/ricequant.py`: local RiceQuant Parquet query helpers.
 - Create `zer0share/rq_api.py`: public local RiceQuant API.
 - Modify `zer0share/__init__.py`: export `rq_api` and `RQLocal`.
@@ -312,22 +312,9 @@ import pytest
 
 from zer0share.sources.ricequant import (
     RiceQuantFetcher,
-    ts_code_to_ricequant,
 )
 
 
-def test_ts_code_to_ricequant_converts_a_share_suffixes():
-    assert ts_code_to_ricequant("000001.SZ") == "000001.XSHE"
-    assert ts_code_to_ricequant("600000.SH") == "600000.XSHG"
-
-
-def test_ricequant_code_conversion_rejects_unknown_suffix():
-    with pytest.raises(ValueError, match="unsupported ts_code"):
-        ts_code_to_ricequant("IF2403.CFFEX")
-
-
-# This helper is only for deriving RiceQuant request order_book_id values
-# from local stock/basic rows. RiceQuant Parquet output must not add ts_code.
 def _fake_rqdatac(monkeypatch, source_df):
     calls = {}
     fake_rqdatac = types.SimpleNamespace()
@@ -339,8 +326,20 @@ def _fake_rqdatac(monkeypatch, source_df):
         calls["get_price"] = kwargs
         return source_df
 
+    def all_instruments(**kwargs):
+        calls["all_instruments"] = kwargs
+        return pd.DataFrame(
+            {
+                "order_book_id": ["000001.XSHE", "600000.XSHG"],
+                "symbol": ["平安银行", "浦发银行"],
+                "status": ["Active", "Active"],
+                "vendor_extra": ["a", "b"],
+            }
+        )
+
     fake_rqdatac.init = init
     fake_rqdatac.get_price = get_price
+    fake_rqdatac.all_instruments = all_instruments
     monkeypatch.setitem(sys.modules, "rqdatac", fake_rqdatac)
     return calls
 
@@ -434,6 +433,29 @@ def test_fetch_stock_minute_normalizes_multi_index(monkeypatch):
     ]
 
 
+def test_fetch_basic_uses_all_instruments_and_preserves_columns(monkeypatch):
+    calls = _fake_rqdatac(monkeypatch, _source_minute_df())
+    fetcher = RiceQuantFetcher(username="user", password="password")
+
+    df = fetcher.fetch_basic()
+
+    assert calls["all_instruments"] == {"type": "CS", "market": "cn"}
+    assert df.to_dict("records") == [
+        {
+            "order_book_id": "000001.XSHE",
+            "symbol": "平安银行",
+            "status": "Active",
+            "vendor_extra": "a",
+        },
+        {
+            "order_book_id": "600000.XSHG",
+            "symbol": "浦发银行",
+            "status": "Active",
+            "vendor_extra": "b",
+        },
+    ]
+
+
 def test_fetch_stock_minute_empty_response_preserves_minimum_columns(monkeypatch):
     fake_rqdatac = types.SimpleNamespace(
         init=lambda username, password: None,
@@ -501,15 +523,6 @@ import pandas as pd
 from loguru import logger
 
 
-def ts_code_to_ricequant(ts_code: str) -> str:
-    if ts_code.endswith(".SZ"):
-        return ts_code[:-3] + ".XSHE"
-    if ts_code.endswith(".SH"):
-        return ts_code[:-3] + ".XSHG"
-    raise ValueError(f"unsupported ts_code for RiceQuant A-share minute data: {ts_code}")
-
-
-# Sync input helper only. Do not add ts_code to RiceQuant output DataFrames.
 class RiceQuantFetcher:
     def __init__(
         self,
@@ -563,6 +576,13 @@ class RiceQuantFetcher:
         result["datetime"] = pd.to_datetime(result["datetime"])
         result["trade_date"] = result["datetime"].dt.strftime("%Y%m%d")
         return result
+
+    def fetch_basic(self) -> pd.DataFrame:
+        logger.debug("拉取 RiceQuant 股票基础信息: all_instruments(type='CS', market='cn')")
+        df = self._rqdatac.all_instruments(type="CS", market="cn")
+        if df is None or df.empty:
+            return pd.DataFrame(columns=["order_book_id"])
+        return df.reset_index(drop=True)
 ```
 
 Create `zer0share/sources/__init__.py`:
@@ -791,26 +811,13 @@ def cfg(tmp_path):
 
 
 def _write_basic(data_dir):
-    SnapshotStore(data_dir / "stock" / "basic" / "data.parquet").write(
+    SnapshotStore(data_dir / "ricequant" / "basic" / "data.parquet").write(
         pd.DataFrame(
             {
-                "ts_code": ["000001.SZ", "600000.SH", "000002.SZ"],
-                "symbol": ["000001", "600000", "000002"],
-                "name": ["Ping An", "SPDB", "Vanke"],
-                "area": ["Shenzhen", "Shanghai", "Shenzhen"],
-                "industry": ["Bank", "Bank", "Real Estate"],
-                "fullname": ["Ping An Bank", "SPDB", "Vanke"],
-                "enname": ["Ping An", "SPDB", "Vanke"],
-                "cnspell": ["payh", "pfyh", "wka"],
-                "market": ["Main Board", "Main Board", "Main Board"],
-                "exchange": ["SZSE", "SSE", "SZSE"],
-                "curr_type": ["CNY", "CNY", "CNY"],
-                "list_status": ["L", "L", "D"],
-                "list_date": ["19910403", "19991110", "19910129"],
-                "delist_date": [None, None, "20200101"],
-                "is_hs": ["S", "H", None],
-                "act_name": ["a", "b", "c"],
-                "act_ent_type": ["x", "y", "z"],
+                "order_book_id": ["000001.XSHE", "600000.XSHG", "000002.XSHE"],
+                "symbol": ["平安银行", "浦发银行", "万科A"],
+                "status": ["Active", "Active", "Delisted"],
+                "vendor_extra": ["a", "b", "c"],
             }
         )
     )
@@ -855,11 +862,39 @@ def test_ricequant_stock_minute_registered_when_enabled(cfg):
     assert "ricequant_stock_minute" in pipeline.registry
 
 
+def test_ricequant_basic_registered_when_enabled(cfg):
+    pipeline = Pipeline(cfg, DataSources(tushare=MagicMock(), ricequant=MagicMock()), MagicMock())
+
+    assert "ricequant_basic" in pipeline.registry
+
+
 def test_ricequant_stock_minute_requires_enabled_source(cfg):
     cfg.ricequant.enabled = False
     pipeline = Pipeline(cfg, DataSources(tushare=MagicMock(), ricequant=None), MagicMock())
 
     assert "ricequant_stock_minute" not in pipeline.registry
+    assert "ricequant_basic" not in pipeline.registry
+
+
+def test_ricequant_basic_sync_writes_snapshot(cfg):
+    ricequant = MagicMock()
+    ricequant.fetch_basic.return_value = pd.DataFrame(
+        {
+            "order_book_id": ["000001.XSHE"],
+            "symbol": ["平安银行"],
+            "vendor_extra": ["a"],
+        }
+    )
+    pipeline = Pipeline(cfg, DataSources(tushare=MagicMock(), ricequant=ricequant), MagicMock())
+    pipeline._runtime.calendar._today_fn = lambda: "20240102"
+
+    pipeline.run("ricequant_basic")
+
+    result = SnapshotStore(cfg.data_dir / "ricequant" / "basic" / "data.parquet").read()
+    assert result.to_dict("records") == [
+        {"order_book_id": "000001.XSHE", "symbol": "平安银行", "vendor_extra": "a"}
+    ]
+    assert pipeline._runtime.meta.get_last_date("ricequant_basic") == "20240102"
 
 
 def test_ricequant_stock_minute_sync_writes_daily_partition(cfg):
@@ -938,16 +973,33 @@ from loguru import logger
 
 import zer0share.dateutil as dateutil
 from zer0share.sources import DataSources
-from zer0share.sources.ricequant import ts_code_to_ricequant
 from zer0share.storage import DailyPartitionStore, SnapshotStore
 from zer0share.sync._jobs import SyncJob, _format_duration
 
 
-TABLE_NAME = "ricequant_stock_minute"
+BASIC_TABLE_NAME = "ricequant_basic"
+MINUTE_TABLE_NAME = "ricequant_stock_minute"
+
+
+class RiceQuantBasicSyncJob(SyncJob):
+    table_name = BASIC_TABLE_NAME
+    supports_date_range = False
+
+    def __init__(self, cfg, fetcher):
+        self.cfg = cfg
+        self.fetcher = fetcher
+        self.store = SnapshotStore(cfg.data_dir / "ricequant" / "basic" / "data.parquet")
+
+    def run(self, rt, start_date: str | None = None, end_date: str | None = None) -> None:
+        df = self.fetcher.fetch_basic()
+        self.store.write(df)
+        today = rt.calendar.today()
+        rt.meta.update_last_date(BASIC_TABLE_NAME, today)
+        rt.notifier.send(f"{BASIC_TABLE_NAME} 同步完成\n日期：{today}｜{len(df)} 行")
 
 
 class RiceQuantStockMinuteSyncJob(SyncJob):
-    table_name = TABLE_NAME
+    table_name = MINUTE_TABLE_NAME
     supports_date_range = True
 
     def __init__(self, cfg, fetcher):
@@ -955,17 +1007,20 @@ class RiceQuantStockMinuteSyncJob(SyncJob):
         self.fetcher = fetcher
         self.store = DailyPartitionStore(cfg.data_dir / "ricequant" / "stock_minute")
 
-    def _load_active_ts_codes(self) -> list[str]:
-        df = SnapshotStore(self.cfg.data_dir / "stock" / "basic" / "data.parquet").read()
+    def _load_order_book_ids(self) -> list[str]:
+        df = SnapshotStore(self.cfg.data_dir / "ricequant" / "basic" / "data.parquet").read()
         if df.empty:
-            raise FileNotFoundError("stock basic data not found; run `python main.py sync --table basic` first")
-        active = df[df["list_status"] == "L"]
-        return sorted(active["ts_code"].dropna().astype(str).tolist())
+            raise FileNotFoundError(
+                "ricequant basic data not found; run `python main.py sync --table ricequant_basic` first"
+            )
+        if "status" in df.columns:
+            df = df[df["status"] == "Active"]
+        return sorted(df["order_book_id"].dropna().astype(str).tolist())
 
     def run(self, rt, start_date: str | None = None, end_date: str | None = None) -> None:
         today = rt.calendar.today()
         if start_date is None:
-            last = rt.meta.get_last_date(TABLE_NAME)
+            last = rt.meta.get_last_date(MINUTE_TABLE_NAME)
             start = dateutil.add_days(last, 1) if last is not None else today
             end = today
         else:
@@ -978,20 +1033,19 @@ class RiceQuantStockMinuteSyncJob(SyncJob):
         if not trading_days and rt.meta.get_last_date("trade_cal") is None:
             raise RuntimeError("No trading days found. Run `sync --table trade_cal` first.")
 
-        ts_codes = self._load_active_ts_codes()
-        current_meta = rt.meta.get_last_date(TABLE_NAME)
+        order_book_ids = self._load_order_book_ids()
+        current_meta = rt.meta.get_last_date(MINUTE_TABLE_NAME)
         for trade_date in trading_days:
             if self.store.exists(trade_date):
                 if current_meta is None or trade_date > current_meta:
-                    rt.meta.update_last_date(TABLE_NAME, trade_date)
+                    rt.meta.update_last_date(MINUTE_TABLE_NAME, trade_date)
                     current_meta = trade_date
                 continue
 
             frames = []
             failures = []
             started = time.monotonic()
-            for ts_code in ts_codes:
-                order_book_id = ts_code_to_ricequant(ts_code)
+            for order_book_id in order_book_ids:
                 try:
                     df = self.fetcher.fetch_stock_minute(
                         order_book_id,
@@ -1002,7 +1056,7 @@ class RiceQuantStockMinuteSyncJob(SyncJob):
                     )
                 except Exception as exc:
                     failures.append((order_book_id, str(exc)))
-                    logger.warning(f"{TABLE_NAME}: {order_book_id} failed on {trade_date}: {exc}")
+                    logger.warning(f"{MINUTE_TABLE_NAME}: {order_book_id} failed on {trade_date}: {exc}")
                     continue
                 if df is not None and not df.empty:
                     frames.append(df)
@@ -1013,11 +1067,11 @@ class RiceQuantStockMinuteSyncJob(SyncJob):
 
             combined = pd.concat(frames, ignore_index=True)
             self.store.write(trade_date, combined)
-            rt.meta.update_last_date(TABLE_NAME, trade_date)
+            rt.meta.update_last_date(MINUTE_TABLE_NAME, trade_date)
             current_meta = trade_date
             elapsed = _format_duration(time.monotonic() - started)
             message = (
-                f"{TABLE_NAME} 同步完成\n"
+                f"{MINUTE_TABLE_NAME} 同步完成\n"
                 f"日期：{trade_date}｜写入 {len(combined)} 行｜失败 {len(failures)}｜耗时 {elapsed}"
             )
             if failures:
@@ -1030,7 +1084,10 @@ def build_jobs(cfg, sources: DataSources):
         return []
     if sources.ricequant is None:
         raise RuntimeError("RiceQuant is enabled but RiceQuantFetcher is not configured")
-    return [RiceQuantStockMinuteSyncJob(cfg, sources.ricequant)]
+    return [
+        RiceQuantBasicSyncJob(cfg, sources.ricequant),
+        RiceQuantStockMinuteSyncJob(cfg, sources.ricequant),
+    ]
 ```
 
 - [ ] **Step 4: Add CLI table group**
@@ -1039,6 +1096,7 @@ Modify `zer0share/cli.py`:
 
 ```python
 RICEQUANT_TABLES = [
+    "ricequant_basic",
     "ricequant_stock_minute",
 ]
 
@@ -1124,8 +1182,45 @@ def _write_minute(data_dir, trade_date="20240102"):
     )
 
 
+def _write_basic(data_dir):
+    from zer0share.storage import SnapshotStore
+
+    SnapshotStore(data_dir / "ricequant" / "basic" / "data.parquet").write(
+        pd.DataFrame(
+            {
+                "order_book_id": ["000001.XSHE", "600000.XSHG"],
+                "symbol": ["平安银行", "浦发银行"],
+                "type": ["CS", "CS"],
+                "market": ["cn", "cn"],
+                "status": ["Active", "Active"],
+                "vendor_extra": ["a", "b"],
+            }
+        )
+    )
+
+
 def test_rq_api_exported():
     assert callable(rq_api)
+
+
+def test_all_instruments_filters_type_market_and_fields(tmp_path):
+    _write_basic(tmp_path)
+    rq = RQLocal(tmp_path)
+
+    result = rq.all_instruments(type="CS", market="cn", fields="order_book_id,symbol,vendor_extra")
+
+    assert result.to_dict("records") == [
+        {"order_book_id": "000001.XSHE", "symbol": "平安银行", "vendor_extra": "a"},
+        {"order_book_id": "600000.XSHG", "symbol": "浦发银行", "vendor_extra": "b"},
+    ]
+
+
+def test_all_instruments_rejects_date_filter_for_snapshot(tmp_path):
+    _write_basic(tmp_path)
+    rq = RQLocal(tmp_path)
+
+    with pytest.raises(NotImplementedError, match="date"):
+        rq.all_instruments(type="CS", date="20240102")
 
 
 def test_get_price_filters_single_order_book_id(tmp_path):
@@ -1248,6 +1343,14 @@ TABLE_COLUMNS = [
     "trade_date",
 ]
 
+BASIC_COLUMNS = [
+    "order_book_id",
+    "symbol",
+    "type",
+    "market",
+    "status",
+]
+
 
 def _parse_fields(fields):
     if fields is None:
@@ -1261,11 +1364,22 @@ def _source(ctx: QueryContext) -> Path:
     return ctx.data_dir / "ricequant" / "stock_minute" / "date=*" / "data.parquet"
 
 
+def _basic_source(ctx: QueryContext) -> Path:
+    return ctx.data_dir / "ricequant" / "basic" / "data.parquet"
+
+
 def _ensure_exists(ctx: QueryContext) -> None:
     table_dir = ctx.data_dir / "ricequant" / "stock_minute"
     if not table_dir.exists():
         raise FileNotFoundError(
             "ricequant_stock_minute data not found; run `python main.py sync --table ricequant_stock_minute` first"
+        )
+
+
+def _ensure_basic_exists(ctx: QueryContext) -> None:
+    if not _basic_source(ctx).exists():
+        raise FileNotFoundError(
+            "ricequant_basic data not found; run `python main.py sync --table ricequant_basic` first"
         )
 
 
@@ -1293,6 +1407,38 @@ def get_price(
         for filt in filters:
             params.extend(filt.params)
     sql += " ORDER BY order_book_id, datetime"
+    if limit is not None:
+        sql += " LIMIT ?"
+        params.append(limit)
+    if offset is not None:
+        sql += " OFFSET ?"
+        params.append(offset)
+    return duckdb.connect().execute(sql, params).fetchdf()
+
+
+def all_instruments(
+    ctx: QueryContext,
+    type=None,
+    market="cn",
+    fields=None,
+    limit: int | None = None,
+    offset: int | None = None,
+) -> pd.DataFrame:
+    _ensure_basic_exists(ctx)
+    parsed_fields = _parse_fields(fields)
+    selected = "*" if parsed_fields is None else ", ".join(parsed_fields)
+    filters: list[SqlFilter] = []
+    if type is not None:
+        filters.append(SqlFilter("type = ?", (type,)))
+    if market is not None:
+        filters.append(SqlFilter("market = ?", (market,)))
+    sql = f"SELECT {selected} FROM read_parquet(?)"
+    params: list[object] = [str(_basic_source(ctx))]
+    if filters:
+        sql += " WHERE " + " AND ".join(f.clause for f in filters)
+        for filt in filters:
+            params.extend(filt.params)
+    sql += " ORDER BY order_book_id"
     if limit is not None:
         sql += " LIMIT ?"
         params.append(limit)
@@ -1367,6 +1513,28 @@ class RQLocal:
             offset=offset,
         )
 
+    def all_instruments(
+        self,
+        type=None,
+        date=None,
+        market="cn",
+        fields=None,
+        limit=None,
+        offset=None,
+    ):
+        if date is not None:
+            raise NotImplementedError("local rq_api.all_instruments does not support date filtering yet")
+        if market != "cn":
+            raise NotImplementedError("local rq_api.all_instruments currently only supports market='cn'")
+        return ricequant.all_instruments(
+            self._ctx,
+            type=type,
+            market=market,
+            fields=fields,
+            limit=limit,
+            offset=offset,
+        )
+
 
 def rq_api(config_path="config/settings.toml") -> RQLocal:
     cfg = load_config(Path(config_path))
@@ -1433,6 +1601,7 @@ password = "your_password"
 ```
 
 ```bash
+uv run python main.py sync --table ricequant_basic
 uv run python main.py sync --table ricequant_stock_minute --start-date 20240102 --end-date 20240102
 ```
 
@@ -1442,6 +1611,7 @@ uv run python main.py sync --table ricequant_stock_minute --start-date 20240102 
 from zer0share import rq_api
 
 rq = rq_api()
+basic = rq.all_instruments(type="CS", market="cn")
 df = rq.get_price(
     "000001.XSHE",
     start_date="20240102",
@@ -1458,10 +1628,10 @@ Add to `docs/SYNC_GUIDE.md`:
 ~~~markdown
 ## RiceQuant 私有数据源
 
-`ricequant_stock_minute` 需要 `[ricequant].enabled = true`，并配置 RiceQuant `license_key` 或 `username/password`。同步前需要先完成 `basic` 和 `trade_cal`：
+`ricequant_stock_minute` 需要 `[ricequant].enabled = true`，并配置 RiceQuant `license_key` 或 `username/password`。同步前需要先完成 `ricequant_basic` 和 `trade_cal`：
 
 ```bash
-uv run python main.py sync --table basic
+uv run python main.py sync --table ricequant_basic
 uv run python main.py sync --table trade_cal
 uv run python main.py sync --table ricequant_stock_minute --start-date 20240102 --end-date 20240102
 ```
@@ -1471,6 +1641,11 @@ Add to `skills/zer0share-data/references/api.md`:
 
 ~~~markdown
 ## RiceQuant local API
+
+- `rq_api().all_instruments(type=None, date=None, market="cn", fields=None, limit=None, offset=None)`
+  - Local sync table: `ricequant_basic`
+  - Storage: `data/ricequant/basic/data.parquet`
+  - First private implementation supports the local snapshot only and rejects `date`.
 
 - `rq_api().get_price(order_book_ids, start_date=None, end_date=None, frequency="1m", fields=None, limit=None, offset=None)`
   - Local sync table: `ricequant_stock_minute`
@@ -1510,14 +1685,16 @@ git commit -m "docs: document ricequant private data source"
 Run only in an environment with valid RiceQuant credentials in `config/settings.toml`:
 
 ```bash
+uv run python main.py sync --table ricequant_basic
 uv run python main.py sync --table ricequant_stock_minute --start-date 20240102 --end-date 20240102
+uv run python -c "from zer0share import rq_api; print(rq_api().all_instruments(type='CS', market='cn').head())"
 uv run python -c "from zer0share import rq_api; print(rq_api().get_price('000001.XSHE', start_date='20240102', end_date='20240102', frequency='1m').head())"
 ```
 
-Expected: first command writes `data/ricequant/stock_minute/date=20240102/data.parquet`; second command prints minute bars for `000001.XSHE`.
+Expected: first command writes `data/ricequant/basic/data.parquet`; second command writes `data/ricequant/stock_minute/date=20240102/data.parquet`; local query commands print RiceQuant basic rows and minute bars for `000001.XSHE`.
 
 ## Self-Review Notes
 
-- Spec coverage: config, optional `rqdatac`, data source adapter, private sync table, independent storage path, `rq_api()` query, `pro_api()` isolation, docs, and tests are covered.
+- Spec coverage: config, optional `rqdatac`, RiceQuant basic sync, RiceQuant minute sync, independent storage path, `rq_api()` query, `pro_api()` isolation, docs, and tests are covered.
 - Scope: this plan implements only A-share 1-minute bars. Tick, realtime websocket, resampling, and local minute adjustment remain out of scope.
-- Type consistency: sync table name is consistently `ricequant_stock_minute`; storage path is consistently `data/ricequant/stock_minute`; public local query entrypoint is consistently `rq_api().get_price(order_book_ids, frequency="1m")`.
+- Type consistency: sync table names are consistently `ricequant_basic` and `ricequant_stock_minute`; storage paths are consistently `data/ricequant/basic` and `data/ricequant/stock_minute`; public local query entrypoints are consistently `rq_api().all_instruments(...)` and `rq_api().get_price(order_book_ids, frequency="1m")`.
