@@ -377,6 +377,7 @@ class RiceQuantHistoryRunner:
                     trade_date, rows, symbols, parquet_size,
                     bytes_used_before, bytes_used_after, elapsed,
                 )
+                logger.info(f"完成 {trade_date}")
                 return True
 
             if stop_remaining_below is not None and remaining < stop_remaining_below:
@@ -385,6 +386,7 @@ class RiceQuantHistoryRunner:
                     trade_date, rows, symbols, parquet_size,
                     bytes_used_before, bytes_used_after, elapsed,
                 )
+                logger.info(f"完成 {trade_date}")
                 return True
 
         self._manifest.record_day_success(
