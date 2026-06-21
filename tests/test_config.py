@@ -123,3 +123,126 @@ def test_config_is_immutable(tmp_path):
     cfg = load_config(cfg_file)
     with pytest.raises(Exception):
         cfg.tushare_token = "hacked"
+
+
+def test_load_config_defaults_ricequant_disabled(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(VALID_TOML, encoding="utf-8")
+
+    cfg = load_config(cfg_file)
+
+    assert cfg.ricequant.enabled is False
+    assert cfg.ricequant.username == ""
+    assert cfg.ricequant.password == ""
+    assert cfg.ricequant.license_key == ""
+    assert cfg.ricequant.stock_minute.request_sleep_seconds == 0.2
+    assert cfg.ricequant.stock_minute.adjust_type == "none"
+    assert cfg.ricequant.stock_minute.skip_suspended is True
+
+
+def test_load_config_parses_ricequant_section(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        VALID_TOML
+        + """
+
+[ricequant]
+enabled = true
+username = "rq_user"
+password = "rq_password"
+license_key = ""
+
+[ricequant.stock_minute]
+request_sleep_seconds = 0.5
+adjust_type = "none"
+skip_suspended = false
+""",
+        encoding="utf-8",
+    )
+
+    cfg = load_config(cfg_file)
+
+    assert cfg.ricequant.enabled is True
+    assert cfg.ricequant.username == "rq_user"
+    assert cfg.ricequant.password == "rq_password"
+    assert cfg.ricequant.license_key == ""
+    assert cfg.ricequant.stock_minute.request_sleep_seconds == 0.5
+    assert cfg.ricequant.stock_minute.adjust_type == "none"
+    assert cfg.ricequant.stock_minute.skip_suspended is False
+
+
+def test_load_config_parses_ricequant_license_key(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        VALID_TOML
+        + """
+
+[ricequant]
+enabled = true
+license_key = "rq_license_key"
+""",
+        encoding="utf-8",
+    )
+
+    cfg = load_config(cfg_file)
+
+    assert cfg.ricequant.enabled is True
+    assert cfg.ricequant.username == ""
+    assert cfg.ricequant.password == ""
+    assert cfg.ricequant.license_key == "rq_license_key"
+
+
+def test_load_config_rejects_ambiguous_ricequant_credentials(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        VALID_TOML
+        + """
+
+[ricequant]
+enabled = true
+username = "rq_user"
+password = "rq_password"
+license_key = "rq_license_key"
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="ricequant credentials"):
+        load_config(cfg_file)
+
+
+def test_load_config_rejects_enabled_ricequant_without_credentials(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        VALID_TOML
+        + """
+
+[ricequant]
+enabled = true
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="ricequant credentials"):
+        load_config(cfg_file)
+
+
+def test_load_config_rejects_unsupported_ricequant_adjust_type(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        VALID_TOML
+        + """
+
+[ricequant]
+enabled = true
+username = "rq_user"
+password = "rq_password"
+
+[ricequant.stock_minute]
+adjust_type = "pre"
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="ricequant.stock_minute.adjust_type"):
+        load_config(cfg_file)

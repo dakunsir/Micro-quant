@@ -38,7 +38,19 @@ fut_index_daily   = "17:47"
 fut_weekly_detail = "17:50"
 opt_basic         = "17:53"
 opt_daily         = "17:56"
+ricequant_stock_minute = "16:30"
 
 [notifier]
 wecom_webhook_url = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY"
 enabled = false  # 填写真实 webhook_url 后改为 true
+
+[ricequant]
+enabled = false
+username = ""
+password = ""
+license_key = ""
+
+[ricequant.stock_minute]
+request_sleep_seconds = 0.2
+adjust_type = "none"
+skip_suspended = true
