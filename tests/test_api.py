@@ -1414,3 +1414,9 @@ def test_query_dispatch_supports_opt_basic(tmp_path):
     result = api.query("opt_basic")
     assert len(result) == 1
     assert result.iloc[0]["ts_code"] == "10004462.SH"
+
+
+def test_pro_api_query_does_not_dispatch_ricequant_table(tmp_path):
+    pro = LocalPro(tmp_path)
+    with pytest.raises(ValueError, match="unknown api"):
+        pro.query("ricequant_stock_minute")
