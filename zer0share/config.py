@@ -84,14 +84,16 @@ def load_config(path: Path = Path("config/settings.toml")) -> Config:
     except tomllib.TOMLDecodeError as e:
         raise ValueError(f"配置文件格式错误: {e}") from e
     try:
+        notifier_raw = raw["notifier"]
+        webhook_url = notifier_raw.get("webhook_url", notifier_raw.get("wecom_webhook_url", ""))
         return Config(
             tushare_token=raw["tushare"]["token"],
             data_dir=Path(raw["paths"]["data_dir"]),
             db_path=Path(raw["paths"]["db_path"]),
             log_path=Path(raw["paths"]["log_path"]),
             schedule=_parse_schedule(raw["scheduler"]),
-            wecom_webhook_url=raw["notifier"]["wecom_webhook_url"],
-            notifier_enabled=raw["notifier"]["enabled"],
+            wecom_webhook_url=webhook_url,
+            notifier_enabled=notifier_raw["enabled"],
             ricequant=_parse_ricequant(raw),
         )
     except KeyError as e:

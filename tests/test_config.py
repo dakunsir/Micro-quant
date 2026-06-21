@@ -249,3 +249,16 @@ adjust_type = "pre"
 
     with pytest.raises(ValueError, match="ricequant.stock_minute.adjust_type"):
         load_config(cfg_file)
+
+
+def test_load_config_accepts_notifier_webhook_url(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        VALID_TOML.replace(
+            'wecom_webhook_url = "https://example.com/webhook"',
+            'webhook_url = "https://open.feishu.cn/open-apis/bot/v2/hook/example"',
+        ),
+        encoding="utf-8",
+    )
+    cfg = load_config(cfg_file)
+    assert cfg.wecom_webhook_url == "https://open.feishu.cn/open-apis/bot/v2/hook/example"
