@@ -1,5 +1,124 @@
+import time
+
+import pandas as pd
+from loguru import logger
+
+import zer0share.dateutil as dateutil
 from zer0share.sources import DataSources
+from zer0share.storage import DailyPartitionStore, SnapshotStore
+from zer0share.sync._jobs import SyncJob, _format_duration
+
+
+BASIC_TABLE_NAME = "ricequant_basic"
+MINUTE_TABLE_NAME = "ricequant_stock_minute"
+
+
+class RiceQuantBasicSyncJob(SyncJob):
+    table_name = BASIC_TABLE_NAME
+    supports_date_range = False
+
+    def __init__(self, cfg, fetcher):
+        self.cfg = cfg
+        self.fetcher = fetcher
+        self.store = SnapshotStore(cfg.data_dir / "ricequant" / "basic" / "data.parquet")
+
+    def run(self, rt, start_date: str | None = None, end_date: str | None = None) -> None:
+        df = self.fetcher.fetch_basic()
+        self.store.write(df)
+        today = rt.calendar.today()
+        rt.meta.update_last_date(BASIC_TABLE_NAME, today)
+        rt.notifier.send(f"{BASIC_TABLE_NAME} 同步完成\n日期：{today}｜{len(df)} 行")
+
+
+class RiceQuantStockMinuteSyncJob(SyncJob):
+    table_name = MINUTE_TABLE_NAME
+    supports_date_range = True
+
+    def __init__(self, cfg, fetcher):
+        self.cfg = cfg
+        self.fetcher = fetcher
+        self.store = DailyPartitionStore(cfg.data_dir / "ricequant" / "stock_minute")
+
+    def _load_order_book_ids(self) -> list[str]:
+        df = SnapshotStore(self.cfg.data_dir / "ricequant" / "basic" / "data.parquet").read()
+        if df.empty:
+            raise FileNotFoundError(
+                "ricequant basic data not found; run `python main.py sync --table ricequant_basic` first"
+            )
+        if "status" in df.columns:
+            df = df[df["status"] == "Active"]
+        return sorted(df["order_book_id"].dropna().astype(str).tolist())
+
+    def run(self, rt, start_date: str | None = None, end_date: str | None = None) -> None:
+        today = rt.calendar.today()
+        if start_date is None:
+            last = rt.meta.get_last_date(MINUTE_TABLE_NAME)
+            start = dateutil.add_days(last, 1) if last is not None else today
+            end = today
+        else:
+            start = start_date
+            end = end_date if end_date is not None else today
+        if start > end:
+            raise ValueError(f"start_date {start} is after end_date {end}")
+
+        trading_days = rt.calendar.get_trading_days("SSE", start, end)
+        if not trading_days and rt.meta.get_last_date("trade_cal") is None:
+            raise RuntimeError("No trading days found. Run `sync --table trade_cal` first.")
+
+        order_book_ids = self._load_order_book_ids()
+        current_meta = rt.meta.get_last_date(MINUTE_TABLE_NAME)
+        for trade_date in trading_days:
+            if self.store.exists(trade_date):
+                if current_meta is None or trade_date > current_meta:
+                    rt.meta.update_last_date(MINUTE_TABLE_NAME, trade_date)
+                    current_meta = trade_date
+                continue
+
+            frames = []
+            failures = []
+            started = time.monotonic()
+            for order_book_id in order_book_ids:
+                try:
+                    df = self.fetcher.fetch_stock_minute(
+                        order_book_id,
+                        trade_date,
+                        trade_date,
+                        self.cfg.ricequant.stock_minute.adjust_type,
+                        self.cfg.ricequant.stock_minute.skip_suspended,
+                    )
+                except Exception as exc:
+                    failures.append((order_book_id, str(exc)))
+                    logger.warning(f"{MINUTE_TABLE_NAME}: {order_book_id} failed on {trade_date}: {exc}")
+                    continue
+                if df is not None and not df.empty:
+                    frames.append(df)
+                time.sleep(self.cfg.ricequant.stock_minute.request_sleep_seconds)
+
+            if not frames:
+                raise RuntimeError(
+                    f"all RiceQuant stock minute fetches failed for {trade_date}; failures={failures[:5]}"
+                )
+
+            combined = pd.concat(frames, ignore_index=True)
+            self.store.write(trade_date, combined)
+            rt.meta.update_last_date(MINUTE_TABLE_NAME, trade_date)
+            current_meta = trade_date
+            elapsed = _format_duration(time.monotonic() - started)
+            message = (
+                f"{MINUTE_TABLE_NAME} 同步完成\n"
+                f"日期：{trade_date}｜写入 {len(combined)} 行｜失败 {len(failures)}｜耗时 {elapsed}"
+            )
+            if failures:
+                message += "\n失败样例：" + "; ".join(f"{code}: {err}" for code, err in failures[:5])
+            rt.notifier.send(message)
 
 
 def build_jobs(cfg, sources: DataSources):
-    return []
+    if not cfg.ricequant.enabled:
+        return []
+    if sources.ricequant is None:
+        raise RuntimeError("RiceQuant is enabled but RiceQuantFetcher is not configured")
+    return [
+        RiceQuantBasicSyncJob(cfg, sources.ricequant),
+        RiceQuantStockMinuteSyncJob(cfg, sources.ricequant),
+    ]

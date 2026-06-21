@@ -34,6 +34,7 @@ def cfg(tmp_path):
     c = MagicMock()
     c.data_dir = tmp_path
     c.db_path = tmp_path / "meta.duckdb"
+    c.ricequant.enabled = False
     return c
 
 
