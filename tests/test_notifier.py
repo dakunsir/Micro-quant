@@ -39,3 +39,39 @@ def test_send_http_error_does_not_raise():
     )
     with patch("httpx.post", return_value=mock_response):
         n.send("告警消息")  # 不应抛出异常
+
+
+def test_notify_start_posts_stage_details():
+    n = Notifier(webhook_url="https://example.com/hook", enabled=True)
+    mock_response = MagicMock()
+    mock_response.raise_for_status = MagicMock()
+    with patch("httpx.post", return_value=mock_response) as mock_post:
+        n.notify_start("ricequant_history", {"range": "20160101~20160131"})
+    content = mock_post.call_args[1]["json"]["text"]["content"]
+    assert "[zer0share · ricequant_history]" in content
+    assert "开始" in content
+    assert "range: 20160101~20160131" in content
+
+
+def test_notify_progress_posts_counts_and_percentage():
+    n = Notifier(webhook_url="https://example.com/hook", enabled=True)
+    mock_response = MagicMock()
+    mock_response.raise_for_status = MagicMock()
+    with patch("httpx.post", return_value=mock_response) as mock_post:
+        n.notify_progress("ricequant_history", 3, 12)
+    content = mock_post.call_args[1]["json"]["text"]["content"]
+    assert "进度 25%" in content
+    assert "(3/12)" in content
+
+
+def test_notify_stage_done_posts_summary_and_elapsed():
+    n = Notifier(webhook_url="https://example.com/hook", enabled=True)
+    mock_response = MagicMock()
+    mock_response.raise_for_status = MagicMock()
+    with patch("httpx.post", return_value=mock_response) as mock_post:
+        n.notify_stage_done("2026-05", {"行数": "22,475,520", "流量": "651 MiB"}, 257.4)
+    content = mock_post.call_args[1]["json"]["text"]["content"]
+    assert "[zer0share · 2026-05]" in content
+    assert "完成" in content
+    assert "行数: 22,475,520" in content
+    assert "耗时: 257.4s" in content
