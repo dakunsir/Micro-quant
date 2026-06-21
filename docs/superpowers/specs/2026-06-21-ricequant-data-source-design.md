@@ -78,6 +78,8 @@ enabled = false
 username = ""
 password = ""
 license_key = ""
+
+[ricequant.stock_minute]
 request_sleep_seconds = 0.2
 adjust_type = "none"
 skip_suspended = true
@@ -112,6 +114,7 @@ class DataSources:
 - Tushare 保持必需，兼容现有功能。
 - RiceQuant 只有在 `[ricequant].enabled = true` 时初始化。
 - RiceQuant 认证支持 `license_key` 或 `username/password` 二选一；两者同时配置时报错，启用但两者都缺失时报错。
+- `[ricequant]` 只放数据源级配置；分钟线限速、复权和停牌补齐策略放在 `[ricequant.stock_minute]`。
 - 如果用户同步 RiceQuant 表但 RiceQuant 未启用，报明确配置错误。
 
 ### RiceQuantFetcher

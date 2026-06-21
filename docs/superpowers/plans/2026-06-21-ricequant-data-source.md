@@ -50,9 +50,9 @@ def test_load_config_defaults_ricequant_disabled(tmp_path):
     assert cfg.ricequant.username == ""
     assert cfg.ricequant.password == ""
     assert cfg.ricequant.license_key == ""
-    assert cfg.ricequant.request_sleep_seconds == 0.2
-    assert cfg.ricequant.adjust_type == "none"
-    assert cfg.ricequant.skip_suspended is True
+    assert cfg.ricequant.stock_minute.request_sleep_seconds == 0.2
+    assert cfg.ricequant.stock_minute.adjust_type == "none"
+    assert cfg.ricequant.stock_minute.skip_suspended is True
 
 
 def test_load_config_parses_ricequant_section(tmp_path):
@@ -66,6 +66,8 @@ enabled = true
 username = "rq_user"
 password = "rq_password"
 license_key = ""
+
+[ricequant.stock_minute]
 request_sleep_seconds = 0.5
 adjust_type = "none"
 skip_suspended = false
@@ -79,9 +81,9 @@ skip_suspended = false
     assert cfg.ricequant.username == "rq_user"
     assert cfg.ricequant.password == "rq_password"
     assert cfg.ricequant.license_key == ""
-    assert cfg.ricequant.request_sleep_seconds == 0.5
-    assert cfg.ricequant.adjust_type == "none"
-    assert cfg.ricequant.skip_suspended is False
+    assert cfg.ricequant.stock_minute.request_sleep_seconds == 0.5
+    assert cfg.ricequant.stock_minute.adjust_type == "none"
+    assert cfg.ricequant.stock_minute.skip_suspended is False
 
 
 def test_load_config_parses_ricequant_license_key(tmp_path):
@@ -150,12 +152,14 @@ def test_load_config_rejects_unsupported_ricequant_adjust_type(tmp_path):
 enabled = true
 username = "rq_user"
 password = "rq_password"
+
+[ricequant.stock_minute]
 adjust_type = "pre"
 """,
         encoding="utf-8",
     )
 
-    with pytest.raises(ValueError, match="ricequant.adjust_type"):
+    with pytest.raises(ValueError, match="ricequant.stock_minute.adjust_type"):
         load_config(cfg_file)
 ```
 
@@ -175,14 +179,19 @@ Modify `zer0share/config.py`:
 
 ```python
 @dataclass(frozen=True)
+class RiceQuantStockMinuteConfig:
+    request_sleep_seconds: float
+    adjust_type: str
+    skip_suspended: bool
+
+
+@dataclass(frozen=True)
 class RiceQuantConfig:
     enabled: bool
     username: str
     password: str
     license_key: str
-    request_sleep_seconds: float
-    adjust_type: str
-    skip_suspended: bool
+    stock_minute: RiceQuantStockMinuteConfig
 
 
 @dataclass(frozen=True)
@@ -202,9 +211,10 @@ Add helper:
 ```python
 def _parse_ricequant(raw: dict) -> RiceQuantConfig:
     raw_rq = raw.get("ricequant", {})
-    adjust_type = raw_rq.get("adjust_type", "none")
+    raw_stock_minute = raw_rq.get("stock_minute", {})
+    adjust_type = raw_stock_minute.get("adjust_type", "none")
     if adjust_type != "none":
-        raise ValueError("ricequant.adjust_type currently only supports 'none'")
+        raise ValueError("ricequant.stock_minute.adjust_type currently only supports 'none'")
     enabled = bool(raw_rq.get("enabled", False))
     username = str(raw_rq.get("username", ""))
     password = str(raw_rq.get("password", ""))
@@ -219,9 +229,11 @@ def _parse_ricequant(raw: dict) -> RiceQuantConfig:
         username=username,
         password=password,
         license_key=license_key,
-        request_sleep_seconds=float(raw_rq.get("request_sleep_seconds", 0.2)),
-        adjust_type=adjust_type,
-        skip_suspended=bool(raw_rq.get("skip_suspended", True)),
+        stock_minute=RiceQuantStockMinuteConfig(
+            request_sleep_seconds=float(raw_stock_minute.get("request_sleep_seconds", 0.2)),
+            adjust_type=adjust_type,
+            skip_suspended=bool(raw_stock_minute.get("skip_suspended", True)),
+        ),
     )
 ```
 
@@ -241,6 +253,8 @@ enabled = false
 username = ""
 password = ""
 license_key = ""
+
+[ricequant.stock_minute]
 request_sleep_seconds = 0.2
 adjust_type = "none"
 skip_suspended = true
@@ -786,9 +800,9 @@ def cfg(tmp_path):
     c.data_dir = tmp_path
     c.db_path = tmp_path / "meta.duckdb"
     c.ricequant.enabled = True
-    c.ricequant.request_sleep_seconds = 0.0
-    c.ricequant.adjust_type = "none"
-    c.ricequant.skip_suspended = True
+    c.ricequant.stock_minute.request_sleep_seconds = 0.0
+    c.ricequant.stock_minute.adjust_type = "none"
+    c.ricequant.stock_minute.skip_suspended = True
     return c
 
 
@@ -1000,8 +1014,8 @@ class RiceQuantStockMinuteSyncJob(SyncJob):
                         order_book_id,
                         trade_date,
                         trade_date,
-                        self.cfg.ricequant.adjust_type,
-                        self.cfg.ricequant.skip_suspended,
+                        self.cfg.ricequant.stock_minute.adjust_type,
+                        self.cfg.ricequant.stock_minute.skip_suspended,
                     )
                 except Exception as exc:
                     failures.append((order_book_id, str(exc)))
@@ -1009,7 +1023,7 @@ class RiceQuantStockMinuteSyncJob(SyncJob):
                     continue
                 if df is not None and not df.empty:
                     frames.append(df)
-                time.sleep(self.cfg.ricequant.request_sleep_seconds)
+                time.sleep(self.cfg.ricequant.stock_minute.request_sleep_seconds)
 
             if not frames:
                 raise RuntimeError(f"all RiceQuant stock minute fetches failed for {trade_date}; failures={failures[:5]}")
