@@ -147,6 +147,31 @@ def test_runner_retries_failed_day_then_records_success(tmp_path):
     assert row["status"] == "success"
 
 
+def test_runner_suppresses_underlying_daily_pipeline_notifications(tmp_path):
+    """History runner should not let per-day sync jobs spam notifications."""
+    underlying_notifier = MagicMock()
+    runtime = MagicMock()
+    runtime.notifier = underlying_notifier
+
+    class FakePipeline:
+        def __init__(self):
+            self._runtime = runtime
+            self.called = False
+
+        def run(self, table_name, start_date, end_date):
+            self.called = True
+            self._runtime.notifier.send(f"{table_name} 同步完成")
+
+    fake_pipeline = FakePipeline()
+    runner, _manifest = _make_runner(tmp_path, fake_pipeline, ["20260506"])
+
+    runner.run("20260506", "20260506")
+
+    assert fake_pipeline.called
+    underlying_notifier.send.assert_not_called()
+    assert fake_pipeline._runtime.notifier is underlying_notifier
+
+
 def test_history_script_parser_defaults():
     import sys
     sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))

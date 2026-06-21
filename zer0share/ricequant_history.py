@@ -8,9 +8,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import duckdb
-import pyarrow.parquet as pq
 from loguru import logger
 
+from zer0share.notifier import NullNotifier
 from zer0share.storage import DailyPartitionStore
 
 
@@ -60,7 +60,6 @@ def month_chunks(start_date: str, end_date: str) -> list[tuple[str, str]]:
     start_d = int(start_date[6:])
     end_y = int(end_date[:4])
     end_m = int(end_date[4:6])
-    end_d = int(end_date[6:])
 
     chunks: list[tuple[str, str]] = []
     cur_y, cur_m, cur_d = start_y, start_m, start_d
@@ -314,6 +313,19 @@ class RiceQuantHistoryRunner:
     # Internal helpers
     # ------------------------------------------------------------------
 
+    def _run_pipeline_silently(self, trade_date: str) -> None:
+        runtime = getattr(self._pipeline, "_runtime", None)
+        if runtime is None or not hasattr(runtime, "notifier"):
+            self._pipeline.run("ricequant_stock_minute", trade_date, trade_date)
+            return
+
+        original_notifier = runtime.notifier
+        runtime.notifier = NullNotifier()
+        try:
+            self._pipeline.run("ricequant_stock_minute", trade_date, trade_date)
+        finally:
+            runtime.notifier = original_notifier
+
     def _sync_day(
         self,
         trade_date: str,
@@ -349,7 +361,7 @@ class RiceQuantHistoryRunner:
 
         for attempt in range(retries):
             try:
-                self._pipeline.run("ricequant_stock_minute", trade_date, trade_date)
+                self._run_pipeline_silently(trade_date)
                 last_error = None
                 break
             except Exception as exc:
