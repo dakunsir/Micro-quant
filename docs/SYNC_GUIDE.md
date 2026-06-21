@@ -245,3 +245,13 @@ db/
 logs/
 └── pipeline.log
 ```
+
+## RiceQuant 私有数据源
+
+`ricequant_stock_minute` 需要 `[ricequant].enabled = true`，并配置 RiceQuant `license_key` 或 `username/password`。同步前需要先完成 `ricequant_basic` 和 `trade_cal`：
+
+```bash
+uv run python main.py sync --table ricequant_basic
+uv run python main.py sync --table trade_cal
+uv run python main.py sync --table ricequant_stock_minute --start-date 20240102 --end-date 20240102
+```

@@ -145,3 +145,15 @@ df = pro.query("daily", ts_code="000001.SZ", start_date="20240101", end_date="20
 
 zer0share does not currently expose local finance statements, macro data, realtime quotes, news, announcements, funds, Hong Kong stocks, or US stocks. If users ask for these, state that the local skill cannot answer from current synced zer0share data.
 
+
+## RiceQuant local API
+
+- `rq_api().all_instruments(type=None, date=None, market="cn", fields=None, limit=None, offset=None)`
+  - Local sync table: `ricequant_basic`
+  - Storage: `data/ricequant/basic/data.parquet`
+  - First private implementation supports the local snapshot only and rejects `date`.
+
+- `rq_api().get_price(order_book_ids, start_date=None, end_date=None, frequency="1m", fields=None, limit=None, offset=None)`
+  - Local sync table: `ricequant_stock_minute`
+  - Storage: `data/ricequant/stock_minute/date=YYYYMMDD/data.parquet`
+  - First private implementation supports A-share 1-minute bars only.
