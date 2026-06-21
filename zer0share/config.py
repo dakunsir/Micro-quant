@@ -7,6 +7,7 @@ import tomllib
 @dataclass(frozen=True)
 class RiceQuantStockMinuteConfig:
     request_sleep_seconds: float
+    batch_size: int
     adjust_type: str
     skip_suspended: bool
 
@@ -54,6 +55,7 @@ def _parse_ricequant(raw: dict) -> RiceQuantConfig:
         license_key=license_key,
         stock_minute=RiceQuantStockMinuteConfig(
             request_sleep_seconds=float(raw_stock_minute.get("request_sleep_seconds", 0.2)),
+            batch_size=int(raw_stock_minute.get("batch_size", 1000)),
             adjust_type=adjust_type,
             skip_suspended=bool(raw_stock_minute.get("skip_suspended", True)),
         ),

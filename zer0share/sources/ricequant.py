@@ -32,15 +32,15 @@ class RiceQuantFetcher:
 
     def fetch_stock_minute(
         self,
-        order_book_id: str,
+        order_book_ids: str | list[str],
         start_date: str,
         end_date: str,
         adjust_type: str = "none",
         skip_suspended: bool = True,
     ) -> pd.DataFrame:
-        logger.debug(f"拉取 RiceQuant 股票分钟线: {order_book_id} {start_date}~{end_date}")
+        logger.debug(f"拉取 RiceQuant 股票分钟线: {order_book_ids} {start_date}~{end_date}")
         df = self._rqdatac.get_price(
-            order_book_ids=order_book_id,
+            order_book_ids=order_book_ids,
             start_date=start_date,
             end_date=end_date,
             frequency="1m",
@@ -53,7 +53,9 @@ class RiceQuantFetcher:
             return pd.DataFrame(columns=["order_book_id", "datetime", "trade_date"])
         result = df.reset_index()
         if "order_book_id" not in result.columns:
-            result.insert(0, "order_book_id", order_book_id)
+            if not isinstance(order_book_ids, str):
+                raise ValueError("RiceQuant minute data for multiple order_book_ids must include order_book_id")
+            result.insert(0, "order_book_id", order_book_ids)
         if "datetime" not in result.columns:
             raise ValueError("RiceQuant minute data must include datetime index or column")
         result["datetime"] = pd.to_datetime(result["datetime"])

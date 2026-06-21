@@ -13,6 +13,11 @@ BASIC_TABLE_NAME = "ricequant_basic"
 MINUTE_TABLE_NAME = "ricequant_stock_minute"
 
 
+def _chunks(items: list[str], size: int):
+    for start in range(0, len(items), size):
+        yield items[start : start + size]
+
+
 class RiceQuantBasicSyncJob(SyncJob):
     table_name = BASIC_TABLE_NAME
     supports_date_range = False
@@ -66,6 +71,7 @@ class RiceQuantStockMinuteSyncJob(SyncJob):
             raise RuntimeError("No trading days found. Run `sync --table trade_cal` first.")
 
         order_book_ids = self._load_order_book_ids()
+        batch_size = max(1, int(self.cfg.ricequant.stock_minute.batch_size))
         current_meta = rt.meta.get_last_date(MINUTE_TABLE_NAME)
         for trade_date in trading_days:
             if self.store.exists(trade_date):
@@ -77,18 +83,20 @@ class RiceQuantStockMinuteSyncJob(SyncJob):
             frames = []
             failures = []
             started = time.monotonic()
-            for order_book_id in order_book_ids:
+            for batch in _chunks(order_book_ids, batch_size):
                 try:
                     df = self.fetcher.fetch_stock_minute(
-                        order_book_id,
+                        batch,
                         trade_date,
                         trade_date,
                         self.cfg.ricequant.stock_minute.adjust_type,
                         self.cfg.ricequant.stock_minute.skip_suspended,
                     )
                 except Exception as exc:
-                    failures.append((order_book_id, str(exc)))
-                    logger.warning(f"{MINUTE_TABLE_NAME}: {order_book_id} failed on {trade_date}: {exc}")
+                    failures.extend((order_book_id, str(exc)) for order_book_id in batch)
+                    logger.warning(
+                        f"{MINUTE_TABLE_NAME}: batch {batch[0]}..{batch[-1]} failed on {trade_date}: {exc}"
+                    )
                     continue
                 if df is not None and not df.empty:
                     frames.append(df)

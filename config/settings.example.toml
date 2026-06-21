@@ -52,5 +52,6 @@ license_key = ""
 
 [ricequant.stock_minute]
 request_sleep_seconds = 0.2
+batch_size = 1000
 adjust_type = "none"
 skip_suspended = true

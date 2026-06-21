@@ -136,6 +136,7 @@ def test_load_config_defaults_ricequant_disabled(tmp_path):
     assert cfg.ricequant.password == ""
     assert cfg.ricequant.license_key == ""
     assert cfg.ricequant.stock_minute.request_sleep_seconds == 0.2
+    assert cfg.ricequant.stock_minute.batch_size == 1000
     assert cfg.ricequant.stock_minute.adjust_type == "none"
     assert cfg.ricequant.stock_minute.skip_suspended is True
 
@@ -154,6 +155,7 @@ license_key = ""
 
 [ricequant.stock_minute]
 request_sleep_seconds = 0.5
+batch_size = 500
 adjust_type = "none"
 skip_suspended = false
 """,
@@ -167,6 +169,7 @@ skip_suspended = false
     assert cfg.ricequant.password == "rq_password"
     assert cfg.ricequant.license_key == ""
     assert cfg.ricequant.stock_minute.request_sleep_seconds == 0.5
+    assert cfg.ricequant.stock_minute.batch_size == 500
     assert cfg.ricequant.stock_minute.adjust_type == "none"
     assert cfg.ricequant.stock_minute.skip_suspended is False
 

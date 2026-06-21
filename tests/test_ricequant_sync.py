@@ -15,6 +15,7 @@ def cfg(tmp_path):
     c.db_path = tmp_path / "meta.duckdb"
     c.ricequant.enabled = True
     c.ricequant.stock_minute.request_sleep_seconds = 0.0
+    c.ricequant.stock_minute.batch_size = 2
     c.ricequant.stock_minute.adjust_type = "none"
     c.ricequant.stock_minute.skip_suspended = True
     return c
@@ -51,14 +52,16 @@ def _setup_calendar(pipeline, cfg):
     pipeline._runtime.calendar._today_fn = lambda: "20240102"
 
 
-def _minute_df(order_book_id):
+def _minute_df(order_book_ids):
+    if isinstance(order_book_ids, str):
+        order_book_ids = [order_book_ids]
     return pd.DataFrame(
         {
-            "order_book_id": [order_book_id],
-            "datetime": [pd.Timestamp("2024-01-02 09:31:00")],
-            "open": [10.0],
-            "close": [10.1],
-            "trade_date": ["20240102"],
+            "order_book_id": order_book_ids,
+            "datetime": [pd.Timestamp("2024-01-02 09:31:00")] * len(order_book_ids),
+            "open": [10.0] * len(order_book_ids),
+            "close": [10.1] * len(order_book_ids),
+            "trade_date": ["20240102"] * len(order_book_ids),
         }
     )
 
@@ -110,10 +113,7 @@ def test_ricequant_basic_sync_writes_snapshot(cfg):
 def test_ricequant_stock_minute_sync_writes_daily_partition(cfg):
     _write_basic(cfg.data_dir)
     ricequant = MagicMock()
-    ricequant.fetch_stock_minute.side_effect = [
-        _minute_df("000001.XSHE"),
-        _minute_df("600000.XSHG"),
-    ]
+    ricequant.fetch_stock_minute.side_effect = lambda order_book_ids, *_: _minute_df(order_book_ids)
     pipeline = Pipeline(cfg, DataSources(tushare=MagicMock(), ricequant=ricequant), MagicMock())
     _setup_calendar(pipeline, cfg)
 
@@ -123,8 +123,9 @@ def test_ricequant_stock_minute_sync_writes_daily_partition(cfg):
     result = DailyPartitionStore(cfg.data_dir / "ricequant" / "stock_minute").read("20240102")
     assert result["order_book_id"].tolist() == ["000001.XSHE", "600000.XSHG"]
     assert pipeline._runtime.meta.get_last_date("ricequant_stock_minute") == "20240102"
-    ricequant.fetch_stock_minute.assert_any_call("000001.XSHE", "20240102", "20240102", "none", True)
-    ricequant.fetch_stock_minute.assert_any_call("600000.XSHG", "20240102", "20240102", "none", True)
+    ricequant.fetch_stock_minute.assert_called_once_with(
+        ["000001.XSHE", "600000.XSHG"], "20240102", "20240102", "none", True
+    )
 
 
 def test_ricequant_stock_minute_partial_failures_write_successes(cfg):
@@ -132,8 +133,9 @@ def test_ricequant_stock_minute_partial_failures_write_successes(cfg):
     ricequant = MagicMock()
     ricequant.fetch_stock_minute.side_effect = [
         RuntimeError("temporary rq error"),
-        _minute_df("600000.XSHG"),
+        _minute_df(["600000.XSHG"]),
     ]
+    cfg.ricequant.stock_minute.batch_size = 1
     notifier = MagicMock()
     pipeline = Pipeline(cfg, DataSources(tushare=MagicMock(), ricequant=ricequant), notifier)
     _setup_calendar(pipeline, cfg)
