@@ -5,10 +5,10 @@ import click
 from loguru import logger
 
 from zer0share.config import load_config
-from zer0share.fetcher import TushareFetcher
 from zer0share.logging import init_logger
 from zer0share.notifier import Notifier
 from zer0share.pipeline import Pipeline
+from zer0share.sources import DataSources, RiceQuantFetcher, TushareFetcher
 from zer0share.storage import MetaStore
 from zer0share.universe import build_universes, build_universes_range
 
@@ -30,9 +30,20 @@ def _parse_date(s: str):
 def _make_pipeline(config_path: str = "config/settings.toml") -> Pipeline:
     cfg = load_config(Path(config_path))
     init_logger(cfg.log_path)
-    fetcher = TushareFetcher(cfg.tushare_token)
+    sources = DataSources(
+        tushare=TushareFetcher(cfg.tushare_token),
+        ricequant=(
+            RiceQuantFetcher(
+                username=cfg.ricequant.username,
+                password=cfg.ricequant.password,
+                license_key=cfg.ricequant.license_key,
+            )
+            if cfg.ricequant.enabled
+            else None
+        ),
+    )
     notifier = Notifier(cfg.wecom_webhook_url, cfg.notifier_enabled)
-    return Pipeline(cfg, fetcher, notifier)
+    return Pipeline(cfg, sources, notifier)
 
 
 @click.group()
@@ -73,10 +84,16 @@ STOCK_TABLES = [
     "ci_member",
 ]
 
+RICEQUANT_TABLES = [
+    "ricequant_basic",
+    "ricequant_stock_minute",
+]
+
 SYNC_TABLES = [
     *STOCK_TABLES,
     *FUTURES_TABLES,
     *OPTIONS_TABLES,
+    *RICEQUANT_TABLES,
 ]
 
 

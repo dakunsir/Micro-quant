@@ -1,6 +1,6 @@
 from zer0share.config import Config
-from zer0share.fetcher import TushareFetcher
 from zer0share.notifier import Notifier
+from zer0share.sources import DataSources
 from zer0share.storage import MetaStore
 from zer0share.sync import SyncRuntime
 from zer0share.sync._jobs import SyncJob
@@ -8,18 +8,20 @@ from zer0share.trading_calendar import TradingCalendar
 
 
 class Pipeline:
-    def __init__(self, cfg: Config, fetcher: TushareFetcher, notifier: Notifier):
+    def __init__(self, cfg: Config, sources: DataSources, notifier: Notifier):
         meta = MetaStore(cfg.db_path)
         calendar = TradingCalendar(meta)
         self._runtime = SyncRuntime(calendar=calendar, notifier=notifier, meta=meta)
         self._registry: dict[str, SyncJob] = {}
-        self._build_registry(cfg, fetcher)
+        self._build_registry(cfg, sources)
 
-    def _build_registry(self, cfg: Config, fetcher: TushareFetcher) -> None:
-        from zer0share.sync import calendar, stock, index, industry, futures, options
+    def _build_registry(self, cfg: Config, sources: DataSources) -> None:
+        from zer0share.sync import calendar, stock, index, industry, futures, options, ricequant
         for module in [calendar, stock, index, industry, futures, options]:
-            for job in module.build_jobs(cfg, fetcher):
+            for job in module.build_jobs(cfg, sources.tushare):
                 self._registry[job.table_name] = job
+        for job in ricequant.build_jobs(cfg, sources):
+            self._registry[job.table_name] = job
 
     def run(self, table_name: str, start_date: str | None = None, end_date: str | None = None) -> None:
         if table_name not in self._registry:

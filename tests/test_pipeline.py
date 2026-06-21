@@ -14,6 +14,7 @@ import pandas as pd
 import pytest
 
 from zer0share.pipeline import Pipeline
+from zer0share.sources import DataSources
 from zer0share.sync.calendar import EXCHANGES, ALL_EXCHANGES
 from zer0share.storage import (
     DailyPartitionStore,
@@ -48,7 +49,7 @@ def notifier():
 
 @pytest.fixture
 def pipeline(cfg, fetcher, notifier):
-    return Pipeline(cfg, fetcher, notifier)
+    return Pipeline(cfg, DataSources(tushare=fetcher), notifier)
 
 
 # ---------------------------------------------------------------------------
@@ -187,8 +188,14 @@ def _setup_trade_cal(pipeline, cfg, trade_date: str, is_open: bool) -> None:
 # ---------------------------------------------------------------------------
 
 def test_pipeline_context_manager(cfg, fetcher, notifier):
-    with Pipeline(cfg, fetcher, notifier) as p:
+    with Pipeline(cfg, DataSources(tushare=fetcher), notifier) as p:
         assert p is not None
+
+
+def test_pipeline_accepts_data_sources_container(cfg, fetcher, notifier):
+    sources = DataSources(tushare=fetcher)
+    pipeline = Pipeline(cfg, sources, notifier)
+    assert "daily_kline" in pipeline.registry
 
 
 def test_pipeline_registry_contains_all_tables(pipeline):

@@ -5,20 +5,31 @@ from apscheduler.triggers.cron import CronTrigger
 from loguru import logger
 
 from zer0share.config import load_config
-from zer0share.fetcher import TushareFetcher
 from zer0share.logging import init_logger
 from zer0share.notifier import Notifier
 from zer0share.pipeline import Pipeline
+from zer0share.sources import DataSources, RiceQuantFetcher, TushareFetcher
 
 
 def start_scheduler(config_path: str = "config/settings.toml") -> None:
     cfg = load_config(Path(config_path))
     init_logger(cfg.log_path)
 
-    fetcher = TushareFetcher(cfg.tushare_token)
+    sources = DataSources(
+        tushare=TushareFetcher(cfg.tushare_token),
+        ricequant=(
+            RiceQuantFetcher(
+                username=cfg.ricequant.username,
+                password=cfg.ricequant.password,
+                license_key=cfg.ricequant.license_key,
+            )
+            if cfg.ricequant.enabled
+            else None
+        ),
+    )
     notifier = Notifier(cfg.wecom_webhook_url, cfg.notifier_enabled)
 
-    with Pipeline(cfg, fetcher, notifier) as pipeline:
+    with Pipeline(cfg, sources, notifier) as pipeline:
         scheduler = BlockingScheduler()
         for table_name, time_str in cfg.schedule.items():
             hour, minute = (int(x) for x in time_str.split(":"))
