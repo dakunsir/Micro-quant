@@ -13,21 +13,29 @@ class RiceQuantFetcher:
         password: str = "",
         license_key: str = "",
     ):
+        has_user_password = bool(username or password)
+        if license_key and has_user_password:
+            raise ValueError("RiceQuant credentials must use either license_key or username/password, not both")
+        if not license_key and not (username and password):
+            raise ValueError("RiceQuant credentials require license_key or both username and password")
+        self._username = username
+        self._password = password
+        self._license_key = license_key
+        self._rqdatac = None
+
+    def _connect(self):
+        if self._rqdatac is not None:
+            return
         try:
             rqdatac = importlib.import_module("rqdatac")
         except ImportError as exc:
             raise ImportError(
                 "rqdatac is required for RiceQuant sync; install it or disable [ricequant].enabled"
             ) from exc
-        has_user_password = bool(username or password)
-        if license_key and has_user_password:
-            raise ValueError("RiceQuant credentials must use either license_key or username/password, not both")
-        if license_key:
-            rqdatac.init(username="license", password=license_key)
-        elif username and password:
-            rqdatac.init(username=username, password=password)
+        if self._license_key:
+            rqdatac.init(username="license", password=self._license_key)
         else:
-            raise ValueError("RiceQuant credentials require license_key or both username and password")
+            rqdatac.init(username=self._username, password=self._password)
         self._rqdatac = rqdatac
 
     def fetch_stock_minute(
@@ -38,6 +46,7 @@ class RiceQuantFetcher:
         adjust_type: str = "none",
         skip_suspended: bool = True,
     ) -> pd.DataFrame:
+        self._connect()
         logger.debug(f"拉取 RiceQuant 股票分钟线: {order_book_ids} {start_date}~{end_date}")
         df = self._rqdatac.get_price(
             order_book_ids=order_book_ids,
@@ -63,6 +72,7 @@ class RiceQuantFetcher:
         return result
 
     def fetch_basic(self) -> pd.DataFrame:
+        self._connect()
         logger.debug("拉取 RiceQuant 股票基础信息: all_instruments(type='CS', market='cn')")
         df = self._rqdatac.all_instruments(type="CS", market="cn")
         if df is None or df.empty:
