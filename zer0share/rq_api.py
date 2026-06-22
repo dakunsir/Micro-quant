@@ -58,6 +58,24 @@ class RQLocal:
             offset=offset,
         )
 
+    def get_daily_sum(
+        self,
+        order_book_ids,
+        fields: list[str],
+        start_date=None,
+        end_date=None,
+    ):
+        """Return per-(order_book_id, trade_date) SUM — aggregated in DuckDB, no minute rows in memory."""
+        _check_date(start_date)
+        _check_date(end_date)
+        return ricequant.get_daily_sum(
+            self._ctx,
+            order_book_ids=order_book_ids,
+            fields=fields,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
     def all_instruments(
         self,
         type=None,

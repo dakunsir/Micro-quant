@@ -96,6 +96,34 @@ def get_price(
     return duckdb.connect().execute(sql, params).fetchdf()
 
 
+def get_daily_sum(
+    ctx: QueryContext,
+    order_book_ids,
+    fields: list[str],
+    start_date=None,
+    end_date=None,
+) -> pd.DataFrame:
+    """Return per-(order_book_id, trade_date) SUM for each field — aggregated in DuckDB."""
+    _ensure_exists(ctx)
+    agg_exprs = ", ".join(f"SUM({f}) AS {f}" for f in fields)
+    filters: list[SqlFilter] = []
+    if order_book_ids is not None:
+        filters.append(in_filter("order_book_id", order_book_ids, TABLE_COLUMNS))
+    filters.extend(date_range_filters("trade_date", None, start_date, end_date, TABLE_COLUMNS))
+
+    sql = (
+        f"SELECT order_book_id, trade_date, {agg_exprs} "
+        f"FROM read_parquet(?, hive_partitioning=true, union_by_name=true)"
+    )
+    params: list[object] = [str(_source(ctx))]
+    if filters:
+        sql += " WHERE " + " AND ".join(f.clause for f in filters)
+        for filt in filters:
+            params.extend(filt.params)
+    sql += " GROUP BY order_book_id, trade_date ORDER BY order_book_id, trade_date"
+    return duckdb.connect().execute(sql, params).fetchdf()
+
+
 def all_instruments(
     ctx: QueryContext,
     type=None,
