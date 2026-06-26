@@ -72,6 +72,13 @@ FUND_DAILY_COLS = [
     "amount",
 ]
 
+FUND_ADJ_COLS = [
+    "ts_code",
+    "trade_date",
+    "adj_factor",
+    "discount_rate",
+]
+
 
 def _basic_row(
     *,
@@ -749,6 +756,54 @@ def test_fetch_fund_daily_returns_empty_when_none(mock_pro):
 
     assert df.empty
     assert list(df.columns) == FUND_DAILY_COLS
+
+
+# --- Fund adj tests ---
+
+
+def _fund_adj_row() -> dict:
+    return {
+        "ts_code": "510300.SH",
+        "trade_date": "20240102",
+        "adj_factor": 1.2345,
+        "discount_rate": 0.02,
+    }
+
+
+def test_fetch_fund_adj_returns_correct_columns(mock_pro):
+    mock_pro.fund_adj.return_value = pd.DataFrame([_fund_adj_row()])
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_fund_adj("20240102")
+
+    assert list(df.columns) == FUND_ADJ_COLS
+    assert len(df) == 1
+    assert df.iloc[0]["ts_code"] == "510300.SH"
+    assert df.iloc[0]["trade_date"] == "20240102"
+    assert df.iloc[0]["adj_factor"] == 1.2345
+    assert df.iloc[0]["discount_rate"] == 0.02
+
+
+def test_fetch_fund_adj_calls_api_with_expected_fields(mock_pro):
+    mock_pro.fund_adj.return_value = pd.DataFrame([_fund_adj_row()])
+    fetcher = TushareFetcher("fake_token")
+
+    fetcher.fetch_fund_adj("20240102")
+
+    mock_pro.fund_adj.assert_called_once_with(
+        trade_date="20240102",
+        fields=",".join(FUND_ADJ_COLS),
+    )
+
+
+def test_fetch_fund_adj_returns_empty_when_none(mock_pro):
+    mock_pro.fund_adj.return_value = None
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_fund_adj("20240102")
+
+    assert df.empty
+    assert list(df.columns) == FUND_ADJ_COLS
 
 
 # --- Futures tests ---

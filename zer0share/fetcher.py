@@ -9,7 +9,7 @@ from zer0share.schema import (
     BASIC_COLS, DAILY_COLS, TRADE_CAL_COLS, ADJ_FACTOR_COLS, DAILY_BASIC_COLS,
     STOCK_ST_COLS, SUSPEND_D_COLS, STK_LIMIT_COLS, INDEX_WEIGHT_COLS,
     INDEX_DAILY_COLS, ETF_BASIC_COLS, ETF_INDEX_COLS, SW_CLASSIFY_COLS, SW_MEMBER_COLS, CI_MEMBER_COLS,
-    FUND_DAILY_COLS, OPT_BASIC_COLS, OPT_DAILY_COLS, FUT_BASIC_COLS, FUT_DAILY_COLS,
+    FUND_DAILY_COLS, FUND_ADJ_COLS, OPT_BASIC_COLS, OPT_DAILY_COLS, FUT_BASIC_COLS, FUT_DAILY_COLS,
     FUT_HOLDING_COLS, FUT_WSR_COLS, FUT_SETTLE_COLS, FUT_MAPPING_COLS,
     FT_LIMIT_COLS, FUT_WEEKLY_COLS, FUT_MONTHLY_COLS, FUT_INDEX_DAILY_COLS,
     FUT_WEEKLY_DETAIL_COLS,
@@ -153,6 +153,11 @@ class TushareFetcher:
         logger.debug(f"拉取ETF基金日线: {trade_date}")
         df = self._pro.fund_daily(trade_date=trade_date, fields=",".join(FUND_DAILY_COLS))
         return _select_columns_or_empty(df, FUND_DAILY_COLS)
+
+    def fetch_fund_adj(self, trade_date: str) -> pd.DataFrame:
+        logger.debug(f"拉取ETF基金复权因子: {trade_date}")
+        df = self._pro.fund_adj(trade_date=trade_date, fields=",".join(FUND_ADJ_COLS))
+        return _select_columns_or_empty(df, FUND_ADJ_COLS)
 
     def fetch_trade_cal(
         self,

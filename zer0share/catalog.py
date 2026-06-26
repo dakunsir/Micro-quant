@@ -16,6 +16,7 @@ from zer0share.schema import (
     DAILY_COLS,
     ETF_BASIC_COLS,
     ETF_INDEX_COLS,
+    FUND_ADJ_COLS,
     FUND_DAILY_COLS,
     FT_LIMIT_COLS,
     FUT_BASIC_COLS,
@@ -175,6 +176,18 @@ FUND_DAILY_SPEC = DailyTableSpec(
     columns=FUND_DAILY_COLS,
     parquet_pattern="date=*/data.parquet",
     sync_table="fund_daily",
+    order_by="ts_code, trade_date",
+    hive_partitioning=True,
+    union_by_name=True,
+    first_date="20100101",
+)
+
+FUND_ADJ_SPEC = DailyTableSpec(
+    name="fund_adj",
+    path_parts=("etf", "fund_adj"),
+    columns=FUND_ADJ_COLS,
+    parquet_pattern="date=*/data.parquet",
+    sync_table="fund_adj",
     order_by="ts_code, trade_date",
     hive_partitioning=True,
     union_by_name=True,
