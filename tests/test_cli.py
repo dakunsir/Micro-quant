@@ -395,6 +395,43 @@ def test_sync_etf_basic_calls_pipeline():
     pipeline.run.assert_called_once_with("etf_basic", start_date=None, end_date=None)
 
 
+def test_sync_fund_daily_calls_pipeline():
+    runner = CliRunner()
+    pipeline = _make_mock_pipeline()
+
+    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+        result = runner.invoke(cli, ["sync", "--table", "fund_daily"])
+
+    assert result.exit_code == 0
+    pipeline.run.assert_called_once_with("fund_daily", start_date=None, end_date=None)
+
+
+def test_sync_fund_daily_accepts_date_range():
+    runner = CliRunner()
+    pipeline = _make_mock_pipeline()
+
+    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+        result = runner.invoke(
+            cli,
+            [
+                "sync",
+                "--table",
+                "fund_daily",
+                "--start-date",
+                "20240101",
+                "--end-date",
+                "20240131",
+            ],
+        )
+
+    assert result.exit_code == 0
+    pipeline.run.assert_called_once_with(
+        "fund_daily",
+        start_date="20240101",
+        end_date="20240131",
+    )
+
+
 def test_sync_etf_calls_etf_tables():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
@@ -404,6 +441,7 @@ def test_sync_etf_calls_etf_tables():
 
     assert result.exit_code == 0
     assert [call.args[0] for call in pipeline.run.call_args_list] == [
+        "fund_daily",
         "etf_basic",
         "etf_index",
     ]

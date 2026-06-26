@@ -59,6 +59,7 @@ OPTIONS_TABLES = [
 ]
 
 ETF_TABLES = [
+    "fund_daily",
     "etf_basic",
     "etf_index",
 ]
