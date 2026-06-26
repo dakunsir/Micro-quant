@@ -8,7 +8,7 @@ import zer0share.dateutil as dateutil
 from zer0share.schema import (
     BASIC_COLS, DAILY_COLS, TRADE_CAL_COLS, ADJ_FACTOR_COLS, DAILY_BASIC_COLS,
     STOCK_ST_COLS, SUSPEND_D_COLS, STK_LIMIT_COLS, INDEX_WEIGHT_COLS,
-    INDEX_DAILY_COLS, SW_CLASSIFY_COLS, SW_MEMBER_COLS, CI_MEMBER_COLS,
+    INDEX_DAILY_COLS, ETF_BASIC_COLS, SW_CLASSIFY_COLS, SW_MEMBER_COLS, CI_MEMBER_COLS,
     OPT_BASIC_COLS, OPT_DAILY_COLS, FUT_BASIC_COLS, FUT_DAILY_COLS,
     FUT_HOLDING_COLS, FUT_WSR_COLS, FUT_SETTLE_COLS, FUT_MAPPING_COLS,
     FT_LIMIT_COLS, FUT_WEEKLY_COLS, FUT_MONTHLY_COLS, FUT_INDEX_DAILY_COLS,
@@ -112,6 +112,27 @@ class TushareFetcher:
             fields=",".join(INDEX_DAILY_COLS),
         )
         return _select_columns_or_empty(df, INDEX_DAILY_COLS)
+
+    def fetch_etf_basic(
+        self,
+        ts_code: str | None = None,
+        index_code: str | None = None,
+        list_date: str | None = None,
+        list_status: str | None = None,
+        exchange: str | None = None,
+        mgr: str | None = None,
+    ) -> pd.DataFrame:
+        logger.debug("拉取ETF基础信息")
+        df = self._pro.etf_basic(
+            ts_code=ts_code,
+            index_code=index_code,
+            list_date=list_date,
+            list_status=list_status,
+            exchange=exchange,
+            mgr=mgr,
+            fields=",".join(ETF_BASIC_COLS),
+        )
+        return _select_columns_or_empty(df, ETF_BASIC_COLS)
 
     def fetch_trade_cal(
         self,

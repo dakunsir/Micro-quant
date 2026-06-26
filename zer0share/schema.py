@@ -52,6 +52,22 @@ INDEX_DAILY_COLS = [
     "ts_code", "trade_date", "open", "high", "low",
     "close", "pre_close", "change", "pct_chg", "vol", "amount",
 ]
+ETF_BASIC_COLS = [
+    "ts_code",
+    "csname",
+    "extname",
+    "cname",
+    "index_code",
+    "index_name",
+    "setup_date",
+    "list_date",
+    "list_status",
+    "exchange",
+    "mgr_name",
+    "custod_name",
+    "mgt_fee",
+    "etf_type",
+]
 SW_CLASSIFY_COLS = [
     "index_code", "industry_name", "level", "parent_code",
     "industry_code", "is_pub", "src",

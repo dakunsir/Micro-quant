@@ -548,6 +548,79 @@ def test_fetch_index_daily_returns_empty_when_empty_df(mock_pro):
     assert df.empty
 
 
+# --- ETF tests ---
+
+ETF_BASIC_COLS = [
+    "ts_code", "csname", "extname", "cname", "index_code", "index_name",
+    "setup_date", "list_date", "list_status", "exchange", "mgr_name",
+    "custod_name", "mgt_fee", "etf_type",
+]
+
+
+def _etf_basic_row() -> dict:
+    return {
+        "ts_code": "510300.SH",
+        "csname": "沪深300ETF",
+        "extname": "沪深300ETF",
+        "cname": "华泰柏瑞沪深300交易型开放式指数证券投资基金",
+        "index_code": "000300.SH",
+        "index_name": "沪深300指数",
+        "setup_date": "20120504",
+        "list_date": "20120528",
+        "list_status": "L",
+        "exchange": "SH",
+        "mgr_name": "华泰柏瑞基金",
+        "custod_name": "中国工商银行",
+        "mgt_fee": 0.5,
+        "etf_type": "境内",
+    }
+
+
+def test_fetch_etf_basic_returns_correct_columns(mock_pro):
+    mock_pro.etf_basic.return_value = pd.DataFrame([_etf_basic_row()])
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_etf_basic()
+
+    assert list(df.columns) == ETF_BASIC_COLS
+    assert df.iloc[0]["ts_code"] == "510300.SH"
+    assert df.iloc[0]["list_date"] == "20120528"
+
+
+def test_fetch_etf_basic_calls_api_with_fields_and_filters(mock_pro):
+    mock_pro.etf_basic.return_value = pd.DataFrame([_etf_basic_row()])
+    fetcher = TushareFetcher("fake_token")
+
+    fetcher.fetch_etf_basic(
+        ts_code="510300.SH",
+        index_code="000300.SH",
+        list_date="20120528",
+        list_status="L",
+        exchange="SH",
+        mgr="华泰柏瑞基金",
+    )
+
+    mock_pro.etf_basic.assert_called_once_with(
+        ts_code="510300.SH",
+        index_code="000300.SH",
+        list_date="20120528",
+        list_status="L",
+        exchange="SH",
+        mgr="华泰柏瑞基金",
+        fields=",".join(ETF_BASIC_COLS),
+    )
+
+
+def test_fetch_etf_basic_returns_empty_when_none(mock_pro):
+    mock_pro.etf_basic.return_value = None
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_etf_basic()
+
+    assert df.empty
+    assert list(df.columns) == ETF_BASIC_COLS
+
+
 # --- Futures tests ---
 
 from zer0share.fetcher import (

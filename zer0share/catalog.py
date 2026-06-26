@@ -14,6 +14,7 @@ from zer0share.schema import (
     CI_MEMBER_COLS,
     DAILY_BASIC_COLS,
     DAILY_COLS,
+    ETF_BASIC_COLS,
     FT_LIMIT_COLS,
     FUT_BASIC_COLS,
     FUT_DAILY_COLS,
@@ -142,6 +143,19 @@ INDEX_WEIGHT_SPEC = TableSpec(
     order_by="index_code, con_code, trade_date",
     hive_partitioning=True,
     union_by_name=True,
+)
+
+# ---------------------------------------------------------------------------
+# ETF
+# ---------------------------------------------------------------------------
+
+ETF_BASIC_SPEC = TableSpec(
+    name="etf_basic",
+    path_parts=("etf", "etf_basic"),
+    columns=ETF_BASIC_COLS,
+    parquet_pattern="data.parquet",
+    sync_table="etf_basic",
+    order_by="ts_code",
 )
 
 TRADE_CAL_SPEC = TableSpec(
