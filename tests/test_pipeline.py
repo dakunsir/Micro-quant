@@ -201,10 +201,10 @@ def test_pipeline_registry_contains_all_tables(pipeline):
         "fut_mapping", "ft_limit", "fut_weekly", "fut_monthly",
         "fut_index_daily", "fut_weekly_detail",
         "opt_basic", "opt_daily",
-        "fund_daily", "etf_basic", "etf_index",
+        "fund_daily", "fund_adj", "etf_basic", "etf_index",
     }
     assert set(pipeline.registry.keys()) == expected
-    assert len(pipeline.registry) == 28
+    assert len(pipeline.registry) == 29
 
 
 def test_opt_daily_spec_uses_option_market_first_date(pipeline):
@@ -1098,7 +1098,7 @@ def test_sync_opt_daily_up_to_date(pipeline, cfg, fetcher):
 
 
 # ---------------------------------------------------------------------------
-# 17. fund_daily / etf_basic / etf_index
+# 17. fund_daily / fund_adj / etf_basic / etf_index
 # ---------------------------------------------------------------------------
 
 def _fund_daily_df(trade_date: str = "20240102") -> pd.DataFrame:
@@ -1134,6 +1134,35 @@ def test_sync_fund_daily_fetches_for_trading_day(pipeline, cfg, fetcher):
     pipeline.run("fund_daily")
 
     fetcher.fetch_fund_daily.assert_called_once_with("20240102")
+
+
+def _fund_adj_df(trade_date: str = "20240102") -> pd.DataFrame:
+    return pd.DataFrame({
+        "ts_code": ["513100.SH"],
+        "trade_date": [trade_date],
+        "adj_factor": [1.2345],
+        "discount_rate": [0.12],
+    })
+
+
+def test_sync_fund_adj_writes_to_etf_subdir(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20240102", True)
+    fetcher.fetch_fund_adj.return_value = _fund_adj_df()
+
+    pipeline.run("fund_adj")
+
+    assert (cfg.data_dir / "etf" / "fund_adj" / "date=20240102" / "data.parquet").exists()
+    assert pipeline._runtime.meta.get_last_date("fund_adj") == "20240102"
+
+
+def test_sync_fund_adj_fetches_for_trading_day(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20240102", True)
+    fetcher.fetch_fund_adj.return_value = _fund_adj_df()
+
+    pipeline.run("fund_adj")
+
+    fetcher.fetch_fund_adj.assert_called_once_with("20240102")
+
 
 def _etf_basic_df() -> pd.DataFrame:
     return pd.DataFrame({

@@ -1,6 +1,13 @@
+from types import SimpleNamespace
+
 from zer0share.catalog import ETF_BASIC_SPEC, ETF_INDEX_SPEC, FUND_DAILY_SPEC
 from zer0share.storage import DailyPartitionStore, SnapshotStore
 from zer0share.sync._jobs import DailySyncJob, SnapshotSyncJob, SyncJob
+
+try:
+    from zer0share.catalog import FUND_ADJ_SPEC
+except ImportError:  # pragma: no cover - fallback until catalog wiring lands
+    FUND_ADJ_SPEC = SimpleNamespace(name="fund_adj", first_date="20100101")
 
 
 def build_jobs(cfg, fetcher) -> list[SyncJob]:
@@ -11,6 +18,12 @@ def build_jobs(cfg, fetcher) -> list[SyncJob]:
             spec=FUND_DAILY_SPEC,
             fetch=fetcher.fetch_fund_daily,
             store=DailyPartitionStore(etf_dir / "fund_daily"),
+        ),
+        DailySyncJob(
+            table_name=FUND_ADJ_SPEC.name,
+            spec=FUND_ADJ_SPEC,
+            fetch=fetcher.fetch_fund_adj,
+            store=DailyPartitionStore(etf_dir / "fund_adj"),
         ),
         SnapshotSyncJob(
             table_name=ETF_BASIC_SPEC.name,
