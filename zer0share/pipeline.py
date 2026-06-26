@@ -16,8 +16,8 @@ class Pipeline:
         self._build_registry(cfg, fetcher)
 
     def _build_registry(self, cfg: Config, fetcher: TushareFetcher) -> None:
-        from zer0share.sync import calendar, stock, index, industry, futures, options
-        for module in [calendar, stock, index, industry, futures, options]:
+        from zer0share.sync import calendar, stock, index, industry, futures, options, etf
+        for module in [calendar, stock, index, industry, futures, options, etf]:
             for job in module.build_jobs(cfg, fetcher):
                 self._registry[job.table_name] = job
 

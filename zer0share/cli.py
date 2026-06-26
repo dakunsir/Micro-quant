@@ -58,6 +58,10 @@ OPTIONS_TABLES = [
     "opt_daily",
 ]
 
+ETF_TABLES = [
+    "etf_basic",
+]
+
 STOCK_TABLES = [
     "basic",
     "trade_cal",
@@ -77,6 +81,7 @@ SYNC_TABLES = [
     *STOCK_TABLES,
     *FUTURES_TABLES,
     *OPTIONS_TABLES,
+    *ETF_TABLES,
 ]
 
 
@@ -90,6 +95,7 @@ SYNC_TABLES = [
 @click.option("--stock", "sync_stock", is_flag=True, default=False)
 @click.option("--futures", "sync_futures", is_flag=True, default=False)
 @click.option("--options", "sync_options", is_flag=True, default=False)
+@click.option("--etf", "sync_etf", is_flag=True, default=False)
 @click.option("--start-date", default=None, callback=_validate_date)
 @click.option("--end-date", default=None, callback=_validate_date)
 def sync(
@@ -98,6 +104,7 @@ def sync(
     sync_stock: bool,
     sync_futures: bool,
     sync_options: bool,
+    sync_etf: bool,
     start_date: str | None,
     end_date: str | None,
 ) -> None:
@@ -124,10 +131,13 @@ def sync(
         elif sync_options:
             for t in OPTIONS_TABLES:
                 pipeline.run(t, start_date=start_date, end_date=end_date)
+        elif sync_etf:
+            for t in ETF_TABLES:
+                pipeline.run(t, start_date=start_date, end_date=end_date)
         elif table is not None:
             pipeline.run(table, start_date=start_date, end_date=end_date)
         else:
-            raise click.UsageError("需要指定 --table、--stock、--futures、--options 或 --all")
+            raise click.UsageError("需要指定 --table、--stock、--futures、--options、--etf 或 --all")
 
 
 @cli.command("build-universe")

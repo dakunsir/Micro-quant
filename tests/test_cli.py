@@ -382,3 +382,38 @@ def test_sync_all_includes_options_tables():
 
     assert result.exit_code == 0
     pipeline.run_all.assert_called_once_with(start_date=None, end_date=None)
+
+
+def test_sync_etf_basic_calls_pipeline():
+    runner = CliRunner()
+    pipeline = _make_mock_pipeline()
+
+    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+        result = runner.invoke(cli, ["sync", "--table", "etf_basic"])
+
+    assert result.exit_code == 0
+    pipeline.run.assert_called_once_with("etf_basic", start_date=None, end_date=None)
+
+
+def test_sync_etf_calls_etf_tables():
+    runner = CliRunner()
+    pipeline = _make_mock_pipeline()
+
+    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+        result = runner.invoke(cli, ["sync", "--etf"])
+
+    assert result.exit_code == 0
+    pipeline.run.assert_called_once_with("etf_basic", start_date=None, end_date=None)
+
+
+def test_sync_etf_basic_rejects_date_range():
+    runner = CliRunner()
+    pipeline = _make_mock_pipeline(supports_date_range_for=set())
+
+    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+        result = runner.invoke(
+            cli, ["sync", "--table", "etf_basic", "--start-date", "20240101"]
+        )
+
+    assert result.exit_code != 0
+    assert "date range options" in result.output

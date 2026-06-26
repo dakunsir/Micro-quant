@@ -201,9 +201,10 @@ def test_pipeline_registry_contains_all_tables(pipeline):
         "fut_mapping", "ft_limit", "fut_weekly", "fut_monthly",
         "fut_index_daily", "fut_weekly_detail",
         "opt_basic", "opt_daily",
+        "etf_basic",
     }
     assert set(pipeline.registry.keys()) == expected
-    assert len(pipeline.registry) == 25
+    assert len(pipeline.registry) == 26
 
 
 def test_opt_daily_spec_uses_option_market_first_date(pipeline):
@@ -1097,7 +1098,49 @@ def test_sync_opt_daily_up_to_date(pipeline, cfg, fetcher):
 
 
 # ---------------------------------------------------------------------------
-# 17. Constants
+# 17. etf_basic
+# ---------------------------------------------------------------------------
+
+def _etf_basic_df() -> pd.DataFrame:
+    return pd.DataFrame({
+        "ts_code": ["510300.SH"],
+        "csname": ["沪深300ETF"],
+        "extname": ["沪深300ETF"],
+        "cname": ["华泰柏瑞沪深300交易型开放式指数证券投资基金"],
+        "index_code": ["000300.SH"],
+        "index_name": ["沪深300指数"],
+        "setup_date": ["20120504"],
+        "list_date": ["20120528"],
+        "list_status": ["L"],
+        "exchange": ["SH"],
+        "mgr_name": ["华泰柏瑞基金"],
+        "custod_name": ["中国工商银行"],
+        "mgt_fee": [0.5],
+        "etf_type": ["境内"],
+    })
+
+
+def test_sync_etf_basic_writes_to_etf_subdir(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20240102", True)
+    fetcher.fetch_etf_basic.return_value = _etf_basic_df()
+
+    pipeline.run("etf_basic")
+
+    assert (cfg.data_dir / "etf" / "etf_basic" / "data.parquet").exists()
+    assert pipeline._runtime.meta.get_last_date("etf_basic") == "20240102"
+
+
+def test_sync_etf_basic_runs_on_non_trading_day(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20240103", False)
+    fetcher.fetch_etf_basic.return_value = _etf_basic_df()
+
+    pipeline.run("etf_basic")
+
+    fetcher.fetch_etf_basic.assert_called_once_with()
+
+
+# ---------------------------------------------------------------------------
+# 18. Constants
 # ---------------------------------------------------------------------------
 
 def test_all_exchanges_contains_all_8():
@@ -1105,7 +1148,7 @@ def test_all_exchanges_contains_all_8():
 
 
 # ---------------------------------------------------------------------------
-# 18. TradingCalendar helpers (via _runtime.calendar)
+# 19. TradingCalendar helpers (via _runtime.calendar)
 # ---------------------------------------------------------------------------
 
 def test_skip_if_not_trading_returns_true_on_non_trading_day(pipeline, cfg):
