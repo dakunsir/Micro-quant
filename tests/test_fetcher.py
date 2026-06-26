@@ -58,6 +58,20 @@ ETF_INDEX_COLS = [
     "adj_circle",
 ]
 
+FUND_DAILY_COLS = [
+    "ts_code",
+    "trade_date",
+    "open",
+    "high",
+    "low",
+    "close",
+    "pre_close",
+    "change",
+    "pct_chg",
+    "vol",
+    "amount",
+]
+
 
 def _basic_row(
     *,
@@ -682,6 +696,59 @@ def test_fetch_etf_index_returns_empty_when_none(mock_pro):
 
     assert df.empty
     assert list(df.columns) == ETF_INDEX_COLS
+
+
+# --- Fund daily tests ---
+
+
+def _fund_daily_row() -> dict:
+    return {
+        "ts_code": "510300.SH",
+        "trade_date": "20240102",
+        "open": 3.1,
+        "high": 3.2,
+        "low": 3.0,
+        "close": 3.15,
+        "pre_close": 3.05,
+        "change": 0.1,
+        "pct_chg": 3.28,
+        "vol": 1000000.0,
+        "amount": 3150000.0,
+    }
+
+
+def test_fetch_fund_daily_returns_correct_columns(mock_pro):
+    mock_pro.fund_daily.return_value = pd.DataFrame([_fund_daily_row()])
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_fund_daily("20240102")
+
+    assert list(df.columns) == FUND_DAILY_COLS
+    assert len(df) == 1
+    assert df.iloc[0]["ts_code"] == "510300.SH"
+    assert df.iloc[0]["trade_date"] == "20240102"
+
+
+def test_fetch_fund_daily_calls_api_with_expected_fields(mock_pro):
+    mock_pro.fund_daily.return_value = pd.DataFrame([_fund_daily_row()])
+    fetcher = TushareFetcher("fake_token")
+
+    fetcher.fetch_fund_daily("20240102")
+
+    mock_pro.fund_daily.assert_called_once_with(
+        trade_date="20240102",
+        fields=",".join(FUND_DAILY_COLS),
+    )
+
+
+def test_fetch_fund_daily_returns_empty_when_none(mock_pro):
+    mock_pro.fund_daily.return_value = None
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_fund_daily("20240102")
+
+    assert df.empty
+    assert list(df.columns) == FUND_DAILY_COLS
 
 
 # --- Futures tests ---

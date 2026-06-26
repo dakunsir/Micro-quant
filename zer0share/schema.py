@@ -78,6 +78,10 @@ ETF_INDEX_COLS = [
     "bp",
     "adj_circle",
 ]
+FUND_DAILY_COLS = [
+    "ts_code", "trade_date", "open", "high", "low",
+    "close", "pre_close", "change", "pct_chg", "vol", "amount"
+]
 SW_CLASSIFY_COLS = [
     "index_code", "industry_name", "level", "parent_code",
     "industry_code", "is_pub", "src",
