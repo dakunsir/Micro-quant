@@ -1,8 +1,8 @@
 import pandas as pd
 
-from zer0share.catalog import ETF_BASIC_SPEC, ETF_INDEX_SPEC
+from zer0share.catalog import ETF_BASIC_SPEC, ETF_INDEX_SPEC, FUND_DAILY_SPEC
 from zer0share.query import QueryContext
-from zer0share.query.repository import BaseParquetRepository, eq_filter, in_filter
+from zer0share.query.repository import BaseParquetRepository, DailyPartitionRepository, eq_filter, in_filter
 
 
 def etf_basic(
@@ -58,3 +58,19 @@ def etf_index(
     if base_date is not None:
         filters.append(eq_filter("base_date", base_date, ETF_INDEX_SPEC.columns))
     return repo.query(fields=fields, filters=filters, limit=limit, offset=offset)
+
+
+def fund_daily(
+    ctx: QueryContext,
+    ts_code=None,
+    trade_date=None,
+    start_date=None,
+    end_date=None,
+    limit: int | None = None,
+    offset: int | None = None,
+    fields=None,
+) -> pd.DataFrame:
+    """Query fund daily OHLCV data for ETF funds."""
+    return DailyPartitionRepository(ctx, FUND_DAILY_SPEC).query(
+        ts_code, trade_date, start_date, end_date, fields, limit=limit, offset=offset
+    )

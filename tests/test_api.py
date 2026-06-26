@@ -46,6 +46,22 @@ def _make_etf_index_df():
     })
 
 
+def _make_fund_daily_df():
+    return pd.DataFrame({
+        "ts_code": ["510300.SH", "510300.SH", "159919.SZ", "159919.SZ"],
+        "trade_date": ["20240102", "20240103", "20240102", "20240103"],
+        "open": [3.1, 3.2, 2.1, 2.2],
+        "high": [3.2, 3.3, 2.2, 2.3],
+        "low": [3.0, 3.1, 2.0, 2.1],
+        "close": [3.15, 3.25, 2.15, 2.25],
+        "pre_close": [3.05, 3.15, 2.05, 2.15],
+        "change": [0.1, 0.1, 0.1, 0.1],
+        "pct_chg": [3.28, 3.17, 4.88, 4.65],
+        "vol": [1000000.0, 1100000.0, 2000000.0, 2100000.0],
+        "amount": [3150000.0, 3575000.0, 4300000.0, 4725000.0],
+    })
+
+
 def test_etf_basic_query_returns_data(tmp_path):
     SnapshotStore(tmp_path / "etf" / "etf_basic" / "data.parquet").write(_make_etf_basic_df())
 
@@ -180,6 +196,75 @@ def test_etf_index_query_raises_when_no_data(tmp_path):
 
     with pytest.raises(FileNotFoundError, match="etf_index"):
         api.etf_index()
+
+
+def test_fund_daily_query_returns_local_data_and_selected_fields(tmp_path):
+    data = _make_fund_daily_df()
+    DailyPartitionStore(tmp_path / "etf" / "fund_daily").write("20240102", data[data["trade_date"] == "20240102"])
+    DailyPartitionStore(tmp_path / "etf" / "fund_daily").write("20240103", data[data["trade_date"] == "20240103"])
+
+    api = LocalPro(tmp_path)
+    result = api.fund_daily(fields="ts_code,trade_date,close,amount")
+
+    assert result.to_dict("records") == [
+        {"ts_code": "159919.SZ", "trade_date": "20240102", "close": 2.15, "amount": 4300000.0},
+        {"ts_code": "159919.SZ", "trade_date": "20240103", "close": 2.25, "amount": 4725000.0},
+        {"ts_code": "510300.SH", "trade_date": "20240102", "close": 3.15, "amount": 3150000.0},
+        {"ts_code": "510300.SH", "trade_date": "20240103", "close": 3.25, "amount": 3575000.0},
+    ]
+
+
+def test_fund_daily_filters_by_ts_code_and_date_range(tmp_path):
+    data = _make_fund_daily_df()
+    DailyPartitionStore(tmp_path / "etf" / "fund_daily").write("20240102", data[data["trade_date"] == "20240102"])
+    DailyPartitionStore(tmp_path / "etf" / "fund_daily").write("20240103", data[data["trade_date"] == "20240103"])
+
+    api = LocalPro(tmp_path)
+    result = api.fund_daily(
+        ts_code="510300.SH",
+        start_date="20240103",
+        end_date="20240103",
+        fields="ts_code,trade_date,close",
+    )
+
+    assert result.to_dict("records") == [
+        {"ts_code": "510300.SH", "trade_date": "20240103", "close": 3.25}
+    ]
+
+
+def test_fund_daily_supports_trade_date_limit_offset_and_query_dispatch(tmp_path):
+    data = _make_fund_daily_df()
+    DailyPartitionStore(tmp_path / "etf" / "fund_daily").write("20240102", data[data["trade_date"] == "20240102"])
+    DailyPartitionStore(tmp_path / "etf" / "fund_daily").write("20240103", data[data["trade_date"] == "20240103"])
+
+    api = LocalPro(tmp_path)
+    result = api.query(
+        "fund_daily",
+        trade_date="20240102",
+        offset=1,
+        limit=1,
+        fields="ts_code,trade_date,close",
+    )
+
+    assert result.to_dict("records") == [
+        {"ts_code": "510300.SH", "trade_date": "20240102", "close": 3.15}
+    ]
+
+
+def test_fund_daily_validates_date_filters(tmp_path):
+    data = _make_fund_daily_df()
+    DailyPartitionStore(tmp_path / "etf" / "fund_daily").write("20240102", data[data["trade_date"] == "20240102"])
+
+    api = LocalPro(tmp_path)
+    with pytest.raises(ValueError, match="YYYYMMDD"):
+        api.fund_daily(trade_date="2024-01-02")
+
+
+def test_fund_daily_query_raises_when_no_data(tmp_path):
+    api = LocalPro(tmp_path)
+
+    with pytest.raises(FileNotFoundError, match="fund_daily"):
+        api.fund_daily()
 
 
 def test_stock_basic_filters_and_formats_dates(tmp_path):
