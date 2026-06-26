@@ -201,10 +201,10 @@ def test_pipeline_registry_contains_all_tables(pipeline):
         "fut_mapping", "ft_limit", "fut_weekly", "fut_monthly",
         "fut_index_daily", "fut_weekly_detail",
         "opt_basic", "opt_daily",
-        "etf_basic",
+        "etf_basic", "etf_index",
     }
     assert set(pipeline.registry.keys()) == expected
-    assert len(pipeline.registry) == 26
+    assert len(pipeline.registry) == 27
 
 
 def test_opt_daily_spec_uses_option_market_first_date(pipeline):
@@ -1137,6 +1137,38 @@ def test_sync_etf_basic_runs_on_non_trading_day(pipeline, cfg, fetcher):
     pipeline.run("etf_basic")
 
     fetcher.fetch_etf_basic.assert_called_once_with()
+
+
+def _etf_index_df() -> pd.DataFrame:
+    return pd.DataFrame({
+        "ts_code": ["000300.SH"],
+        "indx_name": ["沪深300指数"],
+        "indx_csname": ["沪深300"],
+        "pub_party_name": ["中证指数有限公司"],
+        "pub_date": ["20050408"],
+        "base_date": ["20041231"],
+        "bp": [1000.0],
+        "adj_circle": ["半年"],
+    })
+
+
+def test_sync_etf_index_writes_to_etf_subdir(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20240102", True)
+    fetcher.fetch_etf_index.return_value = _etf_index_df()
+
+    pipeline.run("etf_index")
+
+    assert (cfg.data_dir / "etf" / "etf_index" / "data.parquet").exists()
+    assert pipeline._runtime.meta.get_last_date("etf_index") == "20240102"
+
+
+def test_sync_etf_index_runs_on_non_trading_day(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20240103", False)
+    fetcher.fetch_etf_index.return_value = _etf_index_df()
+
+    pipeline.run("etf_index")
+
+    fetcher.fetch_etf_index.assert_called_once_with()
 
 
 # ---------------------------------------------------------------------------

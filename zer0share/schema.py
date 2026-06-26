@@ -68,6 +68,16 @@ ETF_BASIC_COLS = [
     "mgt_fee",
     "etf_type",
 ]
+ETF_INDEX_COLS = [
+    "ts_code",
+    "indx_name",
+    "indx_csname",
+    "pub_party_name",
+    "pub_date",
+    "base_date",
+    "bp",
+    "adj_circle",
+]
 SW_CLASSIFY_COLS = [
     "index_code", "industry_name", "level", "parent_code",
     "industry_code", "is_pub", "src",

@@ -7,7 +7,7 @@ from zer0share.query import calendar, stock, index, industry, futures, options, 
 
 
 def _check_dates(kwargs: dict) -> None:
-    for key in ("start_date", "end_date", "trade_date"):
+    for key in ("start_date", "end_date", "trade_date", "pub_date", "base_date"):
         val = kwargs.get(key)
         if val is not None:
             try:
@@ -136,6 +136,10 @@ class LocalPro:
         _check_dates(kwargs)
         return etf.etf_basic(self._ctx, **kwargs)
 
+    def etf_index(self, **kwargs):
+        _check_dates(kwargs)
+        return etf.etf_index(self._ctx, **kwargs)
+
     def query(self, api_name: str, **kwargs):
         dispatch = {
             "stock_basic": self.stock_basic,
@@ -170,6 +174,7 @@ class LocalPro:
             "opt_basic": self.opt_basic,
             "opt_daily": self.opt_daily,
             "etf_basic": self.etf_basic,
+            "etf_index": self.etf_index,
         }
         try:
             method = dispatch[api_name]

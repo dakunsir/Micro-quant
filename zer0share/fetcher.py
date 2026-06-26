@@ -8,7 +8,7 @@ import zer0share.dateutil as dateutil
 from zer0share.schema import (
     BASIC_COLS, DAILY_COLS, TRADE_CAL_COLS, ADJ_FACTOR_COLS, DAILY_BASIC_COLS,
     STOCK_ST_COLS, SUSPEND_D_COLS, STK_LIMIT_COLS, INDEX_WEIGHT_COLS,
-    INDEX_DAILY_COLS, ETF_BASIC_COLS, SW_CLASSIFY_COLS, SW_MEMBER_COLS, CI_MEMBER_COLS,
+    INDEX_DAILY_COLS, ETF_BASIC_COLS, ETF_INDEX_COLS, SW_CLASSIFY_COLS, SW_MEMBER_COLS, CI_MEMBER_COLS,
     OPT_BASIC_COLS, OPT_DAILY_COLS, FUT_BASIC_COLS, FUT_DAILY_COLS,
     FUT_HOLDING_COLS, FUT_WSR_COLS, FUT_SETTLE_COLS, FUT_MAPPING_COLS,
     FT_LIMIT_COLS, FUT_WEEKLY_COLS, FUT_MONTHLY_COLS, FUT_INDEX_DAILY_COLS,
@@ -133,6 +133,21 @@ class TushareFetcher:
             fields=",".join(ETF_BASIC_COLS),
         )
         return _select_columns_or_empty(df, ETF_BASIC_COLS)
+
+    def fetch_etf_index(
+        self,
+        ts_code: str | None = None,
+        pub_date: str | None = None,
+        base_date: str | None = None,
+    ) -> pd.DataFrame:
+        logger.debug("拉取ETF基准指数列表")
+        df = self._pro.etf_index(
+            ts_code=ts_code,
+            pub_date=pub_date,
+            base_date=base_date,
+            fields=",".join(ETF_INDEX_COLS),
+        )
+        return _select_columns_or_empty(df, ETF_INDEX_COLS)
 
     def fetch_trade_cal(
         self,

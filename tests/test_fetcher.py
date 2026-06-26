@@ -47,6 +47,17 @@ INDEX_DAILY_COLS = [
     "close", "pre_close", "change", "pct_chg", "vol", "amount",
 ]
 
+ETF_INDEX_COLS = [
+    "ts_code",
+    "indx_name",
+    "indx_csname",
+    "pub_party_name",
+    "pub_date",
+    "base_date",
+    "bp",
+    "adj_circle",
+]
+
 
 def _basic_row(
     *,
@@ -619,6 +630,58 @@ def test_fetch_etf_basic_returns_empty_when_none(mock_pro):
 
     assert df.empty
     assert list(df.columns) == ETF_BASIC_COLS
+
+
+def _etf_index_row() -> dict:
+    return {
+        "ts_code": "000300.SH",
+        "indx_name": "沪深300指数",
+        "indx_csname": "沪深300",
+        "pub_party_name": "中证指数有限公司",
+        "pub_date": "20050408",
+        "base_date": "20041231",
+        "bp": 1000.0,
+        "adj_circle": "半年",
+    }
+
+
+def test_fetch_etf_index_returns_correct_columns(mock_pro):
+    mock_pro.etf_index.return_value = pd.DataFrame([_etf_index_row()])
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_etf_index()
+
+    assert list(df.columns) == ETF_INDEX_COLS
+    assert df.iloc[0]["ts_code"] == "000300.SH"
+    assert df.iloc[0]["pub_date"] == "20050408"
+
+
+def test_fetch_etf_index_calls_api_with_fields_and_filters(mock_pro):
+    mock_pro.etf_index.return_value = pd.DataFrame([_etf_index_row()])
+    fetcher = TushareFetcher("fake_token")
+
+    fetcher.fetch_etf_index(
+        ts_code="000300.SH",
+        pub_date="20050408",
+        base_date="20041231",
+    )
+
+    mock_pro.etf_index.assert_called_once_with(
+        ts_code="000300.SH",
+        pub_date="20050408",
+        base_date="20041231",
+        fields=",".join(ETF_INDEX_COLS),
+    )
+
+
+def test_fetch_etf_index_returns_empty_when_none(mock_pro):
+    mock_pro.etf_index.return_value = None
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_etf_index()
+
+    assert df.empty
+    assert list(df.columns) == ETF_INDEX_COLS
 
 
 # --- Futures tests ---

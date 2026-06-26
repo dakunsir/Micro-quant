@@ -33,6 +33,19 @@ def _make_etf_basic_df():
     })
 
 
+def _make_etf_index_df():
+    return pd.DataFrame({
+        "ts_code": ["000300.SH", "000905.SH", "000001.SH"],
+        "indx_name": ["沪深300指数", "中证500指数", "上证综合指数"],
+        "indx_csname": ["沪深300", "中证500", "上证指数"],
+        "pub_party_name": ["中证指数有限公司", "中证指数有限公司", "上海证券交易所"],
+        "pub_date": ["20050408", "20070115", "19910715"],
+        "base_date": ["20041231", "20041231", "19901219"],
+        "bp": [1000.0, 1000.0, 100.0],
+        "adj_circle": ["半年", "半年", "不定期"],
+    })
+
+
 def test_etf_basic_query_returns_data(tmp_path):
     SnapshotStore(tmp_path / "etf" / "etf_basic" / "data.parquet").write(_make_etf_basic_df())
 
@@ -106,6 +119,67 @@ def test_etf_basic_query_raises_when_no_data(tmp_path):
 
     with pytest.raises(FileNotFoundError, match="etf_basic"):
         api.etf_basic()
+
+
+def test_etf_index_query_returns_data(tmp_path):
+    SnapshotStore(tmp_path / "etf" / "etf_index" / "data.parquet").write(_make_etf_index_df())
+
+    api = LocalPro(tmp_path)
+    result = api.etf_index(fields="ts_code,indx_name,pub_date,bp")
+
+    assert result.to_dict("records") == [
+        {"ts_code": "000001.SH", "indx_name": "上证综合指数", "pub_date": "19910715", "bp": 100.0},
+        {"ts_code": "000300.SH", "indx_name": "沪深300指数", "pub_date": "20050408", "bp": 1000.0},
+        {"ts_code": "000905.SH", "indx_name": "中证500指数", "pub_date": "20070115", "bp": 1000.0},
+    ]
+
+
+def test_etf_index_filters_by_code_pub_date_and_base_date(tmp_path):
+    SnapshotStore(tmp_path / "etf" / "etf_index" / "data.parquet").write(_make_etf_index_df())
+
+    api = LocalPro(tmp_path)
+    result = api.etf_index(
+        ts_code="000300.SH,000905.SH",
+        pub_date="20050408",
+        base_date="20041231",
+        fields="ts_code,pub_date,base_date",
+    )
+
+    assert result.to_dict("records") == [
+        {"ts_code": "000300.SH", "pub_date": "20050408", "base_date": "20041231"}
+    ]
+
+
+def test_etf_index_supports_limit_offset_and_query_dispatch(tmp_path):
+    SnapshotStore(tmp_path / "etf" / "etf_index" / "data.parquet").write(_make_etf_index_df())
+
+    api = LocalPro(tmp_path)
+    result = api.query(
+        "etf_index",
+        base_date="20041231",
+        offset=1,
+        limit=1,
+        fields="ts_code,base_date",
+    )
+
+    assert result.to_dict("records") == [
+        {"ts_code": "000905.SH", "base_date": "20041231"}
+    ]
+
+
+def test_etf_index_validates_date_filters(tmp_path):
+    SnapshotStore(tmp_path / "etf" / "etf_index" / "data.parquet").write(_make_etf_index_df())
+
+    api = LocalPro(tmp_path)
+    with pytest.raises(ValueError, match="YYYYMMDD"):
+        api.etf_index(pub_date="2005-04-08")
+
+
+def test_etf_index_query_raises_when_no_data(tmp_path):
+    api = LocalPro(tmp_path)
+
+    with pytest.raises(FileNotFoundError, match="etf_index"):
+        api.etf_index()
 
 
 def test_stock_basic_filters_and_formats_dates(tmp_path):

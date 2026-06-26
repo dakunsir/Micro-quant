@@ -57,9 +57,11 @@ uv run python examples/index/index_weight_query_smoke.py
 | 脚本 | 默认参数 |
 |------|------|
 | `etf_basic_query_smoke.py` | `--exchange SH --index-code 000300.SH --list-status L` |
+| `etf_index_query_smoke.py` | `--ts-code 000300.SH` |
 
 ```bash
 uv run python examples/etf/etf_basic_query_smoke.py
+uv run python examples/etf/etf_index_query_smoke.py
 ```
 
 ---

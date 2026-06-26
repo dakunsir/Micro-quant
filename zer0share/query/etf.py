@@ -1,6 +1,6 @@
 import pandas as pd
 
-from zer0share.catalog import ETF_BASIC_SPEC
+from zer0share.catalog import ETF_BASIC_SPEC, ETF_INDEX_SPEC
 from zer0share.query import QueryContext
 from zer0share.query.repository import BaseParquetRepository, eq_filter, in_filter
 
@@ -36,4 +36,25 @@ def etf_basic(
     mgr_value = mgr_name if mgr_name is not None else mgr
     if mgr_value is not None:
         filters.append(eq_filter("mgr_name", mgr_value, ETF_BASIC_SPEC.columns))
+    return repo.query(fields=fields, filters=filters, limit=limit, offset=offset)
+
+
+def etf_index(
+    ctx: QueryContext,
+    ts_code=None,
+    pub_date=None,
+    base_date=None,
+    limit: int | None = None,
+    offset: int | None = None,
+    fields=None,
+) -> pd.DataFrame:
+    """Query ETF benchmark index metadata."""
+    repo = BaseParquetRepository(ctx, ETF_INDEX_SPEC)
+    filters = []
+    if ts_code is not None:
+        filters.append(in_filter("ts_code", ts_code, ETF_INDEX_SPEC.columns))
+    if pub_date is not None:
+        filters.append(eq_filter("pub_date", pub_date, ETF_INDEX_SPEC.columns))
+    if base_date is not None:
+        filters.append(eq_filter("base_date", base_date, ETF_INDEX_SPEC.columns))
     return repo.query(fields=fields, filters=filters, limit=limit, offset=offset)

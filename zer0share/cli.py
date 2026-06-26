@@ -60,6 +60,7 @@ OPTIONS_TABLES = [
 
 ETF_TABLES = [
     "etf_basic",
+    "etf_index",
 ]
 
 STOCK_TABLES = [

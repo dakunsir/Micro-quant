@@ -15,6 +15,7 @@ from zer0share.schema import (
     DAILY_BASIC_COLS,
     DAILY_COLS,
     ETF_BASIC_COLS,
+    ETF_INDEX_COLS,
     FT_LIMIT_COLS,
     FUT_BASIC_COLS,
     FUT_DAILY_COLS,
@@ -155,6 +156,15 @@ ETF_BASIC_SPEC = TableSpec(
     columns=ETF_BASIC_COLS,
     parquet_pattern="data.parquet",
     sync_table="etf_basic",
+    order_by="ts_code",
+)
+
+ETF_INDEX_SPEC = TableSpec(
+    name="etf_index",
+    path_parts=("etf", "etf_index"),
+    columns=ETF_INDEX_COLS,
+    parquet_pattern="data.parquet",
+    sync_table="etf_index",
     order_by="ts_code",
 )
 
