@@ -139,6 +139,7 @@ uv run python main.py build-universe --date 20240131
 | `univ_trade_hs300` | 沪深300成分中满足交易过滤条件的股票池 |
 | `univ_trade_zz500` | 中证500成分中满足交易过滤条件的股票池 |
 | `univ_trade_zz1000` | 中证1000成分中满足交易过滤条件的股票池 |
+| `univ_trade_smallcap` | 基础交易池中总市值倒数 20% 的小市值股票池 |
 
 `univ_research_base` 过滤规则：
 
@@ -367,7 +368,8 @@ data/
 │       ├── name=univ_trade_base/date=YYYYMMDD/data.parquet
 │       ├── name=univ_trade_hs300/date=YYYYMMDD/data.parquet
 │       ├── name=univ_trade_zz500/date=YYYYMMDD/data.parquet
-│       └── name=univ_trade_zz1000/date=YYYYMMDD/data.parquet
+│       ├── name=univ_trade_zz1000/date=YYYYMMDD/data.parquet
+│       └── name=univ_trade_smallcap/date=YYYYMMDD/data.parquet
 ├── index/                              # 指数专题
 │   ├── index_daily/
 │   │   └── date=YYYYMMDD/data.parquet  # 含当日全部12个宽基指数
@@ -420,9 +422,9 @@ db/
 | `sync --table opt_basic` | 同步期权合约基础信息（全量覆盖） |
 | `sync --table opt_daily` | 增量同步期权日线行情 |
 | `sync --all` | 按顺序同步全部 |
-| `build-universe` | 从 2016-01-01 到今天增量构建 5 个股票池 |
-| `build-universe --start-date YYYYMMDD --end-date YYYYMMDD` | 构建指定区间的 5 个股票池 |
-| `build-universe --date YYYYMMDD` | 构建指定交易日的 5 个股票池 |
+| `build-universe` | 从 2016-01-01 到今天增量构建 6 个股票池 |
+| `build-universe --start-date YYYYMMDD --end-date YYYYMMDD` | 构建指定区间的 6 个股票池 |
+| `build-universe --date YYYYMMDD` | 构建指定交易日的 6 个股票池 |
 | `status` | 查看各表最后同步时间 |
 | `scheduler start` | 启动定时调度 |
 

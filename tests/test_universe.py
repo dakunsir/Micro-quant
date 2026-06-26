@@ -184,6 +184,16 @@ def test_build_universes_writes_index_intersections(tmp_path):
 
     counts = build_universes(tmp_path, trade_date)
 
+    assert counts["univ_trade_smallcap"] == 3
+    smallcap = pd.read_parquet(
+        tmp_path
+        / "stock"
+        / "universe"
+        / "name=univ_trade_smallcap"
+        / "date=20240130"
+        / "data.parquet"
+    )
+    assert smallcap["ts_code"].tolist() == ["000002.SZ", "000003.SZ", "000004.SZ"]
     assert counts["univ_trade_hs300"] == 1
     hs300 = pd.read_parquet(
         tmp_path / "stock" / "universe" / "name=univ_trade_hs300" / "date=20240130" / "data.parquet"
@@ -295,6 +305,7 @@ def test_build_universes_range_logs_progress(tmp_path):
             "univ_trade_hs300",
             "univ_trade_zz500",
             "univ_trade_zz1000",
+            "univ_trade_smallcap",
         ]:
             out = pd.DataFrame(
                 {
@@ -421,6 +432,7 @@ def test_build_universes_range_defaults_start_after_latest_complete_universe(tmp
             "univ_trade_hs300",
             "univ_trade_zz500",
             "univ_trade_zz1000",
+            "univ_trade_smallcap",
         ]:
             write_universe(
                 tmp_path,

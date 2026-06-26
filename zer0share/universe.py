@@ -11,12 +11,13 @@ from zer0share.storage import read_trade_cal, write_universe
 FIRST_UNIVERSE_DATE = dt.date(2016, 1, 1)
 PROGRESS_INTERVAL = 50
 BASE_UNIVERSES = ("univ_research_base", "univ_trade_base")
+DERIVED_TRADE_UNIVERSES = ("univ_trade_smallcap",)
 INDEX_UNIVERSES = {
     "univ_trade_hs300": "399300.SZ",
     "univ_trade_zz500": "000905.SH",
     "univ_trade_zz1000": "000852.SH",
 }
-UNIVERSE_NAMES = (*BASE_UNIVERSES, *INDEX_UNIVERSES.keys())
+UNIVERSE_NAMES = (*BASE_UNIVERSES, *INDEX_UNIVERSES.keys(), *DERIVED_TRADE_UNIVERSES)
 
 
 def build_universes_range(
@@ -88,6 +89,11 @@ def build_universes(data_dir: str | Path, trade_date: dt.date) -> dict[str, int]
         "univ_research_base": detail.loc[detail["in_research_base"], ["trade_date", "ts_code"]],
         "univ_trade_base": detail.loc[detail["in_trade_base"], ["trade_date", "ts_code"]],
     }
+    trade_base = detail.loc[detail["in_trade_base"]]
+    smallcap_mask = detail.index.isin(_bottom_market_cap(trade_base, 0.20).index)
+    outputs["univ_trade_smallcap"] = detail.loc[
+        smallcap_mask, ["trade_date", "ts_code"]
+    ]
 
     for universe_name, index_code in INDEX_UNIVERSES.items():
         members = _latest_index_members(data_path, index_code, trade_date)
@@ -334,6 +340,15 @@ def _not_bottom_market_cap(df: pd.DataFrame, pct: float) -> pd.Series:
     cutoff = int(len(ranks) * pct)
     result.loc[valid] = ranks > cutoff
     return result
+
+
+def _bottom_market_cap(df: pd.DataFrame, pct: float) -> pd.DataFrame:
+    valid = df["total_mv"].notna()
+    if not valid.any():
+        return df.iloc[0:0]
+    ranks = df.loc[valid, "total_mv"].rank(method="first", ascending=True)
+    cutoff = int(len(ranks) * pct)
+    return df.loc[ranks[ranks <= cutoff].index]
 
 
 def _is_one_price_limit(df: pd.DataFrame, limit_column: str) -> pd.Series:

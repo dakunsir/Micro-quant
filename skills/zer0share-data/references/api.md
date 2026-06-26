@@ -62,7 +62,7 @@ df = pro.query("daily", ts_code="000001.SZ", start_date="20240101", end_date="20
 
 - `universe(universe=None, ts_code=None, trade_date=None, start_date=None, end_date=None, fields=None, limit=None, offset=None)`
   - Local build target: `build-universe`
-  - Available universes include `univ_research_base`, `univ_trade_base`, `univ_trade_hs300`, `univ_trade_zz500`, and `univ_trade_zz1000` when built.
+  - Available universes include `univ_research_base`, `univ_trade_base`, `univ_trade_hs300`, `univ_trade_zz500`, `univ_trade_zz1000`, and `univ_trade_smallcap` when built.
 
 - `pro_bar(ts_code, start_date=None, end_date=None, asset="E", adj=None, freq="D", trade_date=None, ma=None, limit=None, offset=None)`
   - Uses local `daily` and `adj_factor`.
