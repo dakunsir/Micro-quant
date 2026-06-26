@@ -89,6 +89,7 @@ uv run python main.py sync --table ci_member    # 中信行业成分映射
 # ── ETF 专题（可选，需积分 ≥ 8000）────────────────────────────────
 uv run python main.py sync --table etf_basic    # ETF 基础信息
 uv run python main.py sync --table etf_index    # ETF 基准指数列表
+uv run python main.py sync --table fund_daily   # ETF 日线行情（需积分 >= 5000，8000 积分频次更高）
 
 # ── 期货扩展（可选，需积分 ≥ 5000）────────────────────────────────
 uv run python main.py sync --table fut_basic          # 期货合约基础信息
@@ -216,6 +217,12 @@ limit = pro.stk_limit(trade_date="20240131")
 hs300 = pro.index_weight(index_code="399300.SZ", start_date="20240101", end_date="20240131")
 etf_basic = pro.etf_basic(list_status="L", exchange="SH")
 etf_index = pro.etf_index(ts_code="000300.SH")
+fund_daily = pro.fund_daily(
+    ts_code="510330.SH",
+    start_date="20250101",
+    end_date="20250618",
+    fields="trade_date,open,high,low,close,vol,amount",
+)
 
 # 指数日线行情（用于对冲基准收益率）
 idx_daily = pro.index_daily(ts_code="000300.SH", start_date="20240101", end_date="20240131")
@@ -266,6 +273,7 @@ opt_snapshot = pro.opt_daily(trade_date="20240102", exchange="SSE")   # 某日�
 | `ci_index_member` | 查询中信股票-行业映射（支持历史变更） |
 | `etf_basic` | 查询已同步的 ETF 基础信息 |
 | `etf_index` | 查询已同步的 ETF 基准指数列表 |
+| `fund_daily` | 查询已同步的 ETF 日线行情 |
 | `pro_bar` | 查询本地 A 股日线行情，支持不复权、前复权（qfq）和后复权（hfq） |
 | `universe` | 查询已构建的股票池（支持按池名称、ts_code、日期过滤） |
 | `fut_basic` | 查询已同步的期货合约基础信息（支持按交易所、fut_code 过滤） |
@@ -339,8 +347,10 @@ data/
 ├── etf/                                # ETF专题
 │   ├── etf_basic/
 │   │   └── data.parquet
-│   └── etf_index/
-│       └── data.parquet
+│   ├── etf_index/
+│   │   └── data.parquet
+│   └── fund_daily/
+│       └── date=YYYYMMDD/data.parquet
 ├── index/                              # 指数专题
 │   ├── index_daily/
 │   │   └── date=YYYYMMDD/data.parquet  # 含当日全部12个宽基指数
@@ -382,6 +392,7 @@ db/
 | `sync --table ci_member` | 同步中信行业成分映射（全量覆盖） |
 | `sync --table etf_basic` | 同步 ETF 基础信息 |
 | `sync --table etf_index` | 同步 ETF 基准指数列表 |
+| `sync --table fund_daily` | 同步 ETF 日线行情 |
 | `sync --etf` | 同步 ETF 专题全部表 |
 | `sync --table fut_basic` | 同步期货合约基础信息 |
 | `sync --table fut_daily` | 增量同步期货日线行情 |

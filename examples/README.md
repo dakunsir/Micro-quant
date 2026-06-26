@@ -58,10 +58,12 @@ uv run python examples/index/index_weight_query_smoke.py
 |------|------|
 | `etf_basic_query_smoke.py` | `--exchange SH --index-code 000300.SH --list-status L` |
 | `etf_index_query_smoke.py` | `--ts-code 000300.SH` |
+| `fund_daily_query_smoke.py` | `--ts-code 510330.SH --start-date 20250101 --end-date 20250618` |
 
 ```bash
 uv run python examples/etf/etf_basic_query_smoke.py
 uv run python examples/etf/etf_index_query_smoke.py
+uv run python examples/etf/fund_daily_query_smoke.py
 ```
 
 ---
