@@ -81,6 +81,15 @@ def test_etf_basic_filters_by_mgr_name_list_date_limit_offset(tmp_path):
     ]
 
 
+def test_etf_basic_rejects_conflicting_mgr_aliases(tmp_path):
+    SnapshotStore(tmp_path / "etf" / "etf_basic" / "data.parquet").write(_make_etf_basic_df())
+
+    api = LocalPro(tmp_path)
+
+    with pytest.raises(ValueError, match="mgr and mgr_name must match"):
+        api.etf_basic(mgr="华泰柏瑞基金", mgr_name="嘉实基金")
+
+
 def test_query_dispatch_supports_etf_basic(tmp_path):
     SnapshotStore(tmp_path / "etf" / "etf_basic" / "data.parquet").write(_make_etf_basic_df())
 

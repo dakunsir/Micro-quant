@@ -64,6 +64,11 @@ df = pro.query("daily", ts_code="000001.SZ", start_date="20240101", end_date="20
   - Local build target: `build-universe`
   - Available universes include `univ_research_base`, `univ_trade_base`, `univ_trade_hs300`, `univ_trade_zz500`, and `univ_trade_zz1000` when built.
 
+- `etf_basic(ts_code=None, index_code=None, list_date=None, list_status=None, exchange=None, mgr=None, mgr_name=None, fields=None, limit=None, offset=None)`
+  - Local sync table: `etf_basic`
+  - ETF basic information, including tracking index, manager, listing status, and fund type.
+  - `mgr` and `mgr_name` both filter the stored `mgr_name` column. If both are provided, they must match.
+
 - `pro_bar(ts_code, start_date=None, end_date=None, asset="E", adj=None, freq="D", trade_date=None, ma=None, limit=None, offset=None)`
   - Uses local `daily` and `adj_factor`.
   - Supports only `asset="E"` and `freq="D"`.
@@ -144,4 +149,3 @@ df = pro.query("daily", ts_code="000001.SZ", start_date="20240101", end_date="20
 ## Unsupported Tushare Areas
 
 zer0share does not currently expose local finance statements, macro data, realtime quotes, news, announcements, funds, Hong Kong stocks, or US stocks. If users ask for these, state that the local skill cannot answer from current synced zer0share data.
-

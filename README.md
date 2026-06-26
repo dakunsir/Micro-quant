@@ -4,14 +4,14 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Stars](https://img.shields.io/github/stars/zer0quant/zer0share)
 
-> **zer0share** — A local data pipeline for Chinese A-shares, futures & options.  
+> **zer0share** — A local data pipeline for Chinese A-shares, ETFs, futures & options.  
 > Pulls data from Tushare Pro, stores as Parquet partitions,  
 > queries via DuckDB, with incremental sync & APScheduler automation.
 
 > 我在公众号「极客投研笔记」记录这个项目的设计过程、踩坑记录和后续扩展。  
 > 如果你对 AI + 量化投研、本地量化数据系统、因子研究工作流感兴趣，欢迎关注。
 
-A 股、期货、期权数据本地化管道，基于 [Tushare Pro](https://tushare.pro) 拉取数据，以 Parquet 分区存储，DuckDB 提供快速本地查询，支持增量同步与定时调度。
+A 股、ETF、期货、期权数据本地化管道，基于 [Tushare Pro](https://tushare.pro) 拉取数据，以 Parquet 分区存储，DuckDB 提供快速本地查询，支持增量同步与定时调度。
 
 ## 为什么用 zer0share？
 
@@ -27,6 +27,7 @@ A 股、期货、期权数据本地化管道，基于 [Tushare Pro](https://tush
 ## 特性
 
 - **A 股数据**：交易日历、基础信息、日线、复权因子、每日指标、ST、停复牌、涨跌停、指数成分、申万/中信行业
+- **ETF 数据**：ETF 基础信息、本地查询与专题存储
 - **期货 & 期权数据**：期货合约、日线、持仓排名、仓单、结算、主连映射；期权合约与日线行情
 - **本地优先存储**：Parquet 分区文件 + DuckDB 元数据，无需数据库服务
 - **Tushare-like 查询**：本地 `pro_api()` 直接返回 DataFrame，不消耗 Tushare 积分
@@ -38,7 +39,7 @@ A 股、期货、期权数据本地化管道，基于 [Tushare Pro](https://tush
 
 - Python 3.11+
 - [uv](https://github.com/astral-sh/uv)
-- Tushare Pro Token（基础行情需积分 ≥ 2000；`stock_st` 需积分 ≥ 3000；中信行业成分、`opt_basic` 需积分 ≥ 5000；部分期货扩展数据需积分 ≥ 5000）
+- Tushare Pro Token（基础行情需积分 ≥ 2000；`stock_st` 需积分 ≥ 3000；ETF 基础信息需积分 ≥ 8000；中信行业成分、`opt_basic` 需积分 ≥ 5000；部分期货扩展数据需积分 ≥ 5000）
 
 ## 快速开始
 
@@ -84,6 +85,9 @@ uv run python main.py sync --table index_weight # 沪深300/中证500/中证1000
 uv run python main.py sync --table index_daily  # 宽基指数日线行情
 uv run python main.py sync --table industry     # 申万行业分类 + 成分映射
 uv run python main.py sync --table ci_member    # 中信行业成分映射
+
+# ── ETF 专题（可选，需积分 ≥ 8000）────────────────────────────────
+uv run python main.py sync --table etf_basic    # ETF 基础信息
 
 # ── 期货扩展（可选，需积分 ≥ 5000）────────────────────────────────
 uv run python main.py sync --table fut_basic          # 期货合约基础信息
@@ -209,6 +213,7 @@ st = pro.stock_st(trade_date="20240131")
 suspend = pro.suspend_d(trade_date="20240131")
 limit = pro.stk_limit(trade_date="20240131")
 hs300 = pro.index_weight(index_code="399300.SZ", start_date="20240101", end_date="20240131")
+etf_basic = pro.etf_basic(list_status="L", exchange="SH")
 
 # 指数日线行情（用于对冲基准收益率）
 idx_daily = pro.index_daily(ts_code="000300.SH", start_date="20240101", end_date="20240131")
@@ -257,6 +262,7 @@ opt_snapshot = pro.opt_daily(trade_date="20240102", exchange="SSE")   # 某日�
 | `index_classify` | 查询申万行业分类树（L1/L2/L3） |
 | `index_member_all` | 查询申万股票-行业映射（支持历史变更） |
 | `ci_index_member` | 查询中信股票-行业映射（支持历史变更） |
+| `etf_basic` | 查询已同步的 ETF 基础信息 |
 | `pro_bar` | 查询本地 A 股日线行情，支持不复权、前复权（qfq）和后复权（hfq） |
 | `universe` | 查询已构建的股票池（支持按池名称、ts_code、日期过滤） |
 | `fut_basic` | 查询已同步的期货合约基础信息（支持按交易所、fut_code 过滤） |
@@ -289,7 +295,7 @@ uv run python examples/options/opt_daily_query_smoke.py
 
 ## 数据存储结构
 
-目录按 Tushare 数据分类命名：`stock/`（股票数据）、`index/`（指数专题）、`futures/`（期货数据）、`options/`（期权数据）。
+目录按 Tushare 数据分类命名：`stock/`（股票数据）、`etf/`（ETF专题）、`index/`（指数专题）、`futures/`（期货数据）、`options/`（期权数据）。
 
 ```
 data/
@@ -327,6 +333,9 @@ data/
 │       ├── name=univ_trade_hs300/date=YYYYMMDD/data.parquet
 │       ├── name=univ_trade_zz500/date=YYYYMMDD/data.parquet
 │       └── name=univ_trade_zz1000/date=YYYYMMDD/data.parquet
+├── etf/                                # ETF专题
+│   └── etf_basic/
+│       └── data.parquet
 ├── index/                              # 指数专题
 │   ├── index_daily/
 │   │   └── date=YYYYMMDD/data.parquet  # 含当日全部12个宽基指数
@@ -366,6 +375,8 @@ db/
 | `sync --table index_daily` | 增量同步12个宽基指数日线行情 |
 | `sync --table industry` | 同步申万行业分类 + 成分映射（全量覆盖） |
 | `sync --table ci_member` | 同步中信行业成分映射（全量覆盖） |
+| `sync --table etf_basic` | 同步 ETF 基础信息 |
+| `sync --etf` | 同步 ETF 专题全部表 |
 | `sync --table fut_basic` | 同步期货合约基础信息 |
 | `sync --table fut_daily` | 增量同步期货日线行情 |
 | `sync --table fut_holding` | 增量同步期货持仓排名 |

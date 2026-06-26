@@ -216,7 +216,7 @@ def test_pipeline_run_unknown_table_raises(pipeline):
         pipeline.run("nonexistent")
 
 
-def test_run_all_runs_all_25_jobs(pipeline, cfg):
+def test_run_all_runs_all_26_jobs(pipeline, cfg):
     """Smoke test: run_all() on a fully up-to-date pipeline raises no exception."""
     # Mark all tables as already synced to today so every job returns immediately
     today = "20240102"

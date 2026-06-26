@@ -31,8 +31,9 @@ def etf_basic(
         filters.append(eq_filter("list_status", list_status, ETF_BASIC_SPEC.columns))
     if exchange is not None:
         filters.append(eq_filter("exchange", exchange, ETF_BASIC_SPEC.columns))
-    if mgr is not None:
-        filters.append(eq_filter("mgr_name", mgr, ETF_BASIC_SPEC.columns))
-    if mgr_name is not None:
-        filters.append(eq_filter("mgr_name", mgr_name, ETF_BASIC_SPEC.columns))
+    if mgr is not None and mgr_name is not None and mgr != mgr_name:
+        raise ValueError("mgr and mgr_name must match when both are provided")
+    mgr_value = mgr_name if mgr_name is not None else mgr
+    if mgr_value is not None:
+        filters.append(eq_filter("mgr_name", mgr_value, ETF_BASIC_SPEC.columns))
     return repo.query(fields=fields, filters=filters, limit=limit, offset=offset)
