@@ -69,6 +69,10 @@ df = pro.query("daily", ts_code="000001.SZ", start_date="20240101", end_date="20
   - ETF basic information, including tracking index, manager, listing status, and fund type.
   - `mgr` and `mgr_name` both filter the stored `mgr_name` column. If both are provided, they must match.
 
+- `fund_adj(ts_code=None, trade_date=None, start_date=None, end_date=None, fields=None, limit=None, offset=None)`
+  - Local sync table: `fund_adj`
+  - Fund adjustment factors used for adjusted fund price calculations.
+
 - `pro_bar(ts_code, start_date=None, end_date=None, asset="E", adj=None, freq="D", trade_date=None, ma=None, limit=None, offset=None)`
   - Uses local `daily` and `adj_factor`.
   - Supports only `asset="E"` and `freq="D"`.
