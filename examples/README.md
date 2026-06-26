@@ -52,6 +52,18 @@ uv run python examples/index/index_weight_query_smoke.py
 
 ---
 
+## ETF（`examples/etf/`）
+
+| 脚本 | 默认参数 |
+|------|------|
+| `etf_basic_query_smoke.py` | `--exchange SH --index-code 000300.SH --list-status L` |
+
+```bash
+uv run python examples/etf/etf_basic_query_smoke.py
+```
+
+---
+
 ## 交易日历（`examples/calendar/`）
 
 | 脚本 | 默认参数 |
