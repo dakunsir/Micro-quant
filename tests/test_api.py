@@ -62,6 +62,17 @@ def _make_fund_daily_df():
     })
 
 
+def _make_fund_adj_df():
+    return pd.DataFrame(
+        {
+            "ts_code": ["159919.SZ", "159919.SZ", "513100.SH", "513100.SH"],
+            "trade_date": ["20240102", "20240103", "20240102", "20240103"],
+            "adj_factor": [1.0, 1.01, 1.2345, 1.2456],
+            "discount_rate": [0.01, 0.02, 0.12, 0.15],
+        }
+    )
+
+
 def test_etf_basic_query_returns_data(tmp_path):
     SnapshotStore(tmp_path / "etf" / "etf_basic" / "data.parquet").write(_make_etf_basic_df())
 
@@ -265,6 +276,80 @@ def test_fund_daily_query_raises_when_no_data(tmp_path):
 
     with pytest.raises(FileNotFoundError, match="fund_daily"):
         api.fund_daily()
+
+
+def test_fund_adj_query_returns_local_data_and_selected_fields(tmp_path):
+    data = _make_fund_adj_df()
+    DailyPartitionStore(tmp_path / "etf" / "fund_adj").write("20240102", data[data["trade_date"] == "20240102"])
+    DailyPartitionStore(tmp_path / "etf" / "fund_adj").write("20240103", data[data["trade_date"] == "20240103"])
+
+    api = LocalPro(tmp_path)
+    result = api.fund_adj(fields="ts_code,trade_date,adj_factor")
+
+    assert result.to_dict("records") == [
+        {"ts_code": "159919.SZ", "trade_date": "20240102", "adj_factor": 1.0},
+        {"ts_code": "159919.SZ", "trade_date": "20240103", "adj_factor": 1.01},
+        {"ts_code": "513100.SH", "trade_date": "20240102", "adj_factor": 1.2345},
+        {"ts_code": "513100.SH", "trade_date": "20240103", "adj_factor": 1.2456},
+    ]
+
+
+def test_fund_adj_filters_by_ts_code_and_date_range(tmp_path):
+    data = _make_fund_adj_df()
+    DailyPartitionStore(tmp_path / "etf" / "fund_adj").write("20240102", data[data["trade_date"] == "20240102"])
+    DailyPartitionStore(tmp_path / "etf" / "fund_adj").write("20240103", data[data["trade_date"] == "20240103"])
+
+    api = LocalPro(tmp_path)
+    result = api.fund_adj(
+        ts_code="513100.SH",
+        start_date="20240103",
+        end_date="20240103",
+        fields="ts_code,trade_date,adj_factor,discount_rate",
+    )
+
+    assert result.to_dict("records") == [
+        {
+            "ts_code": "513100.SH",
+            "trade_date": "20240103",
+            "adj_factor": 1.2456,
+            "discount_rate": 0.15,
+        }
+    ]
+
+
+def test_fund_adj_supports_trade_date_limit_offset_and_query_dispatch(tmp_path):
+    data = _make_fund_adj_df()
+    DailyPartitionStore(tmp_path / "etf" / "fund_adj").write("20240102", data[data["trade_date"] == "20240102"])
+    DailyPartitionStore(tmp_path / "etf" / "fund_adj").write("20240103", data[data["trade_date"] == "20240103"])
+
+    api = LocalPro(tmp_path)
+    result = api.query(
+        "fund_adj",
+        trade_date="20240102",
+        offset=1,
+        limit=1,
+        fields="ts_code,trade_date,adj_factor",
+    )
+
+    assert result.to_dict("records") == [
+        {"ts_code": "513100.SH", "trade_date": "20240102", "adj_factor": 1.2345}
+    ]
+
+
+def test_fund_adj_validates_date_filters(tmp_path):
+    data = _make_fund_adj_df()
+    DailyPartitionStore(tmp_path / "etf" / "fund_adj").write("20240102", data[data["trade_date"] == "20240102"])
+
+    api = LocalPro(tmp_path)
+    with pytest.raises(ValueError, match="YYYYMMDD"):
+        api.fund_adj(trade_date="2024-01-02")
+
+
+def test_fund_adj_query_raises_when_no_data(tmp_path):
+    api = LocalPro(tmp_path)
+
+    with pytest.raises(FileNotFoundError, match="fund_adj"):
+        api.fund_adj()
 
 
 def test_stock_basic_filters_and_formats_dates(tmp_path):
