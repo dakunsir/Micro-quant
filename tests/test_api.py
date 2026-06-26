@@ -10,6 +10,95 @@ from zer0share.storage import (
 )
 
 
+def _make_etf_basic_df():
+    return pd.DataFrame({
+        "ts_code": ["510300.SH", "159919.SZ", "513100.SH"],
+        "csname": ["沪深300ETF", "沪深300ETF", "纳指ETF"],
+        "extname": ["沪深300ETF", "沪深300ETF", "纳指ETF"],
+        "cname": [
+            "华泰柏瑞沪深300交易型开放式指数证券投资基金",
+            "嘉实沪深300交易型开放式指数证券投资基金",
+            "国泰纳斯达克100交易型开放式指数证券投资基金",
+        ],
+        "index_code": ["000300.SH", "000300.SH", "NDX.GI"],
+        "index_name": ["沪深300指数", "沪深300指数", "纳斯达克100指数"],
+        "setup_date": ["20120504", "20120507", "20130425"],
+        "list_date": ["20120528", "20120528", "20130515"],
+        "list_status": ["L", "L", "L"],
+        "exchange": ["SH", "SZ", "SH"],
+        "mgr_name": ["华泰柏瑞基金", "嘉实基金", "国泰基金"],
+        "custod_name": ["中国工商银行", "中国银行", "中国建设银行"],
+        "mgt_fee": [0.5, 0.5, 0.8],
+        "etf_type": ["境内", "境内", "QDII"],
+    })
+
+
+def test_etf_basic_query_returns_data(tmp_path):
+    SnapshotStore(tmp_path / "etf" / "etf_basic" / "data.parquet").write(_make_etf_basic_df())
+
+    api = LocalPro(tmp_path)
+    result = api.etf_basic(fields="ts_code,extname,index_code,exchange")
+
+    assert result.to_dict("records") == [
+        {"ts_code": "159919.SZ", "extname": "沪深300ETF", "index_code": "000300.SH", "exchange": "SZ"},
+        {"ts_code": "510300.SH", "extname": "沪深300ETF", "index_code": "000300.SH", "exchange": "SH"},
+        {"ts_code": "513100.SH", "extname": "纳指ETF", "index_code": "NDX.GI", "exchange": "SH"},
+    ]
+
+
+def test_etf_basic_filters_by_codes_status_exchange_and_mgr(tmp_path):
+    SnapshotStore(tmp_path / "etf" / "etf_basic" / "data.parquet").write(_make_etf_basic_df())
+
+    api = LocalPro(tmp_path)
+    result = api.etf_basic(
+        ts_code="510300.SH,159919.SZ",
+        index_code="000300.SH",
+        list_status="L",
+        exchange="SH",
+        mgr="华泰柏瑞基金",
+        fields="ts_code,mgr_name,exchange",
+    )
+
+    assert result.to_dict("records") == [
+        {"ts_code": "510300.SH", "mgr_name": "华泰柏瑞基金", "exchange": "SH"}
+    ]
+
+
+def test_etf_basic_filters_by_mgr_name_list_date_limit_offset(tmp_path):
+    SnapshotStore(tmp_path / "etf" / "etf_basic" / "data.parquet").write(_make_etf_basic_df())
+
+    api = LocalPro(tmp_path)
+    result = api.etf_basic(
+        list_date="20120528",
+        mgr_name="嘉实基金",
+        limit=1,
+        offset=0,
+        fields="ts_code,list_date,mgr_name",
+    )
+
+    assert result.to_dict("records") == [
+        {"ts_code": "159919.SZ", "list_date": "20120528", "mgr_name": "嘉实基金"}
+    ]
+
+
+def test_query_dispatch_supports_etf_basic(tmp_path):
+    SnapshotStore(tmp_path / "etf" / "etf_basic" / "data.parquet").write(_make_etf_basic_df())
+
+    api = LocalPro(tmp_path)
+    result = api.query("etf_basic", exchange="SZ", fields="ts_code,exchange")
+
+    assert result.to_dict("records") == [
+        {"ts_code": "159919.SZ", "exchange": "SZ"}
+    ]
+
+
+def test_etf_basic_query_raises_when_no_data(tmp_path):
+    api = LocalPro(tmp_path)
+
+    with pytest.raises(FileNotFoundError, match="etf_basic"):
+        api.etf_basic()
+
+
 def test_stock_basic_filters_and_formats_dates(tmp_path):
     df = pd.DataFrame(
         {

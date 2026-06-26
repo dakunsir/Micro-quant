@@ -3,7 +3,7 @@ from pathlib import Path
 
 from zer0share.config import load_config
 from zer0share.query import QueryContext
-from zer0share.query import calendar, stock, index, industry, futures, options
+from zer0share.query import calendar, stock, index, industry, futures, options, etf
 
 
 def _check_dates(kwargs: dict) -> None:
@@ -131,6 +131,11 @@ class LocalPro:
         _check_dates(kwargs)
         return options.opt_daily(self._ctx, **kwargs)
 
+    # ETF
+    def etf_basic(self, **kwargs):
+        _check_dates(kwargs)
+        return etf.etf_basic(self._ctx, **kwargs)
+
     def query(self, api_name: str, **kwargs):
         dispatch = {
             "stock_basic": self.stock_basic,
@@ -164,6 +169,7 @@ class LocalPro:
             "fut_weekly_detail": self.fut_weekly_detail,
             "opt_basic": self.opt_basic,
             "opt_daily": self.opt_daily,
+            "etf_basic": self.etf_basic,
         }
         try:
             method = dispatch[api_name]
