@@ -83,6 +83,16 @@ FUND_DAILY_COLS = [
     "close", "pre_close", "change", "pct_chg", "vol", "amount"
 ]
 FUND_ADJ_COLS = ["ts_code", "trade_date", "adj_factor", "discount_rate"]
+ETF_SHARE_SIZE_COLS = [
+    "trade_date",
+    "ts_code",
+    "etf_name",
+    "total_share",
+    "total_size",
+    "nav",
+    "close",
+    "exchange",
+]
 SW_CLASSIFY_COLS = [
     "index_code", "industry_name", "level", "parent_code",
     "industry_code", "is_pub", "src",

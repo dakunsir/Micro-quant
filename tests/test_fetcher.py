@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 import time
 from datetime import date
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from zer0share.fetcher import TushareFetcher
 
@@ -77,6 +77,17 @@ FUND_ADJ_COLS = [
     "trade_date",
     "adj_factor",
     "discount_rate",
+]
+
+ETF_SHARE_SIZE_COLS = [
+    "trade_date",
+    "ts_code",
+    "etf_name",
+    "total_share",
+    "total_size",
+    "nav",
+    "close",
+    "exchange",
 ]
 
 
@@ -804,6 +815,73 @@ def test_fetch_fund_adj_returns_empty_when_none(mock_pro):
 
     assert df.empty
     assert list(df.columns) == FUND_ADJ_COLS
+
+
+def _etf_share_size_row(
+    *,
+    ts_code: str = "510330.SH",
+    trade_date: str = "20250102",
+    exchange: str = "SSE",
+) -> dict[str, object]:
+    return {
+        "trade_date": trade_date,
+        "ts_code": ts_code,
+        "etf_name": "沪深300ETF华夏",
+        "total_share": 3986754.98,
+        "total_size": 15939050.0,
+        "nav": 4.0,
+        "close": 4.01,
+        "exchange": exchange,
+    }
+
+
+def test_fetch_etf_share_size_calls_both_exchanges_with_expected_fields(mock_pro):
+    mock_pro.etf_share_size.side_effect = [
+        pd.DataFrame([_etf_share_size_row(exchange="SSE")]),
+        pd.DataFrame([_etf_share_size_row(ts_code="159919.SZ", exchange="SZSE")]),
+    ]
+    fetcher = TushareFetcher("fake_token")
+
+    fetcher.fetch_etf_share_size("20250102")
+
+    assert mock_pro.etf_share_size.call_args_list == [
+        call(
+            trade_date="20250102",
+            exchange="SSE",
+            fields=",".join(ETF_SHARE_SIZE_COLS),
+        ),
+        call(
+            trade_date="20250102",
+            exchange="SZSE",
+            fields=",".join(ETF_SHARE_SIZE_COLS),
+        ),
+    ]
+
+
+def test_fetch_etf_share_size_combines_exchange_rows(mock_pro):
+    mock_pro.etf_share_size.side_effect = [
+        pd.DataFrame([_etf_share_size_row(exchange="SSE")]),
+        pd.DataFrame([_etf_share_size_row(ts_code="159919.SZ", exchange="SZSE")]),
+    ]
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_etf_share_size("20250102")
+
+    assert list(df.columns) == ETF_SHARE_SIZE_COLS
+    assert df[["ts_code", "exchange"]].to_dict("records") == [
+        {"ts_code": "510330.SH", "exchange": "SSE"},
+        {"ts_code": "159919.SZ", "exchange": "SZSE"},
+    ]
+
+
+def test_fetch_etf_share_size_returns_empty_when_all_exchanges_empty(mock_pro):
+    mock_pro.etf_share_size.side_effect = [None, pd.DataFrame()]
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_etf_share_size("20250102")
+
+    assert df.empty
+    assert list(df.columns) == ETF_SHARE_SIZE_COLS
 
 
 # --- Futures tests ---

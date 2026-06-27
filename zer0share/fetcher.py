@@ -9,7 +9,7 @@ from zer0share.schema import (
     BASIC_COLS, DAILY_COLS, TRADE_CAL_COLS, ADJ_FACTOR_COLS, DAILY_BASIC_COLS,
     STOCK_ST_COLS, SUSPEND_D_COLS, STK_LIMIT_COLS, INDEX_WEIGHT_COLS,
     INDEX_DAILY_COLS, ETF_BASIC_COLS, ETF_INDEX_COLS, SW_CLASSIFY_COLS, SW_MEMBER_COLS, CI_MEMBER_COLS,
-    FUND_DAILY_COLS, FUND_ADJ_COLS, OPT_BASIC_COLS, OPT_DAILY_COLS, FUT_BASIC_COLS, FUT_DAILY_COLS,
+    FUND_DAILY_COLS, FUND_ADJ_COLS, ETF_SHARE_SIZE_COLS, OPT_BASIC_COLS, OPT_DAILY_COLS, FUT_BASIC_COLS, FUT_DAILY_COLS,
     FUT_HOLDING_COLS, FUT_WSR_COLS, FUT_SETTLE_COLS, FUT_MAPPING_COLS,
     FT_LIMIT_COLS, FUT_WEEKLY_COLS, FUT_MONTHLY_COLS, FUT_INDEX_DAILY_COLS,
     FUT_WEEKLY_DETAIL_COLS,
@@ -158,6 +158,24 @@ class TushareFetcher:
         logger.debug(f"拉取ETF基金复权因子: {trade_date}")
         df = self._pro.fund_adj(trade_date=trade_date, fields=",".join(FUND_ADJ_COLS))
         return _select_columns_or_empty(df, FUND_ADJ_COLS)
+
+    def fetch_etf_share_size(self, trade_date: str) -> pd.DataFrame:
+        logger.debug(f"拉取ETF份额规模: {trade_date}")
+        frames = []
+        for exchange in ("SSE", "SZSE"):
+            df = self._pro.etf_share_size(
+                trade_date=trade_date,
+                exchange=exchange,
+                fields=",".join(ETF_SHARE_SIZE_COLS),
+            )
+            if df is not None and not df.empty:
+                frames.append(df)
+        combined = (
+            pd.concat(frames, ignore_index=True)
+            if frames
+            else pd.DataFrame(columns=ETF_SHARE_SIZE_COLS)
+        )
+        return _select_columns_or_empty(combined, ETF_SHARE_SIZE_COLS)
 
     def fetch_trade_cal(
         self,
