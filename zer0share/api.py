@@ -152,6 +152,10 @@ class LocalPro:
         _check_dates(kwargs)
         return etf.etf_share_size(self._ctx, **kwargs)
 
+    def etf_sh_cons(self, **kwargs):
+        _check_dates(kwargs)
+        return etf.etf_sh_cons(self._ctx, **kwargs)
+
     def query(self, api_name: str, **kwargs):
         dispatch = {
             "stock_basic": self.stock_basic,
@@ -190,6 +194,7 @@ class LocalPro:
             "fund_daily": self.fund_daily,
             "fund_adj": self.fund_adj,
             "etf_share_size": self.etf_share_size,
+            "etf_sh_cons": self.etf_sh_cons,
         }
         try:
             method = dispatch[api_name]

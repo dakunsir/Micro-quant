@@ -88,6 +88,23 @@ def _make_etf_share_size_df():
     )
 
 
+def _make_etf_sh_cons_df():
+    return pd.DataFrame(
+        {
+            "trade_date": ["20260615", "20260615", "20260616", "20260616"],
+            "ts_code": ["517030.SH", "517030.SH", "517030.SH", "510300.SH"],
+            "con_code": ["000001.SZ", "00003.HK", "000001.SZ", "600519.SH"],
+            "con_name": ["平安银行", "香港中华煤气", "平安银行", "贵州茅台"],
+            "qty": [1100, 1000, 1200, 200],
+            "sub_flag": ["允许", "允许", "允许", "必须"],
+            "cpr": ["15", "30", "15", "-"],
+            "rdr": ["60", "0", "60", "-"],
+            "sca": ["12364.000", "5928.350", "12500.000", "0.000"],
+            "exchange": ["SZ", "HK", "SZ", "SH"],
+        }
+    )
+
+
 def test_etf_basic_query_returns_data(tmp_path):
     SnapshotStore(tmp_path / "etf" / "etf_basic" / "data.parquet").write(_make_etf_basic_df())
 
@@ -435,6 +452,76 @@ def test_etf_share_size_query_raises_when_no_data(tmp_path):
 
     with pytest.raises(FileNotFoundError, match="etf_share_size"):
         api.etf_share_size()
+
+
+def test_etf_sh_cons_query_returns_local_data_and_selected_fields(tmp_path):
+    data = _make_etf_sh_cons_df()
+    DailyPartitionStore(tmp_path / "etf" / "etf_sh_cons").write("20260615", data[data["trade_date"] == "20260615"])
+    DailyPartitionStore(tmp_path / "etf" / "etf_sh_cons").write("20260616", data[data["trade_date"] == "20260616"])
+
+    api = LocalPro(tmp_path)
+    result = api.etf_sh_cons(fields="trade_date,ts_code,con_code,con_name,qty,exchange")
+
+    assert result.to_dict("records") == [
+        {"trade_date": "20260616", "ts_code": "510300.SH", "con_code": "600519.SH", "con_name": "贵州茅台", "qty": 200, "exchange": "SH"},
+        {"trade_date": "20260615", "ts_code": "517030.SH", "con_code": "000001.SZ", "con_name": "平安银行", "qty": 1100, "exchange": "SZ"},
+        {"trade_date": "20260615", "ts_code": "517030.SH", "con_code": "00003.HK", "con_name": "香港中华煤气", "qty": 1000, "exchange": "HK"},
+        {"trade_date": "20260616", "ts_code": "517030.SH", "con_code": "000001.SZ", "con_name": "平安银行", "qty": 1200, "exchange": "SZ"},
+    ]
+
+
+def test_etf_sh_cons_filters_by_ts_code_date_range_and_con_code(tmp_path):
+    data = _make_etf_sh_cons_df()
+    DailyPartitionStore(tmp_path / "etf" / "etf_sh_cons").write("20260615", data[data["trade_date"] == "20260615"])
+    DailyPartitionStore(tmp_path / "etf" / "etf_sh_cons").write("20260616", data[data["trade_date"] == "20260616"])
+
+    api = LocalPro(tmp_path)
+    result = api.etf_sh_cons(
+        ts_code="517030.SH",
+        start_date="20260615",
+        end_date="20260616",
+        con_code="000001.SZ",
+        fields="trade_date,ts_code,con_code,qty",
+    )
+
+    assert result.to_dict("records") == [
+        {"trade_date": "20260615", "ts_code": "517030.SH", "con_code": "000001.SZ", "qty": 1100},
+        {"trade_date": "20260616", "ts_code": "517030.SH", "con_code": "000001.SZ", "qty": 1200},
+    ]
+
+
+def test_etf_sh_cons_supports_trade_date_limit_offset_and_query_dispatch(tmp_path):
+    data = _make_etf_sh_cons_df()
+    DailyPartitionStore(tmp_path / "etf" / "etf_sh_cons").write("20260615", data[data["trade_date"] == "20260615"])
+
+    api = LocalPro(tmp_path)
+    result = api.query(
+        "etf_sh_cons",
+        trade_date="20260615",
+        offset=1,
+        limit=1,
+        fields="trade_date,ts_code,con_code,exchange",
+    )
+
+    assert result.to_dict("records") == [
+        {"trade_date": "20260615", "ts_code": "517030.SH", "con_code": "00003.HK", "exchange": "HK"}
+    ]
+
+
+def test_etf_sh_cons_validates_date_filters(tmp_path):
+    data = _make_etf_sh_cons_df()
+    DailyPartitionStore(tmp_path / "etf" / "etf_sh_cons").write("20260615", data[data["trade_date"] == "20260615"])
+
+    api = LocalPro(tmp_path)
+    with pytest.raises(ValueError, match="YYYYMMDD"):
+        api.etf_sh_cons(trade_date="2026-06-15")
+
+
+def test_etf_sh_cons_query_raises_when_no_data(tmp_path):
+    api = LocalPro(tmp_path)
+
+    with pytest.raises(FileNotFoundError, match="etf_sh_cons"):
+        api.etf_sh_cons()
 
 
 def test_stock_basic_filters_and_formats_dates(tmp_path):

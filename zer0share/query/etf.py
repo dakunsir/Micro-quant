@@ -3,6 +3,7 @@ import pandas as pd
 from zer0share.catalog import (
     ETF_BASIC_SPEC,
     ETF_INDEX_SPEC,
+    ETF_SH_CONS_SPEC,
     ETF_SHARE_SIZE_SPEC,
     FUND_ADJ_SPEC,
     FUND_DAILY_SPEC,
@@ -114,6 +115,33 @@ def etf_share_size(
     if exchange is not None:
         filters.append(eq_filter("exchange", exchange, ETF_SHARE_SIZE_SPEC.columns))
     return DailyPartitionRepository(ctx, ETF_SHARE_SIZE_SPEC).query(
+        ts_code,
+        trade_date,
+        start_date,
+        end_date,
+        fields,
+        filters=filters,
+        limit=limit,
+        offset=offset,
+    )
+
+
+def etf_sh_cons(
+    ctx: QueryContext,
+    ts_code=None,
+    trade_date=None,
+    con_code=None,
+    start_date=None,
+    end_date=None,
+    limit: int | None = None,
+    offset: int | None = None,
+    fields=None,
+) -> pd.DataFrame:
+    """Query Shanghai ETF daily constituent portfolio data."""
+    filters = []
+    if con_code is not None:
+        filters.append(eq_filter("con_code", con_code, ETF_SH_CONS_SPEC.columns))
+    return DailyPartitionRepository(ctx, ETF_SH_CONS_SPEC).query(
         ts_code,
         trade_date,
         start_date,
