@@ -92,6 +92,7 @@ uv run python main.py sync --table etf_index    # ETF 基准指数列表
 uv run python main.py sync --table fund_daily   # ETF 日线行情（需积分 >= 5000，8000 积分频次更高）
 uv run python main.py sync --table fund_adj     # 基金复权因子（需积分 >= 600，5000 积分以上频次更高）
 uv run python main.py sync --table etf_share_size  # ETF 份额规模（需积分 >= 8000，通常次日 08:30 后更新）
+uv run python main.py sync --table etf_sh_cons  # 上交所 ETF 每日持仓组合（需积分 >= 8000）
 
 # ── 期货扩展（可选，需积分 ≥ 5000）────────────────────────────────
 uv run python main.py sync --table fut_basic          # 期货合约基础信息
@@ -237,6 +238,11 @@ etf_share_size = pro.etf_share_size(
     end_date="20251224",
     fields="trade_date,ts_code,etf_name,total_share,total_size,exchange",
 )
+etf_sh_cons = pro.etf_sh_cons(
+    trade_date="20260615",
+    ts_code="517030.SH",
+    fields="trade_date,ts_code,con_code,con_name,qty,sub_flag,cpr,rdr,sca,exchange",
+)
 
 # 指数日线行情（用于对冲基准收益率）
 idx_daily = pro.index_daily(ts_code="000300.SH", start_date="20240101", end_date="20240131")
@@ -290,6 +296,7 @@ opt_snapshot = pro.opt_daily(trade_date="20240102", exchange="SSE")   # 某日�
 | `fund_daily` | 查询已同步的 ETF 日线行情 |
 | `fund_adj` | 查询已同步的基金复权因子 |
 | `etf_share_size` | 查询已同步的 ETF 份额规模 |
+| `etf_sh_cons` | 查询已同步的上交所 ETF 每日持仓组合 |
 | `pro_bar` | 查询本地 A 股日线行情，支持不复权、前复权（qfq）和后复权（hfq） |
 | `universe` | 查询已构建的股票池（支持按池名称、ts_code、日期过滤） |
 | `fut_basic` | 查询已同步的期货合约基础信息（支持按交易所、fut_code 过滤） |
@@ -321,6 +328,7 @@ uv run python examples/options/opt_daily_query_smoke.py
 
 # ETF 示例
 uv run python examples/etf/etf_share_size_query_smoke.py
+uv run python examples/etf/etf_sh_cons_query_smoke.py
 ```
 
 ## 数据存储结构
@@ -372,7 +380,9 @@ data/
 │   │   └── date=YYYYMMDD/data.parquet
 │   ├── fund_adj/
 │   │   └── date=YYYYMMDD/data.parquet
-│   └── etf_share_size/
+│   ├── etf_share_size/
+│   │   └── date=YYYYMMDD/data.parquet
+│   └── etf_sh_cons/
 │       └── date=YYYYMMDD/data.parquet
 ├── index/                              # 指数专题
 │   ├── index_daily/
@@ -418,6 +428,7 @@ db/
 | `sync --table fund_daily` | 同步 ETF 日线行情 |
 | `sync --table fund_adj` | 同步基金复权因子 |
 | `sync --table etf_share_size` | 同步 ETF 份额规模 |
+| `sync --table etf_sh_cons` | 同步上交所 ETF 每日持仓组合 |
 | `sync --etf` | 同步 ETF 专题全部表 |
 | `sync --table fut_basic` | 同步期货合约基础信息 |
 | `sync --table fut_daily` | 增量同步期货日线行情 |
