@@ -49,6 +49,41 @@ def test_start_scheduler_registers_all_configured_jobs(tmp_path):
     assert len(registered_jobs) == 4
 
 
+def test_start_scheduler_opens_pipeline_only_when_job_runs(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(VALID_CONFIG, encoding="utf-8")
+
+    registered_jobs = {}
+
+    def fake_add_job(func, trigger, id=None, **kwargs):
+        registered_jobs[id] = func
+
+    with (
+        patch("tushare.pro_api"),
+        patch("apscheduler.schedulers.blocking.BlockingScheduler.start"),
+        patch(
+            "apscheduler.schedulers.blocking.BlockingScheduler.add_job",
+            side_effect=fake_add_job,
+        ),
+        patch("zer0share.scheduler.Pipeline") as mock_pipeline_cls,
+    ):
+        mock_pipeline = mock_pipeline_cls.return_value
+        mock_pipeline.__enter__.return_value = mock_pipeline
+        mock_pipeline.__exit__.return_value = False
+
+        from zer0share.scheduler import start_scheduler
+
+        start_scheduler(str(cfg_file))
+
+        mock_pipeline_cls.assert_not_called()
+
+        registered_jobs["basic"]()
+
+    mock_pipeline_cls.assert_called_once()
+    mock_pipeline.run.assert_called_once_with("basic")
+    mock_pipeline.__exit__.assert_called_once()
+
+
 def test_start_scheduler_uses_correct_cron_times(tmp_path):
     cfg_file = tmp_path / "settings.toml"
     cfg_file.write_text(VALID_CONFIG, encoding="utf-8")
