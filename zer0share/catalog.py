@@ -32,6 +32,7 @@ from zer0share.schema import (
     FUT_WEEKLY_DETAIL_COLS,
     FUT_WSR_COLS,
     INDEX_DAILY_COLS,
+    IDX_ANNS_COLS,
     INDEX_WEIGHT_COLS,
     OPT_BASIC_COLS,
     OPT_DAILY_COLS,
@@ -148,6 +149,20 @@ INDEX_WEIGHT_SPEC = TableSpec(
     order_by="index_code, con_code, trade_date",
     hive_partitioning=True,
     union_by_name=True,
+)
+
+IDX_ANNS_SPEC = DailyTableSpec(
+    name="idx_anns",
+    path_parts=("index", "idx_anns"),
+    columns=IDX_ANNS_COLS,
+    parquet_pattern="date=*/data.parquet",
+    sync_table="idx_anns",
+    order_by="ann_date DESC, source, title",
+    hive_partitioning=True,
+    union_by_name=True,
+    first_date="20040101",
+    date_column="ann_date",
+    code_column=None,
 )
 
 # ---------------------------------------------------------------------------

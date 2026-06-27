@@ -7,7 +7,7 @@ from zer0share.query import calendar, stock, index, industry, futures, options, 
 
 
 def _check_dates(kwargs: dict) -> None:
-    for key in ("start_date", "end_date", "trade_date", "pub_date", "base_date"):
+    for key in ("start_date", "end_date", "trade_date", "ann_date", "pub_date", "base_date"):
         val = kwargs.get(key)
         if val is not None:
             try:
@@ -60,6 +60,10 @@ class LocalPro:
     def index_weight(self, **kwargs):
         _check_dates(kwargs)
         return index.index_weight(self._ctx, **kwargs)
+
+    def idx_anns(self, **kwargs):
+        _check_dates(kwargs)
+        return index.idx_anns(self._ctx, **kwargs)
 
     def universe(self, **kwargs):
         _check_dates(kwargs)
@@ -168,6 +172,7 @@ class LocalPro:
             "stk_limit": self.stk_limit,
             "index_daily": self.index_daily,
             "index_weight": self.index_weight,
+            "idx_anns": self.idx_anns,
             "universe": self.universe,
             "pro_bar": self.pro_bar,
             "index_classify": self.index_classify,

@@ -8,7 +8,7 @@ Key API:
   - pipeline._runtime.calendar._today_fn  for injecting today
 """
 from dataclasses import replace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pandas as pd
 import pytest
@@ -106,6 +106,18 @@ def _index_daily_df(ts_code: str = "000300.SH", trade_date: str = "20240102") ->
     })
 
 
+def _idx_anns_df(ann_date: str = "20240106") -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "ann_date": [ann_date],
+            "title": ["关于调整三板指数样本股的公告"],
+            "url": ["https://www.csindex.com.cn/#/about/newsDetail?id=123"],
+            "source": ["中证指数"],
+            "type": ["指数调样"],
+        }
+    )
+
+
 # ---------------------------------------------------------------------------
 # Setup helpers
 # ---------------------------------------------------------------------------
@@ -195,7 +207,7 @@ def test_pipeline_registry_contains_all_tables(pipeline):
     expected = {
         "trade_cal",
         "basic", "daily_kline", "adj_factor", "daily_basic", "stock_st",
-        "suspend_d", "stk_limit", "index_weight", "index_daily",
+        "suspend_d", "stk_limit", "index_weight", "index_daily", "idx_anns",
         "industry", "ci_member",
         "fut_basic", "fut_daily", "fut_holding", "fut_wsr", "fut_settle",
         "fut_mapping", "ft_limit", "fut_weekly", "fut_monthly",
@@ -204,7 +216,7 @@ def test_pipeline_registry_contains_all_tables(pipeline):
         "fund_daily", "fund_adj", "etf_share_size", "etf_sh_cons", "etf_basic", "etf_index",
     }
     assert set(pipeline.registry.keys()) == expected
-    assert len(pipeline.registry) == 31
+    assert len(pipeline.registry) == 32
 
 
 def test_opt_daily_spec_uses_option_market_first_date(pipeline):
@@ -748,7 +760,42 @@ def test_sync_index_daily_updates_metastore(pipeline, cfg, fetcher):
 
 
 # ---------------------------------------------------------------------------
-# 9. fut_basic
+# 9. idx_anns
+# ---------------------------------------------------------------------------
+
+def test_sync_idx_anns_writes_calendar_days_and_empty_partitions(pipeline, cfg, fetcher):
+    pipeline._runtime.calendar._today_fn = lambda: "20240107"
+    fetcher.fetch_idx_anns.side_effect = [
+        _idx_anns_df("20240105"),
+        pd.DataFrame(columns=["ann_date", "title", "url", "source", "type"]),
+        _idx_anns_df("20240107"),
+    ]
+
+    with patch("zer0share.sync._jobs.time.sleep"):
+        pipeline.run("idx_anns", start_date="20240105", end_date="20240107")
+
+    assert fetcher.fetch_idx_anns.call_args_list == [
+        call("20240105"),
+        call("20240106"),
+        call("20240107"),
+    ]
+    assert (cfg.data_dir / "index" / "idx_anns" / "date=20240105" / "data.parquet").exists()
+    assert (cfg.data_dir / "index" / "idx_anns" / "date=20240106" / "data.parquet").exists()
+    assert (cfg.data_dir / "index" / "idx_anns" / "date=20240107" / "data.parquet").exists()
+    assert pipeline._runtime.meta.get_last_date("idx_anns") == "20240107"
+
+
+def test_sync_idx_anns_skips_existing_partition_and_advances_meta(pipeline, cfg, fetcher):
+    DailyPartitionStore(cfg.data_dir / "index" / "idx_anns").write("20240106", _idx_anns_df("20240106"))
+    pipeline._runtime.calendar._today_fn = lambda: "20240106"
+
+    pipeline.run("idx_anns", start_date="20240106", end_date="20240106")
+
+    fetcher.fetch_idx_anns.assert_not_called()
+    assert pipeline._runtime.meta.get_last_date("idx_anns") == "20240106"
+
+# ---------------------------------------------------------------------------
+# 10. fut_basic
 # ---------------------------------------------------------------------------
 
 def test_sync_fut_basic_writes_to_futures_subdir(pipeline, cfg, fetcher):

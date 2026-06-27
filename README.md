@@ -39,7 +39,7 @@ A 股、ETF、期货、期权数据本地化管道，基于 [Tushare Pro](https:
 
 - Python 3.11+
 - [uv](https://github.com/astral-sh/uv)
-- Tushare Pro Token（基础行情需积分 ≥ 2000；`stock_st` 需积分 ≥ 3000；ETF 基础信息和 ETF 份额规模需积分 ≥ 8000；ETF 日线行情需积分 ≥ 5000；基金复权因子需积分 ≥ 600，5000 积分以上频次更高；中信行业成分、`opt_basic` 需积分 ≥ 5000；部分期货扩展数据需积分 ≥ 5000）
+- Tushare Pro Token（基础行情需积分 ≥ 2000；`stock_st` 需积分 ≥ 3000；ETF 基础信息和 ETF 份额规模需积分 ≥ 8000；ETF 日线行情需积分 ≥ 5000；基金复权因子需积分 ≥ 600，5000 积分以上频次更高；指数公告 `idx_anns` 需积分 ≥ 6000；中信行业成分、`opt_basic` 需积分 ≥ 5000；部分期货扩展数据需积分 ≥ 5000）
 
 ## 快速开始
 
@@ -83,6 +83,7 @@ uv run python main.py sync --table suspend_d    # 每日停牌列表
 uv run python main.py sync --table stk_limit    # 每日涨跌停价格
 uv run python main.py sync --table index_weight # 沪深300/中证500/中证1000成分
 uv run python main.py sync --table index_daily  # 宽基指数日线行情
+uv run python main.py sync --table idx_anns     # 指数公司公告（自然日同步）
 uv run python main.py sync --table industry     # 申万行业分类 + 成分映射
 uv run python main.py sync --table ci_member    # 中信行业成分映射
 
@@ -218,6 +219,12 @@ st = pro.stock_st(trade_date="20240131")
 suspend = pro.suspend_d(trade_date="20240131")
 limit = pro.stk_limit(trade_date="20240131")
 hs300 = pro.index_weight(index_code="399300.SZ", start_date="20240101", end_date="20240131")
+idx_anns = pro.idx_anns(
+    src="中证指数",
+    start_date="20260401",
+    end_date="20260430",
+    fields="ann_date,title,source,type",
+)
 etf_basic = pro.etf_basic(list_status="L", exchange="SH")
 etf_index = pro.etf_index(ts_code="000300.SH")
 fund_daily = pro.fund_daily(
@@ -288,6 +295,7 @@ opt_snapshot = pro.opt_daily(trade_date="20240102", exchange="SSE")   # 某日�
 | `stk_limit` | 查询已同步的每日涨跌停价格 |
 | `index_weight` | 查询已同步的指数成分和权重 |
 | `index_daily` | 查询已同步的宽基指数日线行情（12个指数） |
+| `idx_anns` | 查询已同步的指数公司公告（按 `ann_date` 分区） |
 | `index_classify` | 查询申万行业分类树（L1/L2/L3） |
 | `index_member_all` | 查询申万股票-行业映射（支持历史变更） |
 | `ci_index_member` | 查询中信股票-行业映射（支持历史变更） |
@@ -329,6 +337,11 @@ uv run python examples/options/opt_daily_query_smoke.py
 # ETF 示例
 uv run python examples/etf/etf_share_size_query_smoke.py
 uv run python examples/etf/etf_sh_cons_query_smoke.py
+
+# 指数示例
+uv run python examples/index/index_daily_query_smoke.py
+uv run python examples/index/index_weight_query_smoke.py
+uv run python examples/index/idx_anns_query_smoke.py
 ```
 
 ## 数据存储结构
@@ -387,8 +400,10 @@ data/
 ├── index/                              # 指数专题
 │   ├── index_daily/
 │   │   └── date=YYYYMMDD/data.parquet  # 含当日全部12个宽基指数
-│   └── index_weight/
-│       └── index_code=*/date=YYYYMMDD/data.parquet
+│   ├── index_weight/
+│   │   └── index_code=*/date=YYYYMMDD/data.parquet
+│   └── idx_anns/
+│       └── date=YYYYMMDD/data.parquet  # 指数公告
 ├── futures/                            # 期货数据
 │   ├── fut_basic/data.parquet          # 全量，每次覆盖
 │   ├── fut_daily/date=YYYYMMDD/data.parquet
@@ -421,6 +436,7 @@ db/
 | `sync --table stk_limit` | 增量同步每日涨跌停价格 |
 | `sync --table index_weight` | 增量同步指数成分和权重 |
 | `sync --table index_daily` | 增量同步12个宽基指数日线行情 |
+| `sync --table idx_anns` | 增量同步指数公司公告（自然日同步） |
 | `sync --table industry` | 同步申万行业分类 + 成分映射（全量覆盖） |
 | `sync --table ci_member` | 同步中信行业成分映射（全量覆盖） |
 | `sync --table etf_basic` | 同步 ETF 基础信息 |

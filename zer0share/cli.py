@@ -78,6 +78,7 @@ STOCK_TABLES = [
     "stk_limit",
     "index_daily",
     "index_weight",
+    "idx_anns",
     "industry",
     "ci_member",
 ]

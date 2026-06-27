@@ -205,6 +205,32 @@ def test_sync_all_includes_index_daily():
     pipeline.run_all.assert_called_once_with(start_date=None, end_date=None)
 
 
+def test_sync_idx_anns_accepts_date_range():
+    runner = CliRunner()
+    pipeline = _make_mock_pipeline()
+
+    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+        result = runner.invoke(
+            cli,
+            [
+                "sync",
+                "--table",
+                "idx_anns",
+                "--start-date",
+                "20260401",
+                "--end-date",
+                "20260430",
+            ],
+        )
+
+    assert result.exit_code == 0
+    pipeline.run.assert_called_once_with(
+        "idx_anns",
+        start_date="20260401",
+        end_date="20260430",
+    )
+
+
 def test_sync_fut_basic_calls_pipeline():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
@@ -265,6 +291,18 @@ def test_sync_all_includes_futures_tables():
 
     assert result.exit_code == 0
     pipeline.run_all.assert_called_once_with(start_date=None, end_date=None)
+
+
+def test_sync_stock_includes_idx_anns():
+    runner = CliRunner()
+    pipeline = _make_mock_pipeline()
+
+    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+        result = runner.invoke(cli, ["sync", "--stock"])
+
+    assert result.exit_code == 0
+    called_tables = [args.args[0] for args in pipeline.run.call_args_list]
+    assert "idx_anns" in called_tables
 
 
 def test_sync_ft_limit_accepts_date_range():

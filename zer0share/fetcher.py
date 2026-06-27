@@ -29,6 +29,7 @@ from zer0share.schema import (
     FUT_WEEKLY_DETAIL_COLS,
     FUT_WSR_COLS,
     INDEX_DAILY_COLS,
+    IDX_ANNS_COLS,
     INDEX_WEIGHT_COLS,
     OPT_BASIC_COLS,
     OPT_DAILY_COLS,
@@ -137,6 +138,31 @@ class TushareFetcher:
             fields=",".join(INDEX_DAILY_COLS),
         )
         return _select_columns_or_empty(df, INDEX_DAILY_COLS)
+
+    def fetch_idx_anns(self, ann_date: str) -> pd.DataFrame:
+        logger.debug(f"拉取指数公告: {ann_date}")
+        frames = []
+        limit = 1000
+        offset = 0
+        while True:
+            df = self._pro.idx_anns(
+                ann_date=ann_date,
+                fields=",".join(IDX_ANNS_COLS),
+                limit=limit,
+                offset=offset,
+            )
+            if df is None or df.empty:
+                break
+            frames.append(df)
+            if len(df) < limit:
+                break
+            offset += limit
+        combined = (
+            pd.concat(frames, ignore_index=True)
+            if frames
+            else pd.DataFrame(columns=IDX_ANNS_COLS)
+        )
+        return _select_columns_or_empty(combined, IDX_ANNS_COLS)
 
     def fetch_etf_basic(
         self,

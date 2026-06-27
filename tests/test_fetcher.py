@@ -103,6 +103,8 @@ ETF_SH_CONS_COLS = [
     "exchange",
 ]
 
+IDX_ANNS_COLS = ["ann_date", "title", "url", "source", "type"]
+
 
 def _basic_row(
     *,
@@ -225,6 +227,72 @@ def test_fetch_daily_kline_returns_empty_when_none(mock_pro):
     fetcher = TushareFetcher("fake_token")
     df = fetcher.fetch_daily_kline(date(2024, 1, 1))
     assert df.empty
+
+
+def _idx_anns_row(
+    *,
+    ann_date: str = "20260416",
+    title: str = "关于调整三板指数样本股的公告",
+    source: str = "中证指数",
+    ann_type: str = "指数调样",
+) -> dict[str, object]:
+    return {
+        "ann_date": ann_date,
+        "title": title,
+        "url": "https://www.csindex.com.cn/#/about/newsDetail?id=123",
+        "source": source,
+        "type": ann_type,
+    }
+
+
+def test_fetch_idx_anns_calls_api_with_fields_and_pagination(mock_pro):
+    mock_pro.idx_anns.return_value = pd.DataFrame([_idx_anns_row()])
+    fetcher = TushareFetcher("fake_token")
+
+    fetcher.fetch_idx_anns("20260416")
+
+    mock_pro.idx_anns.assert_called_once_with(
+        ann_date="20260416",
+        fields=",".join(IDX_ANNS_COLS),
+        limit=1000,
+        offset=0,
+    )
+
+
+def test_fetch_idx_anns_combines_paginated_rows(mock_pro):
+    first_page = pd.DataFrame(
+        [
+            _idx_anns_row(
+                title=f"公告{i}",
+                source="中证指数" if i % 2 == 0 else "国证指数",
+            )
+            for i in range(1000)
+        ]
+    )
+    second_page = pd.DataFrame(
+        [_idx_anns_row(title="恒生中国高股息率指数年度指数检讨结果", source="恒生指数", ann_type="其他")]
+    )
+    mock_pro.idx_anns.side_effect = [first_page, second_page]
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_idx_anns("20260416")
+
+    assert list(df.columns) == IDX_ANNS_COLS
+    assert len(df) == 1001
+    assert mock_pro.idx_anns.call_args_list == [
+        call(ann_date="20260416", fields=",".join(IDX_ANNS_COLS), limit=1000, offset=0),
+        call(ann_date="20260416", fields=",".join(IDX_ANNS_COLS), limit=1000, offset=1000),
+    ]
+
+
+def test_fetch_idx_anns_returns_empty_when_none(mock_pro):
+    mock_pro.idx_anns.return_value = None
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_idx_anns("20260416")
+
+    assert df.empty
+    assert list(df.columns) == IDX_ANNS_COLS
 
 
 def test_fetch_trade_cal_returns_correct_columns(mock_pro):

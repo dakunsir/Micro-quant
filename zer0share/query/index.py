@@ -1,6 +1,6 @@
 import pandas as pd
 
-from zer0share.catalog import INDEX_DAILY_SPEC, INDEX_WEIGHT_SPEC
+from zer0share.catalog import IDX_ANNS_SPEC, INDEX_DAILY_SPEC, INDEX_WEIGHT_SPEC
 from zer0share.query import QueryContext
 from zer0share.query.repository import (
     BaseParquetRepository,
@@ -37,4 +37,23 @@ def index_weight(ctx: QueryContext, index_code=None, trade_date=None,
     if index_code is not None:
         filters.append(eq_filter("index_code", index_code, INDEX_WEIGHT_SPEC.columns))
     filters.extend(date_range_filters("trade_date", trade_date, start_date, end_date, INDEX_WEIGHT_SPEC.columns))
+    return repo.query(fields=fields, filters=filters, limit=limit, offset=offset)
+
+
+def idx_anns(
+    ctx: QueryContext,
+    ann_date=None,
+    start_date=None,
+    end_date=None,
+    src=None,
+    limit: int | None = None,
+    offset: int | None = None,
+    fields=None,
+) -> pd.DataFrame:
+    """Query local index-company announcements."""
+    repo = _daily_repo(ctx, IDX_ANNS_SPEC)
+    filters: list[SqlFilter] = []
+    if src is not None:
+        filters.append(eq_filter("source", src, IDX_ANNS_SPEC.columns))
+    filters.extend(date_range_filters("ann_date", ann_date, start_date, end_date, IDX_ANNS_SPEC.columns))
     return repo.query(fields=fields, filters=filters, limit=limit, offset=offset)

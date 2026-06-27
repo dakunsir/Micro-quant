@@ -105,6 +105,28 @@ def _make_etf_sh_cons_df():
     )
 
 
+def _make_idx_anns_df():
+    return pd.DataFrame(
+        {
+            "ann_date": ["20260416", "20260416", "20260417", "20260420"],
+            "title": [
+                "关于发布中证交易所AAA综合债指数系列的公告",
+                "关于调整三板指数样本股的公告",
+                "恒生中国高股息率指数年度指数检讨结果",
+                "关于发布华证HALO指数的公告",
+            ],
+            "url": [
+                "https://www.csindex.com.cn/#/about/newsDetail?id=2",
+                "https://www.csindex.com.cn/#/about/newsDetail?id=1",
+                "https://www.hsi.com.hk/static/uploads/contents/zh_cn/news/1.pdf",
+                "https://www.chindices.com/news_detail.html?id=777",
+            ],
+            "source": ["中证指数", "中证指数", "恒生指数", "华证指数"],
+            "type": ["新指数发布", "指数调样", "其他", ""],
+        }
+    )
+
+
 def test_etf_basic_query_returns_data(tmp_path):
     SnapshotStore(tmp_path / "etf" / "etf_basic" / "data.parquet").write(_make_etf_basic_df())
 
@@ -1928,3 +1950,63 @@ def test_query_dispatch_supports_opt_basic(tmp_path):
     result = api.query("opt_basic")
     assert len(result) == 1
     assert result.iloc[0]["ts_code"] == "10004462.SH"
+
+
+def test_idx_anns_query_returns_data(tmp_path):
+    data = _make_idx_anns_df()
+    DailyPartitionStore(tmp_path / "index" / "idx_anns").write("20260416", data[data["ann_date"] == "20260416"])
+    DailyPartitionStore(tmp_path / "index" / "idx_anns").write("20260417", data[data["ann_date"] == "20260417"])
+    DailyPartitionStore(tmp_path / "index" / "idx_anns").write("20260420", data[data["ann_date"] == "20260420"])
+
+    api = LocalPro(tmp_path)
+    result = api.idx_anns(ann_date="20260416", fields="ann_date,title,type")
+
+    assert result.to_dict("records") == [
+        {"ann_date": "20260416", "title": "关于发布中证交易所AAA综合债指数系列的公告", "type": "新指数发布"},
+        {"ann_date": "20260416", "title": "关于调整三板指数样本股的公告", "type": "指数调样"},
+    ]
+
+
+def test_idx_anns_filters_by_range_src_limit_offset_and_query_dispatch(tmp_path):
+    data = _make_idx_anns_df()
+    DailyPartitionStore(tmp_path / "index" / "idx_anns").write("20260416", data[data["ann_date"] == "20260416"])
+    DailyPartitionStore(tmp_path / "index" / "idx_anns").write("20260417", data[data["ann_date"] == "20260417"])
+    DailyPartitionStore(tmp_path / "index" / "idx_anns").write("20260420", data[data["ann_date"] == "20260420"])
+
+    api = LocalPro(tmp_path)
+    result = api.query(
+        "idx_anns",
+        src="中证指数",
+        start_date="20260401",
+        end_date="20260430",
+        fields="ann_date,title,source",
+        limit=1,
+        offset=1,
+    )
+
+    assert result.to_dict("records") == [
+        {"ann_date": "20260416", "title": "关于调整三板指数样本股的公告", "source": "中证指数"}
+    ]
+
+
+def test_idx_anns_rejects_ann_date_with_range(tmp_path):
+    data = _make_idx_anns_df()
+    DailyPartitionStore(tmp_path / "index" / "idx_anns").write("20260416", data[data["ann_date"] == "20260416"])
+
+    api = LocalPro(tmp_path)
+    with pytest.raises(ValueError, match="trade_date cannot be combined"):
+        api.idx_anns(ann_date="20260416", start_date="20260401")
+
+
+def test_idx_anns_validates_date_filters(tmp_path):
+    api = LocalPro(tmp_path)
+
+    with pytest.raises(ValueError, match="YYYYMMDD"):
+        api.idx_anns(ann_date="2026-04-16")
+
+
+def test_idx_anns_query_raises_when_no_data(tmp_path):
+    api = LocalPro(tmp_path)
+
+    with pytest.raises(FileNotFoundError, match="idx_anns"):
+        api.idx_anns(ann_date="20260416")
