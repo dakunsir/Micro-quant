@@ -14,6 +14,7 @@ from zer0share.schema import (
     ETF_BASIC_COLS,
     ETF_INDEX_COLS,
     ETF_SHARE_SIZE_COLS,
+    ETF_SH_CONS_COLS,
     FUND_ADJ_COLS,
     FUND_DAILY_COLS,
     FT_LIMIT_COLS,
@@ -200,6 +201,31 @@ class TushareFetcher:
             else pd.DataFrame(columns=ETF_SHARE_SIZE_COLS)
         )
         return _select_columns_or_empty(combined, ETF_SHARE_SIZE_COLS)
+
+    def fetch_etf_sh_cons(self, trade_date: str) -> pd.DataFrame:
+        logger.debug(f"拉取上交所ETF持仓组合: {trade_date}")
+        frames = []
+        limit = 3000
+        offset = 0
+        while True:
+            df = self._pro.etf_sh_cons(
+                trade_date=trade_date,
+                fields=",".join(ETF_SH_CONS_COLS),
+                limit=limit,
+                offset=offset,
+            )
+            if df is None or df.empty:
+                break
+            frames.append(df)
+            if len(df) < limit:
+                break
+            offset += limit
+        combined = (
+            pd.concat(frames, ignore_index=True)
+            if frames
+            else pd.DataFrame(columns=ETF_SH_CONS_COLS)
+        )
+        return _select_columns_or_empty(combined, ETF_SH_CONS_COLS)
 
     def fetch_trade_cal(
         self,

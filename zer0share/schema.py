@@ -93,6 +93,18 @@ ETF_SHARE_SIZE_COLS = [
     "close",
     "exchange",
 ]
+ETF_SH_CONS_COLS = [
+    "trade_date",
+    "ts_code",
+    "con_code",
+    "con_name",
+    "qty",
+    "sub_flag",
+    "cpr",
+    "rdr",
+    "sca",
+    "exchange",
+]
 SW_CLASSIFY_COLS = [
     "index_code", "industry_name", "level", "parent_code",
     "industry_code", "is_pub", "src",

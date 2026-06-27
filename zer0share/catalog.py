@@ -17,6 +17,7 @@ from zer0share.schema import (
     ETF_BASIC_COLS,
     ETF_INDEX_COLS,
     ETF_SHARE_SIZE_COLS,
+    ETF_SH_CONS_COLS,
     FUND_ADJ_COLS,
     FUND_DAILY_COLS,
     FT_LIMIT_COLS,
@@ -202,6 +203,18 @@ ETF_SHARE_SIZE_SPEC = DailyTableSpec(
     parquet_pattern="date=*/data.parquet",
     sync_table="etf_share_size",
     order_by="ts_code, trade_date",
+    hive_partitioning=True,
+    union_by_name=True,
+    first_date="20100101",
+)
+
+ETF_SH_CONS_SPEC = DailyTableSpec(
+    name="etf_sh_cons",
+    path_parts=("etf", "etf_sh_cons"),
+    columns=ETF_SH_CONS_COLS,
+    parquet_pattern="date=*/data.parquet",
+    sync_table="etf_sh_cons",
+    order_by="ts_code, trade_date, con_code",
     hive_partitioning=True,
     union_by_name=True,
     first_date="20100101",

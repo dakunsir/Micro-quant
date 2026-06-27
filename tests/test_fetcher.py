@@ -90,6 +90,19 @@ ETF_SHARE_SIZE_COLS = [
     "exchange",
 ]
 
+ETF_SH_CONS_COLS = [
+    "trade_date",
+    "ts_code",
+    "con_code",
+    "con_name",
+    "qty",
+    "sub_flag",
+    "cpr",
+    "rdr",
+    "sca",
+    "exchange",
+]
+
 
 def _basic_row(
     *,
@@ -882,6 +895,72 @@ def test_fetch_etf_share_size_returns_empty_when_all_exchanges_empty(mock_pro):
 
     assert df.empty
     assert list(df.columns) == ETF_SHARE_SIZE_COLS
+
+
+def _etf_sh_cons_row(
+    *,
+    ts_code: str = "517030.SH",
+    con_code: str = "000001.SZ",
+    trade_date: str = "20260615",
+    con_name: str = "平安银行",
+    exchange: str = "SZ",
+) -> dict[str, object]:
+    return {
+        "trade_date": trade_date,
+        "ts_code": ts_code,
+        "con_code": con_code,
+        "con_name": con_name,
+        "qty": 1100,
+        "sub_flag": "允许",
+        "cpr": "15",
+        "rdr": "60",
+        "sca": "12364.000",
+        "exchange": exchange,
+    }
+
+
+def test_fetch_etf_sh_cons_calls_api_with_pagination_fields(mock_pro):
+    mock_pro.etf_sh_cons.return_value = pd.DataFrame([_etf_sh_cons_row()])
+    fetcher = TushareFetcher("fake_token")
+
+    fetcher.fetch_etf_sh_cons("20260615")
+
+    mock_pro.etf_sh_cons.assert_called_once_with(
+        trade_date="20260615",
+        fields=",".join(ETF_SH_CONS_COLS),
+        limit=3000,
+        offset=0,
+    )
+
+
+def test_fetch_etf_sh_cons_combines_paginated_rows(mock_pro):
+    first_page = pd.DataFrame(
+        [_etf_sh_cons_row(con_code=f"{i:06d}.SH", con_name=f"成分{i}") for i in range(3000)]
+    )
+    second_page = pd.DataFrame([
+        _etf_sh_cons_row(con_code="000001.SZ", con_name="平安银行", exchange="SZ")
+    ])
+    mock_pro.etf_sh_cons.side_effect = [first_page, second_page]
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_etf_sh_cons("20260615")
+
+    assert list(df.columns) == ETF_SH_CONS_COLS
+    assert len(df) == 3001
+    assert mock_pro.etf_sh_cons.call_args_list == [
+        call(trade_date="20260615", fields=",".join(ETF_SH_CONS_COLS), limit=3000, offset=0),
+        call(trade_date="20260615", fields=",".join(ETF_SH_CONS_COLS), limit=3000, offset=3000),
+    ]
+
+
+def test_fetch_etf_sh_cons_returns_empty_when_none(mock_pro):
+    mock_pro.etf_sh_cons.return_value = None
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_etf_sh_cons("20260615")
+
+    assert df.empty
+    assert list(df.columns) == ETF_SH_CONS_COLS
 
 
 # --- Futures tests ---
