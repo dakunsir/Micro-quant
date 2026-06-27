@@ -1,22 +1,6 @@
 import pandas as pd
 
-try:
-    from zer0share.catalog import ETF_BASIC_SPEC, ETF_INDEX_SPEC, FUND_ADJ_SPEC, FUND_DAILY_SPEC
-except ImportError:  # pragma: no cover - fallback for incomplete catalog wiring
-    from zer0share.catalog import ETF_BASIC_SPEC, ETF_INDEX_SPEC, FUND_DAILY_SPEC
-    from zer0share.query.repository import DailyTableSpec
-
-    FUND_ADJ_SPEC = DailyTableSpec(
-        name="fund_adj",
-        path_parts=("etf", "fund_adj"),
-        columns=["ts_code", "trade_date", "adj_factor", "discount_rate"],
-        parquet_pattern="date=*/data.parquet",
-        sync_table="fund_adj",
-        order_by="ts_code, trade_date",
-        hive_partitioning=True,
-        union_by_name=True,
-        first_date="20100101",
-    )
+from zer0share.catalog import ETF_BASIC_SPEC, ETF_INDEX_SPEC, ETF_SHARE_SIZE_SPEC, FUND_ADJ_SPEC, FUND_DAILY_SPEC
 from zer0share.query import QueryContext
 from zer0share.query.repository import BaseParquetRepository, DailyPartitionRepository, eq_filter, in_filter
 
@@ -105,4 +89,31 @@ def fund_adj(
     """Query fund adjustment factors for adjusted fund price calculations."""
     return DailyPartitionRepository(ctx, FUND_ADJ_SPEC).query(
         ts_code, trade_date, start_date, end_date, fields, limit=limit, offset=offset
+    )
+
+
+def etf_share_size(
+    ctx: QueryContext,
+    ts_code=None,
+    trade_date=None,
+    start_date=None,
+    end_date=None,
+    exchange=None,
+    limit: int | None = None,
+    offset: int | None = None,
+    fields=None,
+) -> pd.DataFrame:
+    """Query ETF daily share and scale data."""
+    filters = []
+    if exchange is not None:
+        filters.append(eq_filter("exchange", exchange, ETF_SHARE_SIZE_SPEC.columns))
+    return DailyPartitionRepository(ctx, ETF_SHARE_SIZE_SPEC).query(
+        ts_code,
+        trade_date,
+        start_date,
+        end_date,
+        fields,
+        filters=filters,
+        limit=limit,
+        offset=offset,
     )

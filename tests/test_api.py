@@ -73,6 +73,21 @@ def _make_fund_adj_df():
     )
 
 
+def _make_etf_share_size_df():
+    return pd.DataFrame(
+        {
+            "trade_date": ["20240102", "20240103", "20240102", "20240103"],
+            "ts_code": ["510330.SH", "510330.SH", "159919.SZ", "159919.SZ"],
+            "etf_name": ["沪深300ETF华夏", "沪深300ETF华夏", "沪深300ETF嘉实", "沪深300ETF嘉实"],
+            "total_share": [3986754.98, 3994674.98, 1200000.0, 1210000.0],
+            "total_size": [15939050.0, 15781760.0, 2500000.0, 2510000.0],
+            "nav": [4.0, 3.95, 2.1, 2.11],
+            "close": [4.01, 3.96, 2.12, 2.13],
+            "exchange": ["SSE", "SSE", "SZSE", "SZSE"],
+        }
+    )
+
+
 def test_etf_basic_query_returns_data(tmp_path):
     SnapshotStore(tmp_path / "etf" / "etf_basic" / "data.parquet").write(_make_etf_basic_df())
 
@@ -350,6 +365,76 @@ def test_fund_adj_query_raises_when_no_data(tmp_path):
 
     with pytest.raises(FileNotFoundError, match="fund_adj"):
         api.fund_adj()
+
+
+def test_etf_share_size_query_returns_local_data_and_selected_fields(tmp_path):
+    data = _make_etf_share_size_df()
+    DailyPartitionStore(tmp_path / "etf" / "etf_share_size").write("20240102", data[data["trade_date"] == "20240102"])
+    DailyPartitionStore(tmp_path / "etf" / "etf_share_size").write("20240103", data[data["trade_date"] == "20240103"])
+
+    api = LocalPro(tmp_path)
+    result = api.etf_share_size(fields="trade_date,ts_code,etf_name,total_share,total_size,exchange")
+
+    assert result.to_dict("records") == [
+        {"trade_date": "20240102", "ts_code": "159919.SZ", "etf_name": "沪深300ETF嘉实", "total_share": 1200000.0, "total_size": 2500000.0, "exchange": "SZSE"},
+        {"trade_date": "20240103", "ts_code": "159919.SZ", "etf_name": "沪深300ETF嘉实", "total_share": 1210000.0, "total_size": 2510000.0, "exchange": "SZSE"},
+        {"trade_date": "20240102", "ts_code": "510330.SH", "etf_name": "沪深300ETF华夏", "total_share": 3986754.98, "total_size": 15939050.0, "exchange": "SSE"},
+        {"trade_date": "20240103", "ts_code": "510330.SH", "etf_name": "沪深300ETF华夏", "total_share": 3994674.98, "total_size": 15781760.0, "exchange": "SSE"},
+    ]
+
+
+def test_etf_share_size_filters_by_ts_code_date_range_and_exchange(tmp_path):
+    data = _make_etf_share_size_df()
+    DailyPartitionStore(tmp_path / "etf" / "etf_share_size").write("20240102", data[data["trade_date"] == "20240102"])
+    DailyPartitionStore(tmp_path / "etf" / "etf_share_size").write("20240103", data[data["trade_date"] == "20240103"])
+
+    api = LocalPro(tmp_path)
+    result = api.etf_share_size(
+        ts_code="510330.SH,159919.SZ",
+        start_date="20240103",
+        end_date="20240103",
+        exchange="SSE",
+        fields="trade_date,ts_code,total_share,exchange",
+    )
+
+    assert result.to_dict("records") == [
+        {"trade_date": "20240103", "ts_code": "510330.SH", "total_share": 3994674.98, "exchange": "SSE"}
+    ]
+
+
+def test_etf_share_size_supports_trade_date_limit_offset_and_query_dispatch(tmp_path):
+    data = _make_etf_share_size_df()
+    DailyPartitionStore(tmp_path / "etf" / "etf_share_size").write("20240102", data[data["trade_date"] == "20240102"])
+    DailyPartitionStore(tmp_path / "etf" / "etf_share_size").write("20240103", data[data["trade_date"] == "20240103"])
+
+    api = LocalPro(tmp_path)
+    result = api.query(
+        "etf_share_size",
+        trade_date="20240102",
+        offset=1,
+        limit=1,
+        fields="trade_date,ts_code,total_size,exchange",
+    )
+
+    assert result.to_dict("records") == [
+        {"trade_date": "20240102", "ts_code": "510330.SH", "total_size": 15939050.0, "exchange": "SSE"}
+    ]
+
+
+def test_etf_share_size_validates_date_filters(tmp_path):
+    data = _make_etf_share_size_df()
+    DailyPartitionStore(tmp_path / "etf" / "etf_share_size").write("20240102", data[data["trade_date"] == "20240102"])
+
+    api = LocalPro(tmp_path)
+    with pytest.raises(ValueError, match="YYYYMMDD"):
+        api.etf_share_size(trade_date="2024-01-02")
+
+
+def test_etf_share_size_query_raises_when_no_data(tmp_path):
+    api = LocalPro(tmp_path)
+
+    with pytest.raises(FileNotFoundError, match="etf_share_size"):
+        api.etf_share_size()
 
 
 def test_stock_basic_filters_and_formats_dates(tmp_path):
