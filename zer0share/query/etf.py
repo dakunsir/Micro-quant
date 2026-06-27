@@ -1,6 +1,12 @@
 import pandas as pd
 
-from zer0share.catalog import ETF_BASIC_SPEC, ETF_INDEX_SPEC, ETF_SHARE_SIZE_SPEC, FUND_ADJ_SPEC, FUND_DAILY_SPEC
+from zer0share.catalog import (
+    ETF_BASIC_SPEC,
+    ETF_INDEX_SPEC,
+    ETF_SHARE_SIZE_SPEC,
+    FUND_ADJ_SPEC,
+    FUND_DAILY_SPEC,
+)
 from zer0share.query import QueryContext
 from zer0share.query.repository import BaseParquetRepository, DailyPartitionRepository, eq_filter, in_filter
 

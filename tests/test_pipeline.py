@@ -201,10 +201,10 @@ def test_pipeline_registry_contains_all_tables(pipeline):
         "fut_mapping", "ft_limit", "fut_weekly", "fut_monthly",
         "fut_index_daily", "fut_weekly_detail",
         "opt_basic", "opt_daily",
-        "fund_daily", "fund_adj", "etf_basic", "etf_index",
+        "fund_daily", "fund_adj", "etf_share_size", "etf_basic", "etf_index",
     }
     assert set(pipeline.registry.keys()) == expected
-    assert len(pipeline.registry) == 29
+    assert len(pipeline.registry) == 30
 
 
 def test_opt_daily_spec_uses_option_market_first_date(pipeline):

@@ -73,6 +73,10 @@ df = pro.query("daily", ts_code="000001.SZ", start_date="20240101", end_date="20
   - Local sync table: `fund_adj`
   - Fund adjustment factors used for adjusted fund price calculations.
 
+- `etf_share_size(ts_code=None, trade_date=None, start_date=None, end_date=None, exchange=None, fields=None, limit=None, offset=None)`
+  - Local sync table: `etf_share_size`
+  - ETF daily share and scale data, including total share, total size, NAV, close, ETF name, and exchange.
+
 - `pro_bar(ts_code, start_date=None, end_date=None, asset="E", adj=None, freq="D", trade_date=None, ma=None, limit=None, offset=None)`
   - Uses local `daily` and `adj_factor`.
   - Supports only `asset="E"` and `freq="D"`.

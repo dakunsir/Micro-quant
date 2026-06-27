@@ -39,7 +39,7 @@ A 股、ETF、期货、期权数据本地化管道，基于 [Tushare Pro](https:
 
 - Python 3.11+
 - [uv](https://github.com/astral-sh/uv)
-- Tushare Pro Token（基础行情需积分 ≥ 2000；`stock_st` 需积分 ≥ 3000；ETF 基础信息需积分 ≥ 8000；ETF 日线行情需积分 ≥ 5000；基金复权因子需积分 ≥ 600，5000 积分以上频次更高；中信行业成分、`opt_basic` 需积分 ≥ 5000；部分期货扩展数据需积分 ≥ 5000）
+- Tushare Pro Token（基础行情需积分 ≥ 2000；`stock_st` 需积分 ≥ 3000；ETF 基础信息和 ETF 份额规模需积分 ≥ 8000；ETF 日线行情需积分 ≥ 5000；基金复权因子需积分 ≥ 600，5000 积分以上频次更高；中信行业成分、`opt_basic` 需积分 ≥ 5000；部分期货扩展数据需积分 ≥ 5000）
 
 ## 快速开始
 
@@ -91,6 +91,7 @@ uv run python main.py sync --table etf_basic    # ETF 基础信息
 uv run python main.py sync --table etf_index    # ETF 基准指数列表
 uv run python main.py sync --table fund_daily   # ETF 日线行情（需积分 >= 5000，8000 积分频次更高）
 uv run python main.py sync --table fund_adj     # 基金复权因子（需积分 >= 600，5000 积分以上频次更高）
+uv run python main.py sync --table etf_share_size  # ETF 份额规模（需积分 >= 8000，通常次日 08:30 后更新）
 
 # ── 期货扩展（可选，需积分 ≥ 5000）────────────────────────────────
 uv run python main.py sync --table fut_basic          # 期货合约基础信息
@@ -230,6 +231,12 @@ fund_adj = pro.fund_adj(
     end_date="20190926",
     fields="ts_code,trade_date,adj_factor,discount_rate",
 )
+etf_share_size = pro.etf_share_size(
+    ts_code="510330.SH",
+    start_date="20250101",
+    end_date="20251224",
+    fields="trade_date,ts_code,etf_name,total_share,total_size,exchange",
+)
 
 # 指数日线行情（用于对冲基准收益率）
 idx_daily = pro.index_daily(ts_code="000300.SH", start_date="20240101", end_date="20240131")
@@ -282,6 +289,7 @@ opt_snapshot = pro.opt_daily(trade_date="20240102", exchange="SSE")   # 某日�
 | `etf_index` | 查询已同步的 ETF 基准指数列表 |
 | `fund_daily` | 查询已同步的 ETF 日线行情 |
 | `fund_adj` | 查询已同步的基金复权因子 |
+| `etf_share_size` | 查询已同步的 ETF 份额规模 |
 | `pro_bar` | 查询本地 A 股日线行情，支持不复权、前复权（qfq）和后复权（hfq） |
 | `universe` | 查询已构建的股票池（支持按池名称、ts_code、日期过滤） |
 | `fut_basic` | 查询已同步的期货合约基础信息（支持按交易所、fut_code 过滤） |
@@ -310,6 +318,9 @@ uv run python examples/futures/ft_limit_query_smoke.py
 # 期权示例
 uv run python examples/options/opt_basic_query_smoke.py
 uv run python examples/options/opt_daily_query_smoke.py
+
+# ETF 示例
+uv run python examples/etf/etf_share_size_query_smoke.py
 ```
 
 ## 数据存储结构
@@ -359,7 +370,9 @@ data/
 │   │   └── data.parquet
 │   ├── fund_daily/
 │   │   └── date=YYYYMMDD/data.parquet
-│   └── fund_adj/
+│   ├── fund_adj/
+│   │   └── date=YYYYMMDD/data.parquet
+│   └── etf_share_size/
 │       └── date=YYYYMMDD/data.parquet
 ├── index/                              # 指数专题
 │   ├── index_daily/
@@ -404,6 +417,7 @@ db/
 | `sync --table etf_index` | 同步 ETF 基准指数列表 |
 | `sync --table fund_daily` | 同步 ETF 日线行情 |
 | `sync --table fund_adj` | 同步基金复权因子 |
+| `sync --table etf_share_size` | 同步 ETF 份额规模 |
 | `sync --etf` | 同步 ETF 专题全部表 |
 | `sync --table fut_basic` | 同步期货合约基础信息 |
 | `sync --table fut_daily` | 增量同步期货日线行情 |
