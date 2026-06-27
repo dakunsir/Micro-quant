@@ -1098,7 +1098,7 @@ def test_sync_opt_daily_up_to_date(pipeline, cfg, fetcher):
 
 
 # ---------------------------------------------------------------------------
-# 17. fund_daily / fund_adj / etf_basic / etf_index
+# 17. fund_daily / fund_adj / etf_share_size / etf_basic / etf_index
 # ---------------------------------------------------------------------------
 
 def _fund_daily_df(trade_date: str = "20240102") -> pd.DataFrame:
@@ -1164,6 +1164,38 @@ def test_sync_fund_adj_fetches_for_trading_day(pipeline, cfg, fetcher):
     fetcher.fetch_fund_adj.assert_called_once_with("20240102")
 
 
+def _etf_share_size_df(trade_date: str = "20240102") -> pd.DataFrame:
+    return pd.DataFrame({
+        "trade_date": [trade_date],
+        "ts_code": ["510330.SH"],
+        "etf_name": ["沪深300ETF华夏"],
+        "total_share": [3986754.98],
+        "total_size": [15939050.0],
+        "nav": [4.0],
+        "close": [4.01],
+        "exchange": ["SSE"],
+    })
+
+
+def test_sync_etf_share_size_writes_to_etf_subdir(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20240102", True)
+    fetcher.fetch_etf_share_size.return_value = _etf_share_size_df()
+
+    pipeline.run("etf_share_size")
+
+    assert (cfg.data_dir / "etf" / "etf_share_size" / "date=20240102" / "data.parquet").exists()
+    assert pipeline._runtime.meta.get_last_date("etf_share_size") == "20240102"
+
+
+def test_sync_etf_share_size_fetches_for_trading_day(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20240102", True)
+    fetcher.fetch_etf_share_size.return_value = _etf_share_size_df()
+
+    pipeline.run("etf_share_size")
+
+    fetcher.fetch_etf_share_size.assert_called_once_with("20240102")
+
+
 def _etf_basic_df() -> pd.DataFrame:
     return pd.DataFrame({
         "ts_code": ["510300.SH"],
@@ -1200,6 +1232,10 @@ def test_sync_etf_basic_runs_on_non_trading_day(pipeline, cfg, fetcher):
     pipeline.run("etf_basic")
 
     fetcher.fetch_etf_basic.assert_called_once_with()
+
+
+def test_pipeline_registry_includes_etf_share_size(pipeline):
+    assert "etf_share_size" in pipeline.registry
 
 
 def _etf_index_df() -> pd.DataFrame:
