@@ -1,6 +1,12 @@
 from types import SimpleNamespace
 
-from zer0share.catalog import ETF_BASIC_SPEC, ETF_INDEX_SPEC, ETF_SHARE_SIZE_SPEC, FUND_DAILY_SPEC
+from zer0share.catalog import (
+    ETF_BASIC_SPEC,
+    ETF_INDEX_SPEC,
+    ETF_SHARE_SIZE_SPEC,
+    ETF_SH_CONS_SPEC,
+    FUND_DAILY_SPEC,
+)
 from zer0share.storage import DailyPartitionStore, SnapshotStore
 from zer0share.sync._jobs import DailySyncJob, SnapshotSyncJob, SyncJob
 
@@ -30,6 +36,12 @@ def build_jobs(cfg, fetcher) -> list[SyncJob]:
             spec=ETF_SHARE_SIZE_SPEC,
             fetch=fetcher.fetch_etf_share_size,
             store=DailyPartitionStore(etf_dir / "etf_share_size"),
+        ),
+        DailySyncJob(
+            table_name=ETF_SH_CONS_SPEC.name,
+            spec=ETF_SH_CONS_SPEC,
+            fetch=fetcher.fetch_etf_sh_cons,
+            store=DailyPartitionStore(etf_dir / "etf_sh_cons"),
         ),
         SnapshotSyncJob(
             table_name=ETF_BASIC_SPEC.name,

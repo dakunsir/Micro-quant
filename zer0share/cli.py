@@ -62,6 +62,7 @@ ETF_TABLES = [
     "fund_daily",
     "fund_adj",
     "etf_share_size",
+    "etf_sh_cons",
     "etf_basic",
     "etf_index",
 ]

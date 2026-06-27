@@ -201,10 +201,10 @@ def test_pipeline_registry_contains_all_tables(pipeline):
         "fut_mapping", "ft_limit", "fut_weekly", "fut_monthly",
         "fut_index_daily", "fut_weekly_detail",
         "opt_basic", "opt_daily",
-        "fund_daily", "fund_adj", "etf_share_size", "etf_basic", "etf_index",
+        "fund_daily", "fund_adj", "etf_share_size", "etf_sh_cons", "etf_basic", "etf_index",
     }
     assert set(pipeline.registry.keys()) == expected
-    assert len(pipeline.registry) == 30
+    assert len(pipeline.registry) == 31
 
 
 def test_opt_daily_spec_uses_option_market_first_date(pipeline):
@@ -1194,6 +1194,44 @@ def test_sync_etf_share_size_fetches_for_trading_day(pipeline, cfg, fetcher):
     pipeline.run("etf_share_size")
 
     fetcher.fetch_etf_share_size.assert_called_once_with("20240102")
+
+
+def _etf_sh_cons_df(trade_date: str = "20260615") -> pd.DataFrame:
+    return pd.DataFrame({
+        "trade_date": [trade_date],
+        "ts_code": ["517030.SH"],
+        "con_code": ["000001.SZ"],
+        "con_name": ["平安银行"],
+        "qty": [1100],
+        "sub_flag": ["允许"],
+        "cpr": ["15"],
+        "rdr": ["60"],
+        "sca": ["12364.000"],
+        "exchange": ["SZ"],
+    })
+
+
+def test_sync_etf_sh_cons_writes_to_etf_subdir(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20260615", True)
+    fetcher.fetch_etf_sh_cons.return_value = _etf_sh_cons_df()
+
+    pipeline.run("etf_sh_cons")
+
+    assert (cfg.data_dir / "etf" / "etf_sh_cons" / "date=20260615" / "data.parquet").exists()
+    assert pipeline._runtime.meta.get_last_date("etf_sh_cons") == "20260615"
+
+
+def test_sync_etf_sh_cons_fetches_for_trading_day(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20260615", True)
+    fetcher.fetch_etf_sh_cons.return_value = _etf_sh_cons_df()
+
+    pipeline.run("etf_sh_cons")
+
+    fetcher.fetch_etf_sh_cons.assert_called_once_with("20260615")
+
+
+def test_pipeline_registry_includes_etf_sh_cons(pipeline):
+    assert "etf_sh_cons" in pipeline.registry
 
 
 def _etf_basic_df() -> pd.DataFrame:

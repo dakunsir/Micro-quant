@@ -506,6 +506,43 @@ def test_sync_etf_share_size_accepts_date_range():
     )
 
 
+def test_sync_etf_sh_cons_calls_pipeline():
+    runner = CliRunner()
+    pipeline = _make_mock_pipeline()
+
+    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+        result = runner.invoke(cli, ["sync", "--table", "etf_sh_cons"])
+
+    assert result.exit_code == 0
+    pipeline.run.assert_called_once_with("etf_sh_cons", start_date=None, end_date=None)
+
+
+def test_sync_etf_sh_cons_accepts_date_range():
+    runner = CliRunner()
+    pipeline = _make_mock_pipeline()
+
+    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+        result = runner.invoke(
+            cli,
+            [
+                "sync",
+                "--table",
+                "etf_sh_cons",
+                "--start-date",
+                "20240101",
+                "--end-date",
+                "20240131",
+            ],
+        )
+
+    assert result.exit_code == 0
+    pipeline.run.assert_called_once_with(
+        "etf_sh_cons",
+        start_date="20240101",
+        end_date="20240131",
+    )
+
+
 def test_sync_etf_calls_etf_tables():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
@@ -518,6 +555,7 @@ def test_sync_etf_calls_etf_tables():
         "fund_daily",
         "fund_adj",
         "etf_share_size",
+        "etf_sh_cons",
         "etf_basic",
         "etf_index",
     ]
