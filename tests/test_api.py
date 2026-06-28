@@ -269,7 +269,11 @@ def test_fund_daily_query_returns_local_data_and_selected_fields(tmp_path):
     DailyPartitionStore(tmp_path / "etf" / "fund_daily").write("20240103", data[data["trade_date"] == "20240103"])
 
     api = LocalPro(tmp_path)
-    result = api.fund_daily(fields="ts_code,trade_date,close,amount")
+    result = api.fund_daily(
+        start_date="20240102",
+        end_date="20240103",
+        fields="ts_code,trade_date,close,amount",
+    )
 
     assert result.to_dict("records") == [
         {"ts_code": "159919.SZ", "trade_date": "20240102", "close": 2.15, "amount": 4300000.0},
@@ -295,6 +299,16 @@ def test_fund_daily_filters_by_ts_code_and_date_range(tmp_path):
     assert result.to_dict("records") == [
         {"ts_code": "510300.SH", "trade_date": "20240103", "close": 3.25}
     ]
+
+
+def test_fund_daily_rejects_unbounded_query_by_default(tmp_path):
+    data = _make_fund_daily_df()
+    DailyPartitionStore(tmp_path / "etf" / "fund_daily").write("20240102", data[data["trade_date"] == "20240102"])
+
+    api = LocalPro(tmp_path)
+
+    with pytest.raises(ValueError, match="daily-partitioned table"):
+        api.fund_daily(ts_code="510300.SH", limit=1)
 
 
 def test_fund_daily_supports_trade_date_limit_offset_and_query_dispatch(tmp_path):
@@ -338,7 +352,11 @@ def test_fund_adj_query_returns_local_data_and_selected_fields(tmp_path):
     DailyPartitionStore(tmp_path / "etf" / "fund_adj").write("20240103", data[data["trade_date"] == "20240103"])
 
     api = LocalPro(tmp_path)
-    result = api.fund_adj(fields="ts_code,trade_date,adj_factor")
+    result = api.fund_adj(
+        start_date="20240102",
+        end_date="20240103",
+        fields="ts_code,trade_date,adj_factor",
+    )
 
     assert result.to_dict("records") == [
         {"ts_code": "159919.SZ", "trade_date": "20240102", "adj_factor": 1.0},
@@ -412,7 +430,11 @@ def test_etf_share_size_query_returns_local_data_and_selected_fields(tmp_path):
     DailyPartitionStore(tmp_path / "etf" / "etf_share_size").write("20240103", data[data["trade_date"] == "20240103"])
 
     api = LocalPro(tmp_path)
-    result = api.etf_share_size(fields="trade_date,ts_code,etf_name,total_share,total_size,exchange")
+    result = api.etf_share_size(
+        start_date="20240102",
+        end_date="20240103",
+        fields="trade_date,ts_code,etf_name,total_share,total_size,exchange",
+    )
 
     assert result.to_dict("records") == [
         {"trade_date": "20240102", "ts_code": "159919.SZ", "etf_name": "沪深300ETF嘉实", "total_share": 1200000.0, "total_size": 2500000.0, "exchange": "SZSE"},
@@ -482,7 +504,11 @@ def test_etf_sh_cons_query_returns_local_data_and_selected_fields(tmp_path):
     DailyPartitionStore(tmp_path / "etf" / "etf_sh_cons").write("20260616", data[data["trade_date"] == "20260616"])
 
     api = LocalPro(tmp_path)
-    result = api.etf_sh_cons(fields="trade_date,ts_code,con_code,con_name,qty,exchange")
+    result = api.etf_sh_cons(
+        start_date="20260615",
+        end_date="20260616",
+        fields="trade_date,ts_code,con_code,con_name,qty,exchange",
+    )
 
     assert result.to_dict("records") == [
         {"trade_date": "20260616", "ts_code": "510300.SH", "con_code": "600519.SH", "con_name": "贵州茅台", "qty": 200, "exchange": "SH"},
@@ -791,7 +817,7 @@ def test_query_dispatches_to_named_api(tmp_path):
         ))
 
     pro = LocalPro(tmp_path)
-    result = pro.query("adj_factor", ts_code="000001.SZ")
+    result = pro.query("adj_factor", ts_code="000001.SZ", trade_date="20240102")
 
     assert result.to_dict("records") == [
         {"ts_code": "000001.SZ", "trade_date": "20240102", "adj_factor": 100.1}
@@ -1402,7 +1428,7 @@ def test_index_daily_returns_all_on_no_filter(tmp_path):
     DailyPartitionStore(tmp_path / "index" / "index_daily").write("20240103", _index_daily_partition("20240103"))
 
     pro = LocalPro(tmp_path)
-    result = pro.index_daily()
+    result = pro.index_daily(start_date="20240102", end_date="20240103")
 
     assert len(result) == 4  # 2 dates × 2 codes
 
@@ -1411,7 +1437,7 @@ def test_index_daily_filters_by_ts_code(tmp_path):
     DailyPartitionStore(tmp_path / "index" / "index_daily").write("20240102", _index_daily_partition("20240102"))
 
     pro = LocalPro(tmp_path)
-    result = pro.index_daily(ts_code="000300.SH")
+    result = pro.index_daily(ts_code="000300.SH", trade_date="20240102")
 
     assert len(result) == 1
     assert result.iloc[0]["ts_code"] == "000300.SH"
@@ -1452,7 +1478,11 @@ def test_index_daily_fields_filter(tmp_path):
     DailyPartitionStore(tmp_path / "index" / "index_daily").write("20240102", _index_daily_partition("20240102"))
 
     pro = LocalPro(tmp_path)
-    result = pro.index_daily(ts_code="000300.SH", fields="ts_code,trade_date,close")
+    result = pro.index_daily(
+        ts_code="000300.SH",
+        trade_date="20240102",
+        fields="ts_code,trade_date,close",
+    )
 
     assert list(result.columns) == ["ts_code", "trade_date", "close"]
 
@@ -1461,7 +1491,7 @@ def test_index_daily_in_query_dispatch(tmp_path):
     DailyPartitionStore(tmp_path / "index" / "index_daily").write("20240102", _index_daily_partition("20240102"))
 
     pro = LocalPro(tmp_path)
-    result = pro.query("index_daily", ts_code="000300.SH")
+    result = pro.query("index_daily", ts_code="000300.SH", trade_date="20240102")
 
     assert len(result) == 1
 
@@ -1710,7 +1740,7 @@ def test_fut_weekly_detail_query_returns_data(tmp_path):
     })
     DailyPartitionStore(tmp_path / "futures" / "fut_weekly_detail").write("20240101", df)
 
-    result = api.fut_weekly_detail()
+    result = api.fut_weekly_detail(start_date="20240101", end_date="20240101")
     assert len(result) == 2
 
 

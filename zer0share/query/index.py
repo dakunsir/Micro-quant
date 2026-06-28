@@ -55,5 +55,12 @@ def idx_anns(
     filters: list[SqlFilter] = []
     if src is not None:
         filters.append(eq_filter("source", src, IDX_ANNS_SPEC.columns))
-    filters.extend(date_range_filters("ann_date", ann_date, start_date, end_date, IDX_ANNS_SPEC.columns))
-    return repo.query(fields=fields, filters=filters, limit=limit, offset=offset)
+    return repo.query(
+        trade_date=ann_date,
+        start_date=start_date,
+        end_date=end_date,
+        fields=fields,
+        filters=filters,
+        limit=limit,
+        offset=offset,
+    )

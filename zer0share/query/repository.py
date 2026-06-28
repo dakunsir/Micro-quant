@@ -109,7 +109,7 @@ class ParquetQueryEngine:
 
     def select(
         self,
-        source: Path,
+        source: Path | list[Path],
         columns: list[str],
         filters: list[SqlFilter],
         order_by: str,
@@ -128,7 +128,12 @@ class ParquetQueryEngine:
             options.append("union_by_name=true")
 
         sql = f"SELECT {', '.join(columns)} FROM read_parquet({', '.join(options)})"
-        params: list[object] = [str(source)]
+        source_param: object
+        if isinstance(source, list):
+            source_param = [str(path) for path in source]
+        else:
+            source_param = str(source)
+        params: list[object] = [source_param]
         if filters:
             sql += " WHERE " + " AND ".join(f.clause for f in filters)
             for filt in filters:
@@ -184,11 +189,15 @@ class BaseParquetRepository:
         order_by: str | None = None,
         limit: int | None = None,
         offset: int | None = None,
+        source: Path | list[Path] | None = None,
     ) -> pd.DataFrame:
         self.ensure_exists()
         selected = parse_fields(fields, self.spec.columns)
+        query_source = self.source if source is None else source
+        if isinstance(query_source, list) and not query_source:
+            return pd.DataFrame(columns=selected)
         return self.engine.select(
-            source=self.source,
+            source=query_source,
             columns=selected,
             filters=filters or [],
             order_by=order_by or self.spec.order_by,
@@ -210,6 +219,34 @@ class DailyPartitionRepository(BaseParquetRepository):
     ):
         super().__init__(ctx, spec, engine)
 
+    def _partition_sources(
+        self,
+        trade_date: str | None,
+        start_date: str | None,
+        end_date: str | None,
+    ) -> list[Path] | None:
+        if trade_date is not None:
+            path = self.table_dir / f"date={trade_date}" / "data.parquet"
+            return [path] if path.exists() else []
+        if start_date is None and end_date is None:
+            return None
+
+        start = parse_date(start_date).strftime("%Y%m%d") if start_date is not None else None
+        end = parse_date(end_date).strftime("%Y%m%d") if end_date is not None else None
+        sources: list[Path] = []
+        for partition_dir in sorted(self.table_dir.glob("date=*")):
+            if not partition_dir.is_dir():
+                continue
+            date_value = partition_dir.name.removeprefix("date=")
+            if start is not None and date_value < start:
+                continue
+            if end is not None and date_value > end:
+                continue
+            parquet_path = partition_dir / "data.parquet"
+            if parquet_path.exists():
+                sources.append(parquet_path)
+        return sources
+
     def query(
         self,
         code=None,
@@ -222,6 +259,14 @@ class DailyPartitionRepository(BaseParquetRepository):
         limit: int | None = None,
         offset: int | None = None,
     ) -> pd.DataFrame:
+        if trade_date is not None and (start_date is not None or end_date is not None):
+            raise ValueError("trade_date cannot be combined with start_date or end_date")
+        self.ensure_exists()
+        if trade_date is None and start_date is None and end_date is None:
+            raise ValueError(
+                f"{self.spec.name} is a daily-partitioned table; "
+                "trade_date or start_date/end_date is required."
+            )
         query_filters = []
         if code is not None:
             if self.spec.code_column is None:
@@ -238,10 +283,12 @@ class DailyPartitionRepository(BaseParquetRepository):
         )
         if filters:
             query_filters.extend(filters)
+        source = self._partition_sources(trade_date, start_date, end_date)
         return super().query(
             fields=fields,
             filters=query_filters,
             order_by=order_by,
             limit=limit,
             offset=offset,
+            source=source,
         )

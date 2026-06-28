@@ -196,7 +196,7 @@ FUND_DAILY_SPEC = DailyTableSpec(
     order_by="ts_code, trade_date",
     hive_partitioning=True,
     union_by_name=True,
-    first_date="20100101",
+    first_date="20050223",
 )
 
 FUND_ADJ_SPEC = DailyTableSpec(

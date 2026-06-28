@@ -56,7 +56,13 @@ def run_smoke(
 
     _print_frame(
         "filter_by_ts_code",
-        pro.fund_daily(ts_code=ts_code, limit=limit, fields=FIELDS),
+        pro.fund_daily(
+            ts_code=ts_code,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit,
+            fields=FIELDS,
+        ),
     )
     _print_frame(
         "filter_by_trade_date",
@@ -78,7 +84,7 @@ def run_smoke(
     )
     _print_frame(
         "limit_only",
-        pro.fund_daily(limit=limit, fields=FIELDS),
+        pro.fund_daily(start_date=start_date, end_date=end_date, limit=limit, fields=FIELDS),
     )
     _print_frame(
         "offset_and_limit",

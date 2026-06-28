@@ -1164,6 +1164,10 @@ def _fund_daily_df(trade_date: str = "20240102") -> pd.DataFrame:
     })
 
 
+def test_fund_daily_spec_starts_from_first_etf_listing_date(pipeline):
+    assert pipeline.registry["fund_daily"].spec.first_date == "20050223"
+
+
 def test_sync_fund_daily_writes_to_etf_subdir(pipeline, cfg, fetcher):
     _setup_trade_cal(pipeline, cfg, "20240102", True)
     fetcher.fetch_fund_daily.return_value = _fund_daily_df()

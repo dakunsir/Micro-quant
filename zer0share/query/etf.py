@@ -79,7 +79,13 @@ def fund_daily(
 ) -> pd.DataFrame:
     """Query fund daily OHLCV data for ETF funds."""
     return DailyPartitionRepository(ctx, FUND_DAILY_SPEC).query(
-        ts_code, trade_date, start_date, end_date, fields, limit=limit, offset=offset
+        ts_code,
+        trade_date,
+        start_date,
+        end_date,
+        fields,
+        limit=limit,
+        offset=offset,
     )
 
 
@@ -95,7 +101,13 @@ def fund_adj(
 ) -> pd.DataFrame:
     """Query fund adjustment factors for adjusted fund price calculations."""
     return DailyPartitionRepository(ctx, FUND_ADJ_SPEC).query(
-        ts_code, trade_date, start_date, end_date, fields, limit=limit, offset=offset
+        ts_code,
+        trade_date,
+        start_date,
+        end_date,
+        fields,
+        limit=limit,
+        offset=offset,
     )
 
 
