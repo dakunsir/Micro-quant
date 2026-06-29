@@ -14,6 +14,12 @@ from zer0share.schema import (
     CI_MEMBER_COLS,
     DAILY_BASIC_COLS,
     DAILY_COLS,
+    ETF_BASIC_COLS,
+    ETF_INDEX_COLS,
+    ETF_SHARE_SIZE_COLS,
+    ETF_SH_CONS_COLS,
+    FUND_ADJ_COLS,
+    FUND_DAILY_COLS,
     FT_LIMIT_COLS,
     FUT_BASIC_COLS,
     FUT_DAILY_COLS,
@@ -26,6 +32,7 @@ from zer0share.schema import (
     FUT_WEEKLY_DETAIL_COLS,
     FUT_WSR_COLS,
     INDEX_DAILY_COLS,
+    IDX_ANNS_COLS,
     INDEX_WEIGHT_COLS,
     OPT_BASIC_COLS,
     OPT_DAILY_COLS,
@@ -142,6 +149,90 @@ INDEX_WEIGHT_SPEC = TableSpec(
     order_by="index_code, con_code, trade_date",
     hive_partitioning=True,
     union_by_name=True,
+)
+
+IDX_ANNS_SPEC = DailyTableSpec(
+    name="idx_anns",
+    path_parts=("index", "idx_anns"),
+    columns=IDX_ANNS_COLS,
+    parquet_pattern="date=*/data.parquet",
+    sync_table="idx_anns",
+    order_by="ann_date DESC, source, title",
+    hive_partitioning=True,
+    union_by_name=True,
+    first_date="20040101",
+    date_column="ann_date",
+    code_column=None,
+)
+
+# ---------------------------------------------------------------------------
+# ETF
+# ---------------------------------------------------------------------------
+
+ETF_BASIC_SPEC = TableSpec(
+    name="etf_basic",
+    path_parts=("etf", "etf_basic"),
+    columns=ETF_BASIC_COLS,
+    parquet_pattern="data.parquet",
+    sync_table="etf_basic",
+    order_by="ts_code",
+)
+
+ETF_INDEX_SPEC = TableSpec(
+    name="etf_index",
+    path_parts=("etf", "etf_index"),
+    columns=ETF_INDEX_COLS,
+    parquet_pattern="data.parquet",
+    sync_table="etf_index",
+    order_by="ts_code",
+)
+
+FUND_DAILY_SPEC = DailyTableSpec(
+    name="fund_daily",
+    path_parts=("etf", "fund_daily"),
+    columns=FUND_DAILY_COLS,
+    parquet_pattern="date=*/data.parquet",
+    sync_table="fund_daily",
+    order_by="ts_code, trade_date",
+    hive_partitioning=True,
+    union_by_name=True,
+    first_date="20050223",
+)
+
+FUND_ADJ_SPEC = DailyTableSpec(
+    name="fund_adj",
+    path_parts=("etf", "fund_adj"),
+    columns=FUND_ADJ_COLS,
+    parquet_pattern="date=*/data.parquet",
+    sync_table="fund_adj",
+    order_by="ts_code, trade_date",
+    hive_partitioning=True,
+    union_by_name=True,
+    first_date="20100101",
+)
+
+ETF_SHARE_SIZE_SPEC = DailyTableSpec(
+    name="etf_share_size",
+    path_parts=("etf", "etf_share_size"),
+    columns=ETF_SHARE_SIZE_COLS,
+    parquet_pattern="date=*/data.parquet",
+    sync_table="etf_share_size",
+    order_by="ts_code, trade_date",
+    hive_partitioning=True,
+    union_by_name=True,
+    first_date="20100101",
+)
+
+ETF_SH_CONS_SPEC = DailyTableSpec(
+    name="etf_sh_cons",
+    path_parts=("etf", "etf_sh_cons"),
+    columns=ETF_SH_CONS_COLS,
+    parquet_pattern="date=*/data.parquet",
+    sync_table="etf_sh_cons",
+    order_by="ts_code, trade_date, con_code",
+    hive_partitioning=True,
+    union_by_name=True,
+    first_date="20100101",
 )
 
 TRADE_CAL_SPEC = TableSpec(

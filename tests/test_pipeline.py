@@ -8,7 +8,7 @@ Key API:
   - pipeline._runtime.calendar._today_fn  for injecting today
 """
 from dataclasses import replace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pandas as pd
 import pytest
@@ -108,6 +108,18 @@ def _index_daily_df(ts_code: str = "000300.SH", trade_date: str = "20240102") ->
     })
 
 
+def _idx_anns_df(ann_date: str = "20240106") -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "ann_date": [ann_date],
+            "title": ["关于调整三板指数样本股的公告"],
+            "url": ["https://www.csindex.com.cn/#/about/newsDetail?id=123"],
+            "source": ["中证指数"],
+            "type": ["指数调样"],
+        }
+    )
+
+
 # ---------------------------------------------------------------------------
 # Setup helpers
 # ---------------------------------------------------------------------------
@@ -203,15 +215,16 @@ def test_pipeline_registry_contains_all_tables(pipeline):
     expected = {
         "trade_cal",
         "basic", "daily_kline", "adj_factor", "daily_basic", "stock_st",
-        "suspend_d", "stk_limit", "index_weight", "index_daily",
+        "suspend_d", "stk_limit", "index_weight", "index_daily", "idx_anns",
         "industry", "ci_member",
         "fut_basic", "fut_daily", "fut_holding", "fut_wsr", "fut_settle",
         "fut_mapping", "ft_limit", "fut_weekly", "fut_monthly",
         "fut_index_daily", "fut_weekly_detail",
         "opt_basic", "opt_daily",
+        "fund_daily", "fund_adj", "etf_share_size", "etf_sh_cons", "etf_basic", "etf_index",
     }
     assert set(pipeline.registry.keys()) == expected
-    assert len(pipeline.registry) == 25
+    assert len(pipeline.registry) == 32
 
 
 def test_opt_daily_spec_uses_option_market_first_date(pipeline):
@@ -223,7 +236,7 @@ def test_pipeline_run_unknown_table_raises(pipeline):
         pipeline.run("nonexistent")
 
 
-def test_run_all_runs_all_25_jobs(pipeline, cfg):
+def test_run_all_runs_all_26_jobs(pipeline, cfg):
     """Smoke test: run_all() on a fully up-to-date pipeline raises no exception."""
     # Mark all tables as already synced to today so every job returns immediately
     today = "20240102"
@@ -755,7 +768,42 @@ def test_sync_index_daily_updates_metastore(pipeline, cfg, fetcher):
 
 
 # ---------------------------------------------------------------------------
-# 9. fut_basic
+# 9. idx_anns
+# ---------------------------------------------------------------------------
+
+def test_sync_idx_anns_writes_calendar_days_and_empty_partitions(pipeline, cfg, fetcher):
+    pipeline._runtime.calendar._today_fn = lambda: "20240107"
+    fetcher.fetch_idx_anns.side_effect = [
+        _idx_anns_df("20240105"),
+        pd.DataFrame(columns=["ann_date", "title", "url", "source", "type"]),
+        _idx_anns_df("20240107"),
+    ]
+
+    with patch("zer0share.sync._jobs.time.sleep"):
+        pipeline.run("idx_anns", start_date="20240105", end_date="20240107")
+
+    assert fetcher.fetch_idx_anns.call_args_list == [
+        call("20240105"),
+        call("20240106"),
+        call("20240107"),
+    ]
+    assert (cfg.data_dir / "index" / "idx_anns" / "date=20240105" / "data.parquet").exists()
+    assert (cfg.data_dir / "index" / "idx_anns" / "date=20240106" / "data.parquet").exists()
+    assert (cfg.data_dir / "index" / "idx_anns" / "date=20240107" / "data.parquet").exists()
+    assert pipeline._runtime.meta.get_last_date("idx_anns") == "20240107"
+
+
+def test_sync_idx_anns_skips_existing_partition_and_advances_meta(pipeline, cfg, fetcher):
+    DailyPartitionStore(cfg.data_dir / "index" / "idx_anns").write("20240106", _idx_anns_df("20240106"))
+    pipeline._runtime.calendar._today_fn = lambda: "20240106"
+
+    pipeline.run("idx_anns", start_date="20240106", end_date="20240106")
+
+    fetcher.fetch_idx_anns.assert_not_called()
+    assert pipeline._runtime.meta.get_last_date("idx_anns") == "20240106"
+
+# ---------------------------------------------------------------------------
+# 10. fut_basic
 # ---------------------------------------------------------------------------
 
 def test_sync_fut_basic_writes_to_futures_subdir(pipeline, cfg, fetcher):
@@ -1105,7 +1153,222 @@ def test_sync_opt_daily_up_to_date(pipeline, cfg, fetcher):
 
 
 # ---------------------------------------------------------------------------
-# 17. Constants
+# 17. fund_daily / fund_adj / etf_share_size / etf_basic / etf_index
+# ---------------------------------------------------------------------------
+
+def _fund_daily_df(trade_date: str = "20240102") -> pd.DataFrame:
+    return pd.DataFrame({
+        "ts_code": ["510300.SH"],
+        "trade_date": [trade_date],
+        "open": [3.2],
+        "high": [3.3],
+        "low": [3.1],
+        "close": [3.25],
+        "pre_close": [3.18],
+        "change": [0.07],
+        "pct_chg": [2.2],
+        "vol": [123456.0],
+        "amount": [400000.0],
+    })
+
+
+def test_fund_daily_spec_starts_from_first_etf_listing_date(pipeline):
+    assert pipeline.registry["fund_daily"].spec.first_date == "20050223"
+
+
+def test_sync_fund_daily_writes_to_etf_subdir(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20240102", True)
+    fetcher.fetch_fund_daily.return_value = _fund_daily_df()
+
+    pipeline.run("fund_daily")
+
+    assert (cfg.data_dir / "etf" / "fund_daily" / "date=20240102" / "data.parquet").exists()
+    assert pipeline._runtime.meta.get_last_date("fund_daily") == "20240102"
+
+
+def test_sync_fund_daily_fetches_for_trading_day(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20240102", True)
+    fetcher.fetch_fund_daily.return_value = _fund_daily_df()
+
+    pipeline.run("fund_daily")
+
+    fetcher.fetch_fund_daily.assert_called_once_with("20240102")
+
+
+def _fund_adj_df(trade_date: str = "20240102") -> pd.DataFrame:
+    return pd.DataFrame({
+        "ts_code": ["513100.SH"],
+        "trade_date": [trade_date],
+        "adj_factor": [1.2345],
+        "discount_rate": [0.12],
+    })
+
+
+def test_sync_fund_adj_writes_to_etf_subdir(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20240102", True)
+    fetcher.fetch_fund_adj.return_value = _fund_adj_df()
+
+    pipeline.run("fund_adj")
+
+    assert (cfg.data_dir / "etf" / "fund_adj" / "date=20240102" / "data.parquet").exists()
+    assert pipeline._runtime.meta.get_last_date("fund_adj") == "20240102"
+
+
+def test_sync_fund_adj_fetches_for_trading_day(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20240102", True)
+    fetcher.fetch_fund_adj.return_value = _fund_adj_df()
+
+    pipeline.run("fund_adj")
+
+    fetcher.fetch_fund_adj.assert_called_once_with("20240102")
+
+
+def _etf_share_size_df(trade_date: str = "20240102") -> pd.DataFrame:
+    return pd.DataFrame({
+        "trade_date": [trade_date],
+        "ts_code": ["510330.SH"],
+        "etf_name": ["沪深300ETF华夏"],
+        "total_share": [3986754.98],
+        "total_size": [15939050.0],
+        "nav": [4.0],
+        "close": [4.01],
+        "exchange": ["SSE"],
+    })
+
+
+def test_sync_etf_share_size_writes_to_etf_subdir(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20240102", True)
+    fetcher.fetch_etf_share_size.return_value = _etf_share_size_df()
+
+    pipeline.run("etf_share_size")
+
+    assert (cfg.data_dir / "etf" / "etf_share_size" / "date=20240102" / "data.parquet").exists()
+    assert pipeline._runtime.meta.get_last_date("etf_share_size") == "20240102"
+
+
+def test_sync_etf_share_size_fetches_for_trading_day(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20240102", True)
+    fetcher.fetch_etf_share_size.return_value = _etf_share_size_df()
+
+    pipeline.run("etf_share_size")
+
+    fetcher.fetch_etf_share_size.assert_called_once_with("20240102")
+
+
+def _etf_sh_cons_df(trade_date: str = "20260615") -> pd.DataFrame:
+    return pd.DataFrame({
+        "trade_date": [trade_date],
+        "ts_code": ["517030.SH"],
+        "con_code": ["000001.SZ"],
+        "con_name": ["平安银行"],
+        "qty": [1100],
+        "sub_flag": ["允许"],
+        "cpr": ["15"],
+        "rdr": ["60"],
+        "sca": ["12364.000"],
+        "exchange": ["SZ"],
+    })
+
+
+def test_sync_etf_sh_cons_writes_to_etf_subdir(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20260615", True)
+    fetcher.fetch_etf_sh_cons.return_value = _etf_sh_cons_df()
+
+    pipeline.run("etf_sh_cons")
+
+    assert (cfg.data_dir / "etf" / "etf_sh_cons" / "date=20260615" / "data.parquet").exists()
+    assert pipeline._runtime.meta.get_last_date("etf_sh_cons") == "20260615"
+
+
+def test_sync_etf_sh_cons_fetches_for_trading_day(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20260615", True)
+    fetcher.fetch_etf_sh_cons.return_value = _etf_sh_cons_df()
+
+    pipeline.run("etf_sh_cons")
+
+    fetcher.fetch_etf_sh_cons.assert_called_once_with("20260615")
+
+
+def test_pipeline_registry_includes_etf_sh_cons(pipeline):
+    assert "etf_sh_cons" in pipeline.registry
+
+
+def _etf_basic_df() -> pd.DataFrame:
+    return pd.DataFrame({
+        "ts_code": ["510300.SH"],
+        "csname": ["沪深300ETF"],
+        "extname": ["沪深300ETF"],
+        "cname": ["华泰柏瑞沪深300交易型开放式指数证券投资基金"],
+        "index_code": ["000300.SH"],
+        "index_name": ["沪深300指数"],
+        "setup_date": ["20120504"],
+        "list_date": ["20120528"],
+        "list_status": ["L"],
+        "exchange": ["SH"],
+        "mgr_name": ["华泰柏瑞基金"],
+        "custod_name": ["中国工商银行"],
+        "mgt_fee": [0.5],
+        "etf_type": ["境内"],
+    })
+
+
+def test_sync_etf_basic_writes_to_etf_subdir(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20240102", True)
+    fetcher.fetch_etf_basic.return_value = _etf_basic_df()
+
+    pipeline.run("etf_basic")
+
+    assert (cfg.data_dir / "etf" / "etf_basic" / "data.parquet").exists()
+    assert pipeline._runtime.meta.get_last_date("etf_basic") == "20240102"
+
+
+def test_sync_etf_basic_runs_on_non_trading_day(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20240103", False)
+    fetcher.fetch_etf_basic.return_value = _etf_basic_df()
+
+    pipeline.run("etf_basic")
+
+    fetcher.fetch_etf_basic.assert_called_once_with()
+
+
+def test_pipeline_registry_includes_etf_share_size(pipeline):
+    assert "etf_share_size" in pipeline.registry
+
+
+def _etf_index_df() -> pd.DataFrame:
+    return pd.DataFrame({
+        "ts_code": ["000300.SH"],
+        "indx_name": ["沪深300指数"],
+        "indx_csname": ["沪深300"],
+        "pub_party_name": ["中证指数有限公司"],
+        "pub_date": ["20050408"],
+        "base_date": ["20041231"],
+        "bp": [1000.0],
+        "adj_circle": ["半年"],
+    })
+
+
+def test_sync_etf_index_writes_to_etf_subdir(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20240102", True)
+    fetcher.fetch_etf_index.return_value = _etf_index_df()
+
+    pipeline.run("etf_index")
+
+    assert (cfg.data_dir / "etf" / "etf_index" / "data.parquet").exists()
+    assert pipeline._runtime.meta.get_last_date("etf_index") == "20240102"
+
+
+def test_sync_etf_index_runs_on_non_trading_day(pipeline, cfg, fetcher):
+    _setup_trade_cal(pipeline, cfg, "20240103", False)
+    fetcher.fetch_etf_index.return_value = _etf_index_df()
+
+    pipeline.run("etf_index")
+
+    fetcher.fetch_etf_index.assert_called_once_with()
+
+
+# ---------------------------------------------------------------------------
+# 18. Constants
 # ---------------------------------------------------------------------------
 
 def test_all_exchanges_contains_all_8():
@@ -1113,7 +1376,7 @@ def test_all_exchanges_contains_all_8():
 
 
 # ---------------------------------------------------------------------------
-# 18. TradingCalendar helpers (via _runtime.calendar)
+# 19. TradingCalendar helpers (via _runtime.calendar)
 # ---------------------------------------------------------------------------
 
 def test_skip_if_not_trading_returns_true_on_non_trading_day(pipeline, cfg):

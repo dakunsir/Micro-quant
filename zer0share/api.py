@@ -3,11 +3,11 @@ from pathlib import Path
 
 from zer0share.config import load_config
 from zer0share.query import QueryContext
-from zer0share.query import calendar, stock, index, industry, futures, options
+from zer0share.query import calendar, stock, index, industry, futures, options, etf
 
 
 def _check_dates(kwargs: dict) -> None:
-    for key in ("start_date", "end_date", "trade_date"):
+    for key in ("start_date", "end_date", "trade_date", "ann_date", "pub_date", "base_date"):
         val = kwargs.get(key)
         if val is not None:
             try:
@@ -60,6 +60,10 @@ class LocalPro:
     def index_weight(self, **kwargs):
         _check_dates(kwargs)
         return index.index_weight(self._ctx, **kwargs)
+
+    def idx_anns(self, **kwargs):
+        _check_dates(kwargs)
+        return index.idx_anns(self._ctx, **kwargs)
 
     def universe(self, **kwargs):
         _check_dates(kwargs)
@@ -131,6 +135,31 @@ class LocalPro:
         _check_dates(kwargs)
         return options.opt_daily(self._ctx, **kwargs)
 
+    # ETF
+    def etf_basic(self, **kwargs):
+        _check_dates(kwargs)
+        return etf.etf_basic(self._ctx, **kwargs)
+
+    def etf_index(self, **kwargs):
+        _check_dates(kwargs)
+        return etf.etf_index(self._ctx, **kwargs)
+
+    def fund_daily(self, **kwargs):
+        _check_dates(kwargs)
+        return etf.fund_daily(self._ctx, **kwargs)
+
+    def fund_adj(self, **kwargs):
+        _check_dates(kwargs)
+        return etf.fund_adj(self._ctx, **kwargs)
+
+    def etf_share_size(self, **kwargs):
+        _check_dates(kwargs)
+        return etf.etf_share_size(self._ctx, **kwargs)
+
+    def etf_sh_cons(self, **kwargs):
+        _check_dates(kwargs)
+        return etf.etf_sh_cons(self._ctx, **kwargs)
+
     def query(self, api_name: str, **kwargs):
         dispatch = {
             "stock_basic": self.stock_basic,
@@ -143,6 +172,7 @@ class LocalPro:
             "stk_limit": self.stk_limit,
             "index_daily": self.index_daily,
             "index_weight": self.index_weight,
+            "idx_anns": self.idx_anns,
             "universe": self.universe,
             "pro_bar": self.pro_bar,
             "index_classify": self.index_classify,
@@ -164,6 +194,12 @@ class LocalPro:
             "fut_weekly_detail": self.fut_weekly_detail,
             "opt_basic": self.opt_basic,
             "opt_daily": self.opt_daily,
+            "etf_basic": self.etf_basic,
+            "etf_index": self.etf_index,
+            "fund_daily": self.fund_daily,
+            "fund_adj": self.fund_adj,
+            "etf_share_size": self.etf_share_size,
+            "etf_sh_cons": self.etf_sh_cons,
         }
         try:
             method = dispatch[api_name]

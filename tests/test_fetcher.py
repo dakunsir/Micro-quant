@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 import time
 from datetime import date
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from zer0share.fetcher import TushareFetcher
 
@@ -46,6 +46,64 @@ INDEX_DAILY_COLS = [
     "ts_code", "trade_date", "open", "high", "low",
     "close", "pre_close", "change", "pct_chg", "vol", "amount",
 ]
+
+ETF_INDEX_COLS = [
+    "ts_code",
+    "indx_name",
+    "indx_csname",
+    "pub_party_name",
+    "pub_date",
+    "base_date",
+    "bp",
+    "adj_circle",
+]
+
+FUND_DAILY_COLS = [
+    "ts_code",
+    "trade_date",
+    "open",
+    "high",
+    "low",
+    "close",
+    "pre_close",
+    "change",
+    "pct_chg",
+    "vol",
+    "amount",
+]
+
+FUND_ADJ_COLS = [
+    "ts_code",
+    "trade_date",
+    "adj_factor",
+    "discount_rate",
+]
+
+ETF_SHARE_SIZE_COLS = [
+    "trade_date",
+    "ts_code",
+    "etf_name",
+    "total_share",
+    "total_size",
+    "nav",
+    "close",
+    "exchange",
+]
+
+ETF_SH_CONS_COLS = [
+    "trade_date",
+    "ts_code",
+    "con_code",
+    "con_name",
+    "qty",
+    "sub_flag",
+    "cpr",
+    "rdr",
+    "sca",
+    "exchange",
+]
+
+IDX_ANNS_COLS = ["ann_date", "title", "url", "source", "type"]
 
 
 def _basic_row(
@@ -169,6 +227,72 @@ def test_fetch_daily_kline_returns_empty_when_none(mock_pro):
     fetcher = TushareFetcher("fake_token")
     df = fetcher.fetch_daily_kline(date(2024, 1, 1))
     assert df.empty
+
+
+def _idx_anns_row(
+    *,
+    ann_date: str = "20260416",
+    title: str = "关于调整三板指数样本股的公告",
+    source: str = "中证指数",
+    ann_type: str = "指数调样",
+) -> dict[str, object]:
+    return {
+        "ann_date": ann_date,
+        "title": title,
+        "url": "https://www.csindex.com.cn/#/about/newsDetail?id=123",
+        "source": source,
+        "type": ann_type,
+    }
+
+
+def test_fetch_idx_anns_calls_api_with_fields_and_pagination(mock_pro):
+    mock_pro.idx_anns.return_value = pd.DataFrame([_idx_anns_row()])
+    fetcher = TushareFetcher("fake_token")
+
+    fetcher.fetch_idx_anns("20260416")
+
+    mock_pro.idx_anns.assert_called_once_with(
+        ann_date="20260416",
+        fields=",".join(IDX_ANNS_COLS),
+        limit=1000,
+        offset=0,
+    )
+
+
+def test_fetch_idx_anns_combines_paginated_rows(mock_pro):
+    first_page = pd.DataFrame(
+        [
+            _idx_anns_row(
+                title=f"公告{i}",
+                source="中证指数" if i % 2 == 0 else "国证指数",
+            )
+            for i in range(1000)
+        ]
+    )
+    second_page = pd.DataFrame(
+        [_idx_anns_row(title="恒生中国高股息率指数年度指数检讨结果", source="恒生指数", ann_type="其他")]
+    )
+    mock_pro.idx_anns.side_effect = [first_page, second_page]
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_idx_anns("20260416")
+
+    assert list(df.columns) == IDX_ANNS_COLS
+    assert len(df) == 1001
+    assert mock_pro.idx_anns.call_args_list == [
+        call(ann_date="20260416", fields=",".join(IDX_ANNS_COLS), limit=1000, offset=0),
+        call(ann_date="20260416", fields=",".join(IDX_ANNS_COLS), limit=1000, offset=1000),
+    ]
+
+
+def test_fetch_idx_anns_returns_empty_when_none(mock_pro):
+    mock_pro.idx_anns.return_value = None
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_idx_anns("20260416")
+
+    assert df.empty
+    assert list(df.columns) == IDX_ANNS_COLS
 
 
 def test_fetch_trade_cal_returns_correct_columns(mock_pro):
@@ -546,6 +670,365 @@ def test_fetch_index_daily_returns_empty_when_empty_df(mock_pro):
     df = fetcher.fetch_index_daily("000300.SH", date(2024, 1, 1), date(2024, 1, 31))
 
     assert df.empty
+
+
+# --- ETF tests ---
+
+ETF_BASIC_COLS = [
+    "ts_code", "csname", "extname", "cname", "index_code", "index_name",
+    "setup_date", "list_date", "list_status", "exchange", "mgr_name",
+    "custod_name", "mgt_fee", "etf_type",
+]
+
+
+def _etf_basic_row() -> dict:
+    return {
+        "ts_code": "510300.SH",
+        "csname": "沪深300ETF",
+        "extname": "沪深300ETF",
+        "cname": "华泰柏瑞沪深300交易型开放式指数证券投资基金",
+        "index_code": "000300.SH",
+        "index_name": "沪深300指数",
+        "setup_date": "20120504",
+        "list_date": "20120528",
+        "list_status": "L",
+        "exchange": "SH",
+        "mgr_name": "华泰柏瑞基金",
+        "custod_name": "中国工商银行",
+        "mgt_fee": 0.5,
+        "etf_type": "境内",
+    }
+
+
+def test_fetch_etf_basic_returns_correct_columns(mock_pro):
+    mock_pro.etf_basic.return_value = pd.DataFrame([_etf_basic_row()])
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_etf_basic()
+
+    assert list(df.columns) == ETF_BASIC_COLS
+    assert df.iloc[0]["ts_code"] == "510300.SH"
+    assert df.iloc[0]["list_date"] == "20120528"
+
+
+def test_fetch_etf_basic_calls_api_with_fields_and_filters(mock_pro):
+    mock_pro.etf_basic.return_value = pd.DataFrame([_etf_basic_row()])
+    fetcher = TushareFetcher("fake_token")
+
+    fetcher.fetch_etf_basic(
+        ts_code="510300.SH",
+        index_code="000300.SH",
+        list_date="20120528",
+        list_status="L",
+        exchange="SH",
+        mgr="华泰柏瑞基金",
+    )
+
+    mock_pro.etf_basic.assert_called_once_with(
+        ts_code="510300.SH",
+        index_code="000300.SH",
+        list_date="20120528",
+        list_status="L",
+        exchange="SH",
+        mgr="华泰柏瑞基金",
+        fields=",".join(ETF_BASIC_COLS),
+    )
+
+
+def test_fetch_etf_basic_returns_empty_when_none(mock_pro):
+    mock_pro.etf_basic.return_value = None
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_etf_basic()
+
+    assert df.empty
+    assert list(df.columns) == ETF_BASIC_COLS
+
+
+def _etf_index_row() -> dict:
+    return {
+        "ts_code": "000300.SH",
+        "indx_name": "沪深300指数",
+        "indx_csname": "沪深300",
+        "pub_party_name": "中证指数有限公司",
+        "pub_date": "20050408",
+        "base_date": "20041231",
+        "bp": 1000.0,
+        "adj_circle": "半年",
+    }
+
+
+def test_fetch_etf_index_returns_correct_columns(mock_pro):
+    mock_pro.etf_index.return_value = pd.DataFrame([_etf_index_row()])
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_etf_index()
+
+    assert list(df.columns) == ETF_INDEX_COLS
+    assert df.iloc[0]["ts_code"] == "000300.SH"
+    assert df.iloc[0]["pub_date"] == "20050408"
+
+
+def test_fetch_etf_index_calls_api_with_fields_and_filters(mock_pro):
+    mock_pro.etf_index.return_value = pd.DataFrame([_etf_index_row()])
+    fetcher = TushareFetcher("fake_token")
+
+    fetcher.fetch_etf_index(
+        ts_code="000300.SH",
+        pub_date="20050408",
+        base_date="20041231",
+    )
+
+    mock_pro.etf_index.assert_called_once_with(
+        ts_code="000300.SH",
+        pub_date="20050408",
+        base_date="20041231",
+        fields=",".join(ETF_INDEX_COLS),
+    )
+
+
+def test_fetch_etf_index_returns_empty_when_none(mock_pro):
+    mock_pro.etf_index.return_value = None
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_etf_index()
+
+    assert df.empty
+    assert list(df.columns) == ETF_INDEX_COLS
+
+
+# --- Fund daily tests ---
+
+
+def _fund_daily_row() -> dict:
+    return {
+        "ts_code": "510300.SH",
+        "trade_date": "20240102",
+        "open": 3.1,
+        "high": 3.2,
+        "low": 3.0,
+        "close": 3.15,
+        "pre_close": 3.05,
+        "change": 0.1,
+        "pct_chg": 3.28,
+        "vol": 1000000.0,
+        "amount": 3150000.0,
+    }
+
+
+def test_fetch_fund_daily_returns_correct_columns(mock_pro):
+    mock_pro.fund_daily.return_value = pd.DataFrame([_fund_daily_row()])
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_fund_daily("20240102")
+
+    assert list(df.columns) == FUND_DAILY_COLS
+    assert len(df) == 1
+    assert df.iloc[0]["ts_code"] == "510300.SH"
+    assert df.iloc[0]["trade_date"] == "20240102"
+
+
+def test_fetch_fund_daily_calls_api_with_expected_fields(mock_pro):
+    mock_pro.fund_daily.return_value = pd.DataFrame([_fund_daily_row()])
+    fetcher = TushareFetcher("fake_token")
+
+    fetcher.fetch_fund_daily("20240102")
+
+    mock_pro.fund_daily.assert_called_once_with(
+        trade_date="20240102",
+        fields=",".join(FUND_DAILY_COLS),
+    )
+
+
+def test_fetch_fund_daily_returns_empty_when_none(mock_pro):
+    mock_pro.fund_daily.return_value = None
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_fund_daily("20240102")
+
+    assert df.empty
+    assert list(df.columns) == FUND_DAILY_COLS
+
+
+# --- Fund adj tests ---
+
+
+def _fund_adj_row() -> dict:
+    return {
+        "ts_code": "510300.SH",
+        "trade_date": "20240102",
+        "adj_factor": 1.2345,
+        "discount_rate": 0.02,
+    }
+
+
+def test_fetch_fund_adj_returns_correct_columns(mock_pro):
+    mock_pro.fund_adj.return_value = pd.DataFrame([_fund_adj_row()])
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_fund_adj("20240102")
+
+    assert list(df.columns) == FUND_ADJ_COLS
+    assert len(df) == 1
+    assert df.iloc[0]["ts_code"] == "510300.SH"
+    assert df.iloc[0]["trade_date"] == "20240102"
+    assert df.iloc[0]["adj_factor"] == 1.2345
+    assert df.iloc[0]["discount_rate"] == 0.02
+
+
+def test_fetch_fund_adj_calls_api_with_expected_fields(mock_pro):
+    mock_pro.fund_adj.return_value = pd.DataFrame([_fund_adj_row()])
+    fetcher = TushareFetcher("fake_token")
+
+    fetcher.fetch_fund_adj("20240102")
+
+    mock_pro.fund_adj.assert_called_once_with(
+        trade_date="20240102",
+        fields=",".join(FUND_ADJ_COLS),
+    )
+
+
+def test_fetch_fund_adj_returns_empty_when_none(mock_pro):
+    mock_pro.fund_adj.return_value = None
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_fund_adj("20240102")
+
+    assert df.empty
+    assert list(df.columns) == FUND_ADJ_COLS
+
+
+def _etf_share_size_row(
+    *,
+    ts_code: str = "510330.SH",
+    trade_date: str = "20250102",
+    exchange: str = "SSE",
+) -> dict[str, object]:
+    return {
+        "trade_date": trade_date,
+        "ts_code": ts_code,
+        "etf_name": "沪深300ETF华夏",
+        "total_share": 3986754.98,
+        "total_size": 15939050.0,
+        "nav": 4.0,
+        "close": 4.01,
+        "exchange": exchange,
+    }
+
+
+def test_fetch_etf_share_size_calls_both_exchanges_with_expected_fields(mock_pro):
+    mock_pro.etf_share_size.side_effect = [
+        pd.DataFrame([_etf_share_size_row(exchange="SSE")]),
+        pd.DataFrame([_etf_share_size_row(ts_code="159919.SZ", exchange="SZSE")]),
+    ]
+    fetcher = TushareFetcher("fake_token")
+
+    fetcher.fetch_etf_share_size("20250102")
+
+    assert mock_pro.etf_share_size.call_args_list == [
+        call(
+            trade_date="20250102",
+            exchange="SSE",
+            fields=",".join(ETF_SHARE_SIZE_COLS),
+        ),
+        call(
+            trade_date="20250102",
+            exchange="SZSE",
+            fields=",".join(ETF_SHARE_SIZE_COLS),
+        ),
+    ]
+
+
+def test_fetch_etf_share_size_combines_exchange_rows(mock_pro):
+    mock_pro.etf_share_size.side_effect = [
+        pd.DataFrame([_etf_share_size_row(exchange="SSE")]),
+        pd.DataFrame([_etf_share_size_row(ts_code="159919.SZ", exchange="SZSE")]),
+    ]
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_etf_share_size("20250102")
+
+    assert list(df.columns) == ETF_SHARE_SIZE_COLS
+    assert df[["ts_code", "exchange"]].to_dict("records") == [
+        {"ts_code": "510330.SH", "exchange": "SSE"},
+        {"ts_code": "159919.SZ", "exchange": "SZSE"},
+    ]
+
+
+def test_fetch_etf_share_size_returns_empty_when_all_exchanges_empty(mock_pro):
+    mock_pro.etf_share_size.side_effect = [None, pd.DataFrame()]
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_etf_share_size("20250102")
+
+    assert df.empty
+    assert list(df.columns) == ETF_SHARE_SIZE_COLS
+
+
+def _etf_sh_cons_row(
+    *,
+    ts_code: str = "517030.SH",
+    con_code: str = "000001.SZ",
+    trade_date: str = "20260615",
+    con_name: str = "平安银行",
+    exchange: str = "SZ",
+) -> dict[str, object]:
+    return {
+        "trade_date": trade_date,
+        "ts_code": ts_code,
+        "con_code": con_code,
+        "con_name": con_name,
+        "qty": 1100,
+        "sub_flag": "允许",
+        "cpr": "15",
+        "rdr": "60",
+        "sca": "12364.000",
+        "exchange": exchange,
+    }
+
+
+def test_fetch_etf_sh_cons_calls_api_with_pagination_fields(mock_pro):
+    mock_pro.etf_sh_cons.return_value = pd.DataFrame([_etf_sh_cons_row()])
+    fetcher = TushareFetcher("fake_token")
+
+    fetcher.fetch_etf_sh_cons("20260615")
+
+    mock_pro.etf_sh_cons.assert_called_once_with(
+        trade_date="20260615",
+        fields=",".join(ETF_SH_CONS_COLS),
+        limit=3000,
+        offset=0,
+    )
+
+
+def test_fetch_etf_sh_cons_combines_paginated_rows(mock_pro):
+    first_page = pd.DataFrame(
+        [_etf_sh_cons_row(con_code=f"{i:06d}.SH", con_name=f"成分{i}") for i in range(3000)]
+    )
+    second_page = pd.DataFrame([
+        _etf_sh_cons_row(con_code="000001.SZ", con_name="平安银行", exchange="SZ")
+    ])
+    mock_pro.etf_sh_cons.side_effect = [first_page, second_page]
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_etf_sh_cons("20260615")
+
+    assert list(df.columns) == ETF_SH_CONS_COLS
+    assert len(df) == 3001
+    assert mock_pro.etf_sh_cons.call_args_list == [
+        call(trade_date="20260615", fields=",".join(ETF_SH_CONS_COLS), limit=3000, offset=0),
+        call(trade_date="20260615", fields=",".join(ETF_SH_CONS_COLS), limit=3000, offset=3000),
+    ]
+
+
+def test_fetch_etf_sh_cons_returns_empty_when_none(mock_pro):
+    mock_pro.etf_sh_cons.return_value = None
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_etf_sh_cons("20260615")
+
+    assert df.empty
+    assert list(df.columns) == ETF_SH_CONS_COLS
 
 
 # --- Futures tests ---

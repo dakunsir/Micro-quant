@@ -52,6 +52,60 @@ INDEX_DAILY_COLS = [
     "ts_code", "trade_date", "open", "high", "low",
     "close", "pre_close", "change", "pct_chg", "vol", "amount",
 ]
+IDX_ANNS_COLS = ["ann_date", "title", "url", "source", "type"]
+ETF_BASIC_COLS = [
+    "ts_code",
+    "csname",
+    "extname",
+    "cname",
+    "index_code",
+    "index_name",
+    "setup_date",
+    "list_date",
+    "list_status",
+    "exchange",
+    "mgr_name",
+    "custod_name",
+    "mgt_fee",
+    "etf_type",
+]
+ETF_INDEX_COLS = [
+    "ts_code",
+    "indx_name",
+    "indx_csname",
+    "pub_party_name",
+    "pub_date",
+    "base_date",
+    "bp",
+    "adj_circle",
+]
+FUND_DAILY_COLS = [
+    "ts_code", "trade_date", "open", "high", "low",
+    "close", "pre_close", "change", "pct_chg", "vol", "amount"
+]
+FUND_ADJ_COLS = ["ts_code", "trade_date", "adj_factor", "discount_rate"]
+ETF_SHARE_SIZE_COLS = [
+    "trade_date",
+    "ts_code",
+    "etf_name",
+    "total_share",
+    "total_size",
+    "nav",
+    "close",
+    "exchange",
+]
+ETF_SH_CONS_COLS = [
+    "trade_date",
+    "ts_code",
+    "con_code",
+    "con_name",
+    "qty",
+    "sub_flag",
+    "cpr",
+    "rdr",
+    "sca",
+    "exchange",
+]
 SW_CLASSIFY_COLS = [
     "index_code", "industry_name", "level", "parent_code",
     "industry_code", "is_pub", "src",

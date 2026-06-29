@@ -127,6 +127,101 @@ def test_daily_partition_repository_queries_by_date_range(tmp_path):
     assert result.to_dict("records") == [{"ts_code": "000002.SZ", "close": 20.0}]
 
 
+def test_daily_partition_repository_rejects_unbounded_query_by_default(tmp_path):
+    day = tmp_path / "daily_kline" / "date=20240101"
+    day.mkdir(parents=True)
+    pd.DataFrame(
+        {"ts_code": ["000001.SZ"], "trade_date": ["20240101"], "close": [10.0]}
+    ).to_parquet(day / "data.parquet")
+
+    repo = DailyPartitionRepository(
+        QueryContext(tmp_path),
+        DailyTableSpec(
+            name="daily_kline",
+            path_parts=("daily_kline",),
+            columns=["ts_code", "trade_date", "close"],
+            parquet_pattern="date=*/data.parquet",
+            sync_table="daily_kline",
+            order_by="ts_code, trade_date",
+            hive_partitioning=True,
+            union_by_name=True,
+        ),
+        ParquetQueryEngine(),
+    )
+
+    with pytest.raises(ValueError, match="daily-partitioned table"):
+        repo.query(code="000001.SZ", limit=1)
+
+
+def test_daily_partition_repository_prunes_sources_for_date_range(tmp_path):
+    day1 = tmp_path / "daily_kline" / "date=20240101"
+    day2 = tmp_path / "daily_kline" / "date=20240102"
+    day1.mkdir(parents=True)
+    day2.mkdir(parents=True)
+    pd.DataFrame(
+        {"ts_code": ["000001.SZ"], "trade_date": ["20240101"], "close": [10.0]}
+    ).to_parquet(day1 / "data.parquet")
+    pd.DataFrame(
+        {"ts_code": ["000002.SZ"], "trade_date": ["20240102"], "close": [20.0]}
+    ).to_parquet(day2 / "data.parquet")
+
+    class CapturingEngine(ParquetQueryEngine):
+        def __init__(self):
+            self.source = None
+
+        def select(self, **kwargs):
+            self.source = kwargs["source"]
+            return pd.DataFrame(columns=kwargs["columns"])
+
+    engine = CapturingEngine()
+    repo = DailyPartitionRepository(
+        QueryContext(tmp_path),
+        DailyTableSpec(
+            name="daily_kline",
+            path_parts=("daily_kline",),
+            columns=["ts_code", "trade_date", "close"],
+            parquet_pattern="date=*/data.parquet",
+            sync_table="daily_kline",
+            order_by="ts_code, trade_date",
+            hive_partitioning=True,
+            union_by_name=True,
+        ),
+        engine,
+    )
+
+    repo.query(start_date="20240102", end_date="20240102")
+
+    assert engine.source == [day2 / "data.parquet"]
+
+
+def test_daily_partition_repository_missing_date_returns_empty_frame(tmp_path):
+    day = tmp_path / "daily_kline" / "date=20240101"
+    day.mkdir(parents=True)
+    pd.DataFrame(
+        {"ts_code": ["000001.SZ"], "trade_date": ["20240101"], "close": [10.0]}
+    ).to_parquet(day / "data.parquet")
+
+    repo = DailyPartitionRepository(
+        QueryContext(tmp_path),
+        DailyTableSpec(
+            name="daily_kline",
+            path_parts=("daily_kline",),
+            columns=["ts_code", "trade_date", "close"],
+            parquet_pattern="date=*/data.parquet",
+            sync_table="daily_kline",
+            order_by="ts_code, trade_date",
+            hive_partitioning=True,
+            union_by_name=True,
+        ),
+        ParquetQueryEngine(),
+    )
+
+    result = repo.query(trade_date="20240102", fields="ts_code,close")
+
+    assert list(result.columns) == ["ts_code", "close"]
+    assert result.empty
+
+
 def test_daily_partition_repository_supports_table_without_code_column(tmp_path):
     day = tmp_path / "futures" / "fut_holding" / "date=20240102"
     day.mkdir(parents=True)

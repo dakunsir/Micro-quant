@@ -6,6 +6,7 @@ DailySyncJob     Daily-partitioned table sync (loops over trading days)
 SnapshotSyncJob  Single-file snapshot table sync
 """
 import time
+import datetime as dt
 from abc import ABC, abstractmethod
 from typing import Callable
 
@@ -34,6 +35,17 @@ def _estimate_eta(elapsed_seconds: float, processed: int, total: int) -> str:
     seconds_per_item = elapsed_seconds / processed
     remaining = total - processed
     return _format_duration(seconds_per_item * remaining)
+
+
+def _date_range_days(start: str, end: str) -> list[str]:
+    start_date = dateutil.parse_date(start)
+    end_date = dateutil.parse_date(end)
+    days = []
+    current = start_date
+    while current <= end_date:
+        days.append(current.strftime("%Y%m%d"))
+        current += dt.timedelta(days=1)
+    return days
 
 
 class SyncJob(ABC):
@@ -183,6 +195,129 @@ class DailySyncJob(SyncJob):
         date_range = (
             f"{trading_days[0]} ~ {trading_days[-1]}" if len(trading_days) > 1
             else trading_days[0]
+        )
+        rt.notifier.send(
+            f"{self.spec.name} 同步完成\n"
+            f"日期：{date_range}\n"
+            f"写入 {success} 天 / {total_rows} 条记录｜空 {empty}｜已存在 {skipped_existing}｜耗时 {_format_duration(elapsed)}"
+        )
+
+
+class CalendarDateSyncJob(SyncJob):
+    def __init__(
+        self,
+        table_name: str,
+        spec: DailyTableSpec,
+        fetch: Callable[[str], pd.DataFrame],
+        store: DailyPartitionStore,
+        write_empty: bool = True,
+        supports_date_range: bool = True,
+    ):
+        self.table_name = table_name
+        self.spec = spec
+        self.fetch = fetch
+        self.store = store
+        self.write_empty = write_empty
+        self.supports_date_range = supports_date_range
+
+    def run(
+        self,
+        rt: SyncRuntime,
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> None:
+        today = rt.calendar.today()
+        last = rt.meta.get_last_date(self.spec.name)
+
+        if start_date is None:
+            start = dateutil.add_days(last, 1) if last is not None else self.spec.first_date
+            end = today
+            if start > end:
+                logger.info(f"{self.spec.name}: 已是最新 (last={last})")
+                return
+        else:
+            start = start_date
+            end = end_date if end_date is not None else today
+            if start > end:
+                raise ValueError(f"start_date {start} is after end_date {end}")
+
+        days = _date_range_days(start, end)
+        logger.info(f"{self.spec.name}: start {start} ~ {end}, days={len(days)}")
+
+        success = 0
+        total_rows = 0
+        empty = 0
+        skipped_existing = 0
+        current_meta = last
+        started_at = time.monotonic()
+
+        for i, ann_date in enumerate(days):
+            if self.store.exists(ann_date):
+                skipped_existing += 1
+                if current_meta is None or ann_date > current_meta:
+                    rt.meta.update_last_date(self.spec.name, ann_date)
+                    current_meta = ann_date
+                continue
+
+            last_exc: Exception | None = None
+            for attempt, delay in enumerate((*_RETRY_DELAYS, None), start=1):
+                try:
+                    df = self.fetch(ann_date)
+                    last_exc = None
+                    break
+                except Exception as exc:
+                    last_exc = exc
+                    if delay is None:
+                        break
+                    logger.warning(
+                        f"{self.spec.name}: fetch failed on {ann_date} "
+                        f"(attempt {attempt}), retry in {delay}s: {exc}"
+                    )
+                    time.sleep(delay)
+            if last_exc is not None:
+                logger.error(f"{self.spec.name}: fetch failed on {ann_date} after {attempt} attempts: {last_exc}")
+                rt.notifier.send(
+                    f"{self.spec.name} 同步失败\n"
+                    f"日期：{ann_date}｜{last_exc}"
+                )
+                raise last_exc
+
+            time.sleep(0.2)
+
+            if df is not None and not df.empty:
+                self.store.write(ann_date, df)
+                success += 1
+                total_rows += len(df)
+            elif self.write_empty:
+                self.store.write(ann_date, df if df is not None else pd.DataFrame())
+                empty += 1
+            else:
+                empty += 1
+
+            if current_meta is None or ann_date > current_meta:
+                rt.meta.update_last_date(self.spec.name, ann_date)
+                current_meta = ann_date
+
+            if (i + 1) % PROGRESS_INTERVAL == 0:
+                processed = i + 1
+                elapsed = time.monotonic() - started_at
+                percent = processed / len(days) * 100 if days else 100.0
+                logger.info(
+                    f"{self.spec.name}: progress {processed}/{len(days)} ({percent:.1f}%) "
+                    f"success={success} empty={empty} skipped={skipped_existing} "
+                    f"elapsed={_format_duration(elapsed)} "
+                    f"eta={_estimate_eta(elapsed, processed, len(days))}"
+                )
+
+        elapsed = time.monotonic() - started_at
+        logger.info(
+            f"{self.spec.name}: done total={len(days)} "
+            f"success={success} empty={empty} skipped={skipped_existing} "
+            f"elapsed={_format_duration(elapsed)}"
+        )
+        date_range = (
+            f"{days[0]} ~ {days[-1]}" if len(days) > 1
+            else days[0]
         )
         rt.notifier.send(
             f"{self.spec.name} 同步完成\n"

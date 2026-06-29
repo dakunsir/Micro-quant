@@ -4,11 +4,11 @@ import pandas as pd
 from loguru import logger
 
 import zer0share.dateutil as dateutil
-from zer0share.catalog import INDEX_DAILY_SPEC, INDEX_WEIGHT_SPEC
+from zer0share.catalog import IDX_ANNS_SPEC, INDEX_DAILY_SPEC, INDEX_WEIGHT_SPEC
 from zer0share.fetcher import INDEX_DAILY_CODES
 from zer0share.storage import DailyPartitionStore, IndexWeightStore
 from zer0share.sync import SyncRuntime
-from zer0share.sync._jobs import SyncJob
+from zer0share.sync._jobs import CalendarDateSyncJob, SyncJob
 
 INDEX_CODES = ["399300.SZ", "000905.SH", "000852.SH"]
 
@@ -172,5 +172,12 @@ def build_jobs(cfg, fetcher) -> list[SyncJob]:
         IndexDailySyncJob(
             fetch=fetcher.fetch_index_daily,
             store=DailyPartitionStore(d / "index" / "index_daily"),
+        ),
+        CalendarDateSyncJob(
+            table_name=IDX_ANNS_SPEC.name,
+            spec=IDX_ANNS_SPEC,
+            fetch=fetcher.fetch_idx_anns,
+            store=DailyPartitionStore(d / "index" / "idx_anns"),
+            write_empty=True,
         ),
     ]

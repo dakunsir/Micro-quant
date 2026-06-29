@@ -10,6 +10,568 @@ from zer0share.storage import (
 )
 
 
+def _make_etf_basic_df():
+    return pd.DataFrame({
+        "ts_code": ["510300.SH", "159919.SZ", "513100.SH"],
+        "csname": ["沪深300ETF", "沪深300ETF", "纳指ETF"],
+        "extname": ["沪深300ETF", "沪深300ETF", "纳指ETF"],
+        "cname": [
+            "华泰柏瑞沪深300交易型开放式指数证券投资基金",
+            "嘉实沪深300交易型开放式指数证券投资基金",
+            "国泰纳斯达克100交易型开放式指数证券投资基金",
+        ],
+        "index_code": ["000300.SH", "000300.SH", "NDX.GI"],
+        "index_name": ["沪深300指数", "沪深300指数", "纳斯达克100指数"],
+        "setup_date": ["20120504", "20120507", "20130425"],
+        "list_date": ["20120528", "20120528", "20130515"],
+        "list_status": ["L", "L", "L"],
+        "exchange": ["SH", "SZ", "SH"],
+        "mgr_name": ["华泰柏瑞基金", "嘉实基金", "国泰基金"],
+        "custod_name": ["中国工商银行", "中国银行", "中国建设银行"],
+        "mgt_fee": [0.5, 0.5, 0.8],
+        "etf_type": ["境内", "境内", "QDII"],
+    })
+
+
+def _make_etf_index_df():
+    return pd.DataFrame({
+        "ts_code": ["000300.SH", "000905.SH", "000001.SH"],
+        "indx_name": ["沪深300指数", "中证500指数", "上证综合指数"],
+        "indx_csname": ["沪深300", "中证500", "上证指数"],
+        "pub_party_name": ["中证指数有限公司", "中证指数有限公司", "上海证券交易所"],
+        "pub_date": ["20050408", "20070115", "19910715"],
+        "base_date": ["20041231", "20041231", "19901219"],
+        "bp": [1000.0, 1000.0, 100.0],
+        "adj_circle": ["半年", "半年", "不定期"],
+    })
+
+
+def _make_fund_daily_df():
+    return pd.DataFrame({
+        "ts_code": ["510300.SH", "510300.SH", "159919.SZ", "159919.SZ"],
+        "trade_date": ["20240102", "20240103", "20240102", "20240103"],
+        "open": [3.1, 3.2, 2.1, 2.2],
+        "high": [3.2, 3.3, 2.2, 2.3],
+        "low": [3.0, 3.1, 2.0, 2.1],
+        "close": [3.15, 3.25, 2.15, 2.25],
+        "pre_close": [3.05, 3.15, 2.05, 2.15],
+        "change": [0.1, 0.1, 0.1, 0.1],
+        "pct_chg": [3.28, 3.17, 4.88, 4.65],
+        "vol": [1000000.0, 1100000.0, 2000000.0, 2100000.0],
+        "amount": [3150000.0, 3575000.0, 4300000.0, 4725000.0],
+    })
+
+
+def _make_fund_adj_df():
+    return pd.DataFrame(
+        {
+            "ts_code": ["159919.SZ", "159919.SZ", "513100.SH", "513100.SH"],
+            "trade_date": ["20240102", "20240103", "20240102", "20240103"],
+            "adj_factor": [1.0, 1.01, 1.2345, 1.2456],
+            "discount_rate": [0.01, 0.02, 0.12, 0.15],
+        }
+    )
+
+
+def _make_etf_share_size_df():
+    return pd.DataFrame(
+        {
+            "trade_date": ["20240102", "20240103", "20240102", "20240103"],
+            "ts_code": ["510330.SH", "510330.SH", "159919.SZ", "159919.SZ"],
+            "etf_name": ["沪深300ETF华夏", "沪深300ETF华夏", "沪深300ETF嘉实", "沪深300ETF嘉实"],
+            "total_share": [3986754.98, 3994674.98, 1200000.0, 1210000.0],
+            "total_size": [15939050.0, 15781760.0, 2500000.0, 2510000.0],
+            "nav": [4.0, 3.95, 2.1, 2.11],
+            "close": [4.01, 3.96, 2.12, 2.13],
+            "exchange": ["SSE", "SSE", "SZSE", "SZSE"],
+        }
+    )
+
+
+def _make_etf_sh_cons_df():
+    return pd.DataFrame(
+        {
+            "trade_date": ["20260615", "20260615", "20260616", "20260616"],
+            "ts_code": ["517030.SH", "517030.SH", "517030.SH", "510300.SH"],
+            "con_code": ["000001.SZ", "00003.HK", "000001.SZ", "600519.SH"],
+            "con_name": ["平安银行", "香港中华煤气", "平安银行", "贵州茅台"],
+            "qty": [1100, 1000, 1200, 200],
+            "sub_flag": ["允许", "允许", "允许", "必须"],
+            "cpr": ["15", "30", "15", "-"],
+            "rdr": ["60", "0", "60", "-"],
+            "sca": ["12364.000", "5928.350", "12500.000", "0.000"],
+            "exchange": ["SZ", "HK", "SZ", "SH"],
+        }
+    )
+
+
+def _make_idx_anns_df():
+    return pd.DataFrame(
+        {
+            "ann_date": ["20260416", "20260416", "20260417", "20260420"],
+            "title": [
+                "关于发布中证交易所AAA综合债指数系列的公告",
+                "关于调整三板指数样本股的公告",
+                "恒生中国高股息率指数年度指数检讨结果",
+                "关于发布华证HALO指数的公告",
+            ],
+            "url": [
+                "https://www.csindex.com.cn/#/about/newsDetail?id=2",
+                "https://www.csindex.com.cn/#/about/newsDetail?id=1",
+                "https://www.hsi.com.hk/static/uploads/contents/zh_cn/news/1.pdf",
+                "https://www.chindices.com/news_detail.html?id=777",
+            ],
+            "source": ["中证指数", "中证指数", "恒生指数", "华证指数"],
+            "type": ["新指数发布", "指数调样", "其他", ""],
+        }
+    )
+
+
+def test_etf_basic_query_returns_data(tmp_path):
+    SnapshotStore(tmp_path / "etf" / "etf_basic" / "data.parquet").write(_make_etf_basic_df())
+
+    api = LocalPro(tmp_path)
+    result = api.etf_basic(fields="ts_code,extname,index_code,exchange")
+
+    assert result.to_dict("records") == [
+        {"ts_code": "159919.SZ", "extname": "沪深300ETF", "index_code": "000300.SH", "exchange": "SZ"},
+        {"ts_code": "510300.SH", "extname": "沪深300ETF", "index_code": "000300.SH", "exchange": "SH"},
+        {"ts_code": "513100.SH", "extname": "纳指ETF", "index_code": "NDX.GI", "exchange": "SH"},
+    ]
+
+
+def test_etf_basic_filters_by_codes_status_exchange_and_mgr(tmp_path):
+    SnapshotStore(tmp_path / "etf" / "etf_basic" / "data.parquet").write(_make_etf_basic_df())
+
+    api = LocalPro(tmp_path)
+    result = api.etf_basic(
+        ts_code="510300.SH,159919.SZ",
+        index_code="000300.SH",
+        list_status="L",
+        exchange="SH",
+        mgr="华泰柏瑞基金",
+        fields="ts_code,mgr_name,exchange",
+    )
+
+    assert result.to_dict("records") == [
+        {"ts_code": "510300.SH", "mgr_name": "华泰柏瑞基金", "exchange": "SH"}
+    ]
+
+
+def test_etf_basic_filters_by_mgr_name_list_date_limit_offset(tmp_path):
+    SnapshotStore(tmp_path / "etf" / "etf_basic" / "data.parquet").write(_make_etf_basic_df())
+
+    api = LocalPro(tmp_path)
+    result = api.etf_basic(
+        list_date="20120528",
+        mgr_name="嘉实基金",
+        limit=1,
+        offset=0,
+        fields="ts_code,list_date,mgr_name",
+    )
+
+    assert result.to_dict("records") == [
+        {"ts_code": "159919.SZ", "list_date": "20120528", "mgr_name": "嘉实基金"}
+    ]
+
+
+def test_etf_basic_rejects_conflicting_mgr_aliases(tmp_path):
+    SnapshotStore(tmp_path / "etf" / "etf_basic" / "data.parquet").write(_make_etf_basic_df())
+
+    api = LocalPro(tmp_path)
+
+    with pytest.raises(ValueError, match="mgr and mgr_name must match"):
+        api.etf_basic(mgr="华泰柏瑞基金", mgr_name="嘉实基金")
+
+
+def test_query_dispatch_supports_etf_basic(tmp_path):
+    SnapshotStore(tmp_path / "etf" / "etf_basic" / "data.parquet").write(_make_etf_basic_df())
+
+    api = LocalPro(tmp_path)
+    result = api.query("etf_basic", exchange="SZ", fields="ts_code,exchange")
+
+    assert result.to_dict("records") == [
+        {"ts_code": "159919.SZ", "exchange": "SZ"}
+    ]
+
+
+def test_etf_basic_query_raises_when_no_data(tmp_path):
+    api = LocalPro(tmp_path)
+
+    with pytest.raises(FileNotFoundError, match="etf_basic"):
+        api.etf_basic()
+
+
+def test_etf_index_query_returns_data(tmp_path):
+    SnapshotStore(tmp_path / "etf" / "etf_index" / "data.parquet").write(_make_etf_index_df())
+
+    api = LocalPro(tmp_path)
+    result = api.etf_index(fields="ts_code,indx_name,pub_date,bp")
+
+    assert result.to_dict("records") == [
+        {"ts_code": "000001.SH", "indx_name": "上证综合指数", "pub_date": "19910715", "bp": 100.0},
+        {"ts_code": "000300.SH", "indx_name": "沪深300指数", "pub_date": "20050408", "bp": 1000.0},
+        {"ts_code": "000905.SH", "indx_name": "中证500指数", "pub_date": "20070115", "bp": 1000.0},
+    ]
+
+
+def test_etf_index_filters_by_code_pub_date_and_base_date(tmp_path):
+    SnapshotStore(tmp_path / "etf" / "etf_index" / "data.parquet").write(_make_etf_index_df())
+
+    api = LocalPro(tmp_path)
+    result = api.etf_index(
+        ts_code="000300.SH,000905.SH",
+        pub_date="20050408",
+        base_date="20041231",
+        fields="ts_code,pub_date,base_date",
+    )
+
+    assert result.to_dict("records") == [
+        {"ts_code": "000300.SH", "pub_date": "20050408", "base_date": "20041231"}
+    ]
+
+
+def test_etf_index_supports_limit_offset_and_query_dispatch(tmp_path):
+    SnapshotStore(tmp_path / "etf" / "etf_index" / "data.parquet").write(_make_etf_index_df())
+
+    api = LocalPro(tmp_path)
+    result = api.query(
+        "etf_index",
+        base_date="20041231",
+        offset=1,
+        limit=1,
+        fields="ts_code,base_date",
+    )
+
+    assert result.to_dict("records") == [
+        {"ts_code": "000905.SH", "base_date": "20041231"}
+    ]
+
+
+def test_etf_index_validates_date_filters(tmp_path):
+    SnapshotStore(tmp_path / "etf" / "etf_index" / "data.parquet").write(_make_etf_index_df())
+
+    api = LocalPro(tmp_path)
+    with pytest.raises(ValueError, match="YYYYMMDD"):
+        api.etf_index(pub_date="2005-04-08")
+
+
+def test_etf_index_query_raises_when_no_data(tmp_path):
+    api = LocalPro(tmp_path)
+
+    with pytest.raises(FileNotFoundError, match="etf_index"):
+        api.etf_index()
+
+
+def test_fund_daily_query_returns_local_data_and_selected_fields(tmp_path):
+    data = _make_fund_daily_df()
+    DailyPartitionStore(tmp_path / "etf" / "fund_daily").write("20240102", data[data["trade_date"] == "20240102"])
+    DailyPartitionStore(tmp_path / "etf" / "fund_daily").write("20240103", data[data["trade_date"] == "20240103"])
+
+    api = LocalPro(tmp_path)
+    result = api.fund_daily(
+        start_date="20240102",
+        end_date="20240103",
+        fields="ts_code,trade_date,close,amount",
+    )
+
+    assert result.to_dict("records") == [
+        {"ts_code": "159919.SZ", "trade_date": "20240102", "close": 2.15, "amount": 4300000.0},
+        {"ts_code": "159919.SZ", "trade_date": "20240103", "close": 2.25, "amount": 4725000.0},
+        {"ts_code": "510300.SH", "trade_date": "20240102", "close": 3.15, "amount": 3150000.0},
+        {"ts_code": "510300.SH", "trade_date": "20240103", "close": 3.25, "amount": 3575000.0},
+    ]
+
+
+def test_fund_daily_filters_by_ts_code_and_date_range(tmp_path):
+    data = _make_fund_daily_df()
+    DailyPartitionStore(tmp_path / "etf" / "fund_daily").write("20240102", data[data["trade_date"] == "20240102"])
+    DailyPartitionStore(tmp_path / "etf" / "fund_daily").write("20240103", data[data["trade_date"] == "20240103"])
+
+    api = LocalPro(tmp_path)
+    result = api.fund_daily(
+        ts_code="510300.SH",
+        start_date="20240103",
+        end_date="20240103",
+        fields="ts_code,trade_date,close",
+    )
+
+    assert result.to_dict("records") == [
+        {"ts_code": "510300.SH", "trade_date": "20240103", "close": 3.25}
+    ]
+
+
+def test_fund_daily_rejects_unbounded_query_by_default(tmp_path):
+    data = _make_fund_daily_df()
+    DailyPartitionStore(tmp_path / "etf" / "fund_daily").write("20240102", data[data["trade_date"] == "20240102"])
+
+    api = LocalPro(tmp_path)
+
+    with pytest.raises(ValueError, match="daily-partitioned table"):
+        api.fund_daily(ts_code="510300.SH", limit=1)
+
+
+def test_fund_daily_supports_trade_date_limit_offset_and_query_dispatch(tmp_path):
+    data = _make_fund_daily_df()
+    DailyPartitionStore(tmp_path / "etf" / "fund_daily").write("20240102", data[data["trade_date"] == "20240102"])
+    DailyPartitionStore(tmp_path / "etf" / "fund_daily").write("20240103", data[data["trade_date"] == "20240103"])
+
+    api = LocalPro(tmp_path)
+    result = api.query(
+        "fund_daily",
+        trade_date="20240102",
+        offset=1,
+        limit=1,
+        fields="ts_code,trade_date,close",
+    )
+
+    assert result.to_dict("records") == [
+        {"ts_code": "510300.SH", "trade_date": "20240102", "close": 3.15}
+    ]
+
+
+def test_fund_daily_validates_date_filters(tmp_path):
+    data = _make_fund_daily_df()
+    DailyPartitionStore(tmp_path / "etf" / "fund_daily").write("20240102", data[data["trade_date"] == "20240102"])
+
+    api = LocalPro(tmp_path)
+    with pytest.raises(ValueError, match="YYYYMMDD"):
+        api.fund_daily(trade_date="2024-01-02")
+
+
+def test_fund_daily_query_raises_when_no_data(tmp_path):
+    api = LocalPro(tmp_path)
+
+    with pytest.raises(FileNotFoundError, match="fund_daily"):
+        api.fund_daily()
+
+
+def test_fund_adj_query_returns_local_data_and_selected_fields(tmp_path):
+    data = _make_fund_adj_df()
+    DailyPartitionStore(tmp_path / "etf" / "fund_adj").write("20240102", data[data["trade_date"] == "20240102"])
+    DailyPartitionStore(tmp_path / "etf" / "fund_adj").write("20240103", data[data["trade_date"] == "20240103"])
+
+    api = LocalPro(tmp_path)
+    result = api.fund_adj(
+        start_date="20240102",
+        end_date="20240103",
+        fields="ts_code,trade_date,adj_factor",
+    )
+
+    assert result.to_dict("records") == [
+        {"ts_code": "159919.SZ", "trade_date": "20240102", "adj_factor": 1.0},
+        {"ts_code": "159919.SZ", "trade_date": "20240103", "adj_factor": 1.01},
+        {"ts_code": "513100.SH", "trade_date": "20240102", "adj_factor": 1.2345},
+        {"ts_code": "513100.SH", "trade_date": "20240103", "adj_factor": 1.2456},
+    ]
+
+
+def test_fund_adj_filters_by_ts_code_and_date_range(tmp_path):
+    data = _make_fund_adj_df()
+    DailyPartitionStore(tmp_path / "etf" / "fund_adj").write("20240102", data[data["trade_date"] == "20240102"])
+    DailyPartitionStore(tmp_path / "etf" / "fund_adj").write("20240103", data[data["trade_date"] == "20240103"])
+
+    api = LocalPro(tmp_path)
+    result = api.fund_adj(
+        ts_code="513100.SH",
+        start_date="20240103",
+        end_date="20240103",
+        fields="ts_code,trade_date,adj_factor,discount_rate",
+    )
+
+    assert result.to_dict("records") == [
+        {
+            "ts_code": "513100.SH",
+            "trade_date": "20240103",
+            "adj_factor": 1.2456,
+            "discount_rate": 0.15,
+        }
+    ]
+
+
+def test_fund_adj_supports_trade_date_limit_offset_and_query_dispatch(tmp_path):
+    data = _make_fund_adj_df()
+    DailyPartitionStore(tmp_path / "etf" / "fund_adj").write("20240102", data[data["trade_date"] == "20240102"])
+    DailyPartitionStore(tmp_path / "etf" / "fund_adj").write("20240103", data[data["trade_date"] == "20240103"])
+
+    api = LocalPro(tmp_path)
+    result = api.query(
+        "fund_adj",
+        trade_date="20240102",
+        offset=1,
+        limit=1,
+        fields="ts_code,trade_date,adj_factor",
+    )
+
+    assert result.to_dict("records") == [
+        {"ts_code": "513100.SH", "trade_date": "20240102", "adj_factor": 1.2345}
+    ]
+
+
+def test_fund_adj_validates_date_filters(tmp_path):
+    data = _make_fund_adj_df()
+    DailyPartitionStore(tmp_path / "etf" / "fund_adj").write("20240102", data[data["trade_date"] == "20240102"])
+
+    api = LocalPro(tmp_path)
+    with pytest.raises(ValueError, match="YYYYMMDD"):
+        api.fund_adj(trade_date="2024-01-02")
+
+
+def test_fund_adj_query_raises_when_no_data(tmp_path):
+    api = LocalPro(tmp_path)
+
+    with pytest.raises(FileNotFoundError, match="fund_adj"):
+        api.fund_adj()
+
+
+def test_etf_share_size_query_returns_local_data_and_selected_fields(tmp_path):
+    data = _make_etf_share_size_df()
+    DailyPartitionStore(tmp_path / "etf" / "etf_share_size").write("20240102", data[data["trade_date"] == "20240102"])
+    DailyPartitionStore(tmp_path / "etf" / "etf_share_size").write("20240103", data[data["trade_date"] == "20240103"])
+
+    api = LocalPro(tmp_path)
+    result = api.etf_share_size(
+        start_date="20240102",
+        end_date="20240103",
+        fields="trade_date,ts_code,etf_name,total_share,total_size,exchange",
+    )
+
+    assert result.to_dict("records") == [
+        {"trade_date": "20240102", "ts_code": "159919.SZ", "etf_name": "沪深300ETF嘉实", "total_share": 1200000.0, "total_size": 2500000.0, "exchange": "SZSE"},
+        {"trade_date": "20240103", "ts_code": "159919.SZ", "etf_name": "沪深300ETF嘉实", "total_share": 1210000.0, "total_size": 2510000.0, "exchange": "SZSE"},
+        {"trade_date": "20240102", "ts_code": "510330.SH", "etf_name": "沪深300ETF华夏", "total_share": 3986754.98, "total_size": 15939050.0, "exchange": "SSE"},
+        {"trade_date": "20240103", "ts_code": "510330.SH", "etf_name": "沪深300ETF华夏", "total_share": 3994674.98, "total_size": 15781760.0, "exchange": "SSE"},
+    ]
+
+
+def test_etf_share_size_filters_by_ts_code_date_range_and_exchange(tmp_path):
+    data = _make_etf_share_size_df()
+    DailyPartitionStore(tmp_path / "etf" / "etf_share_size").write("20240102", data[data["trade_date"] == "20240102"])
+    DailyPartitionStore(tmp_path / "etf" / "etf_share_size").write("20240103", data[data["trade_date"] == "20240103"])
+
+    api = LocalPro(tmp_path)
+    result = api.etf_share_size(
+        ts_code="510330.SH,159919.SZ",
+        start_date="20240103",
+        end_date="20240103",
+        exchange="SSE",
+        fields="trade_date,ts_code,total_share,exchange",
+    )
+
+    assert result.to_dict("records") == [
+        {"trade_date": "20240103", "ts_code": "510330.SH", "total_share": 3994674.98, "exchange": "SSE"}
+    ]
+
+
+def test_etf_share_size_supports_trade_date_limit_offset_and_query_dispatch(tmp_path):
+    data = _make_etf_share_size_df()
+    DailyPartitionStore(tmp_path / "etf" / "etf_share_size").write("20240102", data[data["trade_date"] == "20240102"])
+    DailyPartitionStore(tmp_path / "etf" / "etf_share_size").write("20240103", data[data["trade_date"] == "20240103"])
+
+    api = LocalPro(tmp_path)
+    result = api.query(
+        "etf_share_size",
+        trade_date="20240102",
+        offset=1,
+        limit=1,
+        fields="trade_date,ts_code,total_size,exchange",
+    )
+
+    assert result.to_dict("records") == [
+        {"trade_date": "20240102", "ts_code": "510330.SH", "total_size": 15939050.0, "exchange": "SSE"}
+    ]
+
+
+def test_etf_share_size_validates_date_filters(tmp_path):
+    data = _make_etf_share_size_df()
+    DailyPartitionStore(tmp_path / "etf" / "etf_share_size").write("20240102", data[data["trade_date"] == "20240102"])
+
+    api = LocalPro(tmp_path)
+    with pytest.raises(ValueError, match="YYYYMMDD"):
+        api.etf_share_size(trade_date="2024-01-02")
+
+
+def test_etf_share_size_query_raises_when_no_data(tmp_path):
+    api = LocalPro(tmp_path)
+
+    with pytest.raises(FileNotFoundError, match="etf_share_size"):
+        api.etf_share_size()
+
+
+def test_etf_sh_cons_query_returns_local_data_and_selected_fields(tmp_path):
+    data = _make_etf_sh_cons_df()
+    DailyPartitionStore(tmp_path / "etf" / "etf_sh_cons").write("20260615", data[data["trade_date"] == "20260615"])
+    DailyPartitionStore(tmp_path / "etf" / "etf_sh_cons").write("20260616", data[data["trade_date"] == "20260616"])
+
+    api = LocalPro(tmp_path)
+    result = api.etf_sh_cons(
+        start_date="20260615",
+        end_date="20260616",
+        fields="trade_date,ts_code,con_code,con_name,qty,exchange",
+    )
+
+    assert result.to_dict("records") == [
+        {"trade_date": "20260616", "ts_code": "510300.SH", "con_code": "600519.SH", "con_name": "贵州茅台", "qty": 200, "exchange": "SH"},
+        {"trade_date": "20260615", "ts_code": "517030.SH", "con_code": "000001.SZ", "con_name": "平安银行", "qty": 1100, "exchange": "SZ"},
+        {"trade_date": "20260615", "ts_code": "517030.SH", "con_code": "00003.HK", "con_name": "香港中华煤气", "qty": 1000, "exchange": "HK"},
+        {"trade_date": "20260616", "ts_code": "517030.SH", "con_code": "000001.SZ", "con_name": "平安银行", "qty": 1200, "exchange": "SZ"},
+    ]
+
+
+def test_etf_sh_cons_filters_by_ts_code_date_range_and_con_code(tmp_path):
+    data = _make_etf_sh_cons_df()
+    DailyPartitionStore(tmp_path / "etf" / "etf_sh_cons").write("20260615", data[data["trade_date"] == "20260615"])
+    DailyPartitionStore(tmp_path / "etf" / "etf_sh_cons").write("20260616", data[data["trade_date"] == "20260616"])
+
+    api = LocalPro(tmp_path)
+    result = api.etf_sh_cons(
+        ts_code="517030.SH",
+        start_date="20260615",
+        end_date="20260616",
+        con_code="000001.SZ",
+        fields="trade_date,ts_code,con_code,qty",
+    )
+
+    assert result.to_dict("records") == [
+        {"trade_date": "20260615", "ts_code": "517030.SH", "con_code": "000001.SZ", "qty": 1100},
+        {"trade_date": "20260616", "ts_code": "517030.SH", "con_code": "000001.SZ", "qty": 1200},
+    ]
+
+
+def test_etf_sh_cons_supports_trade_date_limit_offset_and_query_dispatch(tmp_path):
+    data = _make_etf_sh_cons_df()
+    DailyPartitionStore(tmp_path / "etf" / "etf_sh_cons").write("20260615", data[data["trade_date"] == "20260615"])
+
+    api = LocalPro(tmp_path)
+    result = api.query(
+        "etf_sh_cons",
+        trade_date="20260615",
+        offset=1,
+        limit=1,
+        fields="trade_date,ts_code,con_code,exchange",
+    )
+
+    assert result.to_dict("records") == [
+        {"trade_date": "20260615", "ts_code": "517030.SH", "con_code": "00003.HK", "exchange": "HK"}
+    ]
+
+
+def test_etf_sh_cons_validates_date_filters(tmp_path):
+    data = _make_etf_sh_cons_df()
+    DailyPartitionStore(tmp_path / "etf" / "etf_sh_cons").write("20260615", data[data["trade_date"] == "20260615"])
+
+    api = LocalPro(tmp_path)
+    with pytest.raises(ValueError, match="YYYYMMDD"):
+        api.etf_sh_cons(trade_date="2026-06-15")
+
+
+def test_etf_sh_cons_query_raises_when_no_data(tmp_path):
+    api = LocalPro(tmp_path)
+
+    with pytest.raises(FileNotFoundError, match="etf_sh_cons"):
+        api.etf_sh_cons()
+
+
 def test_stock_basic_filters_and_formats_dates(tmp_path):
     df = pd.DataFrame(
         {
@@ -255,7 +817,7 @@ def test_query_dispatches_to_named_api(tmp_path):
         ))
 
     pro = LocalPro(tmp_path)
-    result = pro.query("adj_factor", ts_code="000001.SZ")
+    result = pro.query("adj_factor", ts_code="000001.SZ", trade_date="20240102")
 
     assert result.to_dict("records") == [
         {"ts_code": "000001.SZ", "trade_date": "20240102", "adj_factor": 100.1}
@@ -866,7 +1428,7 @@ def test_index_daily_returns_all_on_no_filter(tmp_path):
     DailyPartitionStore(tmp_path / "index" / "index_daily").write("20240103", _index_daily_partition("20240103"))
 
     pro = LocalPro(tmp_path)
-    result = pro.index_daily()
+    result = pro.index_daily(start_date="20240102", end_date="20240103")
 
     assert len(result) == 4  # 2 dates × 2 codes
 
@@ -875,7 +1437,7 @@ def test_index_daily_filters_by_ts_code(tmp_path):
     DailyPartitionStore(tmp_path / "index" / "index_daily").write("20240102", _index_daily_partition("20240102"))
 
     pro = LocalPro(tmp_path)
-    result = pro.index_daily(ts_code="000300.SH")
+    result = pro.index_daily(ts_code="000300.SH", trade_date="20240102")
 
     assert len(result) == 1
     assert result.iloc[0]["ts_code"] == "000300.SH"
@@ -916,7 +1478,11 @@ def test_index_daily_fields_filter(tmp_path):
     DailyPartitionStore(tmp_path / "index" / "index_daily").write("20240102", _index_daily_partition("20240102"))
 
     pro = LocalPro(tmp_path)
-    result = pro.index_daily(ts_code="000300.SH", fields="ts_code,trade_date,close")
+    result = pro.index_daily(
+        ts_code="000300.SH",
+        trade_date="20240102",
+        fields="ts_code,trade_date,close",
+    )
 
     assert list(result.columns) == ["ts_code", "trade_date", "close"]
 
@@ -925,7 +1491,7 @@ def test_index_daily_in_query_dispatch(tmp_path):
     DailyPartitionStore(tmp_path / "index" / "index_daily").write("20240102", _index_daily_partition("20240102"))
 
     pro = LocalPro(tmp_path)
-    result = pro.query("index_daily", ts_code="000300.SH")
+    result = pro.query("index_daily", ts_code="000300.SH", trade_date="20240102")
 
     assert len(result) == 1
 
@@ -1174,7 +1740,7 @@ def test_fut_weekly_detail_query_returns_data(tmp_path):
     })
     DailyPartitionStore(tmp_path / "futures" / "fut_weekly_detail").write("20240101", df)
 
-    result = api.fut_weekly_detail()
+    result = api.fut_weekly_detail(start_date="20240101", end_date="20240101")
     assert len(result) == 2
 
 
@@ -1420,3 +1986,63 @@ def test_pro_api_query_does_not_dispatch_ricequant_table(tmp_path):
     pro = LocalPro(tmp_path)
     with pytest.raises(ValueError, match="unknown api"):
         pro.query("ricequant_stock_minute")
+
+
+def test_idx_anns_query_returns_data(tmp_path):
+    data = _make_idx_anns_df()
+    DailyPartitionStore(tmp_path / "index" / "idx_anns").write("20260416", data[data["ann_date"] == "20260416"])
+    DailyPartitionStore(tmp_path / "index" / "idx_anns").write("20260417", data[data["ann_date"] == "20260417"])
+    DailyPartitionStore(tmp_path / "index" / "idx_anns").write("20260420", data[data["ann_date"] == "20260420"])
+
+    api = LocalPro(tmp_path)
+    result = api.idx_anns(ann_date="20260416", fields="ann_date,title,type")
+
+    assert result.to_dict("records") == [
+        {"ann_date": "20260416", "title": "关于发布中证交易所AAA综合债指数系列的公告", "type": "新指数发布"},
+        {"ann_date": "20260416", "title": "关于调整三板指数样本股的公告", "type": "指数调样"},
+    ]
+
+
+def test_idx_anns_filters_by_range_src_limit_offset_and_query_dispatch(tmp_path):
+    data = _make_idx_anns_df()
+    DailyPartitionStore(tmp_path / "index" / "idx_anns").write("20260416", data[data["ann_date"] == "20260416"])
+    DailyPartitionStore(tmp_path / "index" / "idx_anns").write("20260417", data[data["ann_date"] == "20260417"])
+    DailyPartitionStore(tmp_path / "index" / "idx_anns").write("20260420", data[data["ann_date"] == "20260420"])
+
+    api = LocalPro(tmp_path)
+    result = api.query(
+        "idx_anns",
+        src="中证指数",
+        start_date="20260401",
+        end_date="20260430",
+        fields="ann_date,title,source",
+        limit=1,
+        offset=1,
+    )
+
+    assert result.to_dict("records") == [
+        {"ann_date": "20260416", "title": "关于调整三板指数样本股的公告", "source": "中证指数"}
+    ]
+
+
+def test_idx_anns_rejects_ann_date_with_range(tmp_path):
+    data = _make_idx_anns_df()
+    DailyPartitionStore(tmp_path / "index" / "idx_anns").write("20260416", data[data["ann_date"] == "20260416"])
+
+    api = LocalPro(tmp_path)
+    with pytest.raises(ValueError, match="trade_date cannot be combined"):
+        api.idx_anns(ann_date="20260416", start_date="20260401")
+
+
+def test_idx_anns_validates_date_filters(tmp_path):
+    api = LocalPro(tmp_path)
+
+    with pytest.raises(ValueError, match="YYYYMMDD"):
+        api.idx_anns(ann_date="2026-04-16")
+
+
+def test_idx_anns_query_raises_when_no_data(tmp_path):
+    api = LocalPro(tmp_path)
+
+    with pytest.raises(FileNotFoundError, match="idx_anns"):
+        api.idx_anns(ann_date="20260416")

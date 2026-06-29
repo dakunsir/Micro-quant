@@ -4,14 +4,14 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Stars](https://img.shields.io/github/stars/zer0quant/zer0share)
 
-> **zer0share** — A local data pipeline for Chinese A-shares, futures & options.  
+> **zer0share** — A local data pipeline for Chinese A-shares, ETFs, futures & options.  
 > Pulls data from Tushare Pro, stores as Parquet partitions,  
 > queries via DuckDB, with incremental sync & APScheduler automation.
 
 > 我在公众号「极客投研笔记」记录这个项目的设计过程、踩坑记录和后续扩展。  
 > 如果你对 AI + 量化投研、本地量化数据系统、因子研究工作流感兴趣，欢迎关注。
 
-A 股、期货、期权数据本地化管道，基于 [Tushare Pro](https://tushare.pro) 拉取数据，以 Parquet 分区存储，DuckDB 提供快速本地查询，支持增量同步与定时调度。
+A 股、ETF、期货、期权数据本地化管道，基于 [Tushare Pro](https://tushare.pro) 拉取数据，以 Parquet 分区存储，DuckDB 提供快速本地查询，支持增量同步与定时调度。
 
 ## 为什么用 zer0share？
 
@@ -27,6 +27,7 @@ A 股、期货、期权数据本地化管道，基于 [Tushare Pro](https://tush
 ## 特性
 
 - **A 股数据**：交易日历、基础信息、日线、复权因子、每日指标、ST、停复牌、涨跌停、指数成分、申万/中信行业
+- **ETF 数据**：ETF 基础信息、本地查询与专题存储
 - **期货 & 期权数据**：期货合约、日线、持仓排名、仓单、结算、主连映射；期权合约与日线行情
 - **本地优先存储**：Parquet 分区文件 + DuckDB 元数据，无需数据库服务
 - **Tushare-like 查询**：本地 `pro_api()` 直接返回 DataFrame，不消耗 Tushare 积分
@@ -38,7 +39,7 @@ A 股、期货、期权数据本地化管道，基于 [Tushare Pro](https://tush
 
 - Python 3.11+
 - [uv](https://github.com/astral-sh/uv)
-- Tushare Pro Token（基础行情需积分 ≥ 2000；`stock_st` 需积分 ≥ 3000；中信行业成分、`opt_basic` 需积分 ≥ 5000；部分期货扩展数据需积分 ≥ 5000）
+- Tushare Pro Token（基础行情需积分 ≥ 2000；`stock_st` 需积分 ≥ 3000；ETF 基础信息和 ETF 份额规模需积分 ≥ 8000；ETF 日线行情需积分 ≥ 5000；基金复权因子需积分 ≥ 600，5000 积分以上频次更高；指数公告 `idx_anns` 需积分 ≥ 6000；中信行业成分、`opt_basic` 需积分 ≥ 5000；部分期货扩展数据需积分 ≥ 5000）
 
 ## 快速开始
 
@@ -82,8 +83,17 @@ uv run python main.py sync --table suspend_d    # 每日停牌列表
 uv run python main.py sync --table stk_limit    # 每日涨跌停价格
 uv run python main.py sync --table index_weight # 沪深300/中证500/中证1000成分
 uv run python main.py sync --table index_daily  # 宽基指数日线行情
+uv run python main.py sync --table idx_anns     # 指数公司公告（自然日同步）
 uv run python main.py sync --table industry     # 申万行业分类 + 成分映射
 uv run python main.py sync --table ci_member    # 中信行业成分映射
+
+# ── ETF 专题（可选）──────────────────────────────────────────────
+uv run python main.py sync --table etf_basic    # ETF 基础信息
+uv run python main.py sync --table etf_index    # ETF 基准指数列表
+uv run python main.py sync --table fund_daily   # ETF 日线行情（需积分 >= 5000，8000 积分频次更高）
+uv run python main.py sync --table fund_adj     # 基金复权因子（需积分 >= 600，5000 积分以上频次更高）
+uv run python main.py sync --table etf_share_size  # ETF 份额规模（需积分 >= 8000，通常次日 08:30 后更新）
+uv run python main.py sync --table etf_sh_cons  # 上交所 ETF 每日持仓组合（需积分 >= 8000）
 
 # ── 期货扩展（可选，需积分 ≥ 5000）────────────────────────────────
 uv run python main.py sync --table fut_basic          # 期货合约基础信息
@@ -251,6 +261,37 @@ st = pro.stock_st(trade_date="20240131")
 suspend = pro.suspend_d(trade_date="20240131")
 limit = pro.stk_limit(trade_date="20240131")
 hs300 = pro.index_weight(index_code="399300.SZ", start_date="20240101", end_date="20240131")
+idx_anns = pro.idx_anns(
+    src="中证指数",
+    start_date="20260401",
+    end_date="20260430",
+    fields="ann_date,title,source,type",
+)
+etf_basic = pro.etf_basic(list_status="L", exchange="SH")
+etf_index = pro.etf_index(ts_code="000300.SH")
+fund_daily = pro.fund_daily(
+    ts_code="510330.SH",
+    start_date="20250101",
+    end_date="20250618",
+    fields="trade_date,open,high,low,close,vol,amount",
+)
+fund_adj = pro.fund_adj(
+    ts_code="513100.SH",
+    start_date="20190101",
+    end_date="20190926",
+    fields="ts_code,trade_date,adj_factor,discount_rate",
+)
+etf_share_size = pro.etf_share_size(
+    ts_code="510330.SH",
+    start_date="20250101",
+    end_date="20251224",
+    fields="trade_date,ts_code,etf_name,total_share,total_size,exchange",
+)
+etf_sh_cons = pro.etf_sh_cons(
+    trade_date="20260615",
+    ts_code="517030.SH",
+    fields="trade_date,ts_code,con_code,con_name,qty,sub_flag,cpr,rdr,sca,exchange",
+)
 
 # 指数日线行情（用于对冲基准收益率）
 idx_daily = pro.index_daily(ts_code="000300.SH", start_date="20240101", end_date="20240131")
@@ -296,9 +337,16 @@ opt_snapshot = pro.opt_daily(trade_date="20240102", exchange="SSE")   # 某日�
 | `stk_limit` | 查询已同步的每日涨跌停价格 |
 | `index_weight` | 查询已同步的指数成分和权重 |
 | `index_daily` | 查询已同步的宽基指数日线行情（12个指数） |
+| `idx_anns` | 查询已同步的指数公司公告（按 `ann_date` 分区） |
 | `index_classify` | 查询申万行业分类树（L1/L2/L3） |
 | `index_member_all` | 查询申万股票-行业映射（支持历史变更） |
 | `ci_index_member` | 查询中信股票-行业映射（支持历史变更） |
+| `etf_basic` | 查询已同步的 ETF 基础信息 |
+| `etf_index` | 查询已同步的 ETF 基准指数列表 |
+| `fund_daily` | 查询已同步的 ETF 日线行情 |
+| `fund_adj` | 查询已同步的基金复权因子 |
+| `etf_share_size` | 查询已同步的 ETF 份额规模 |
+| `etf_sh_cons` | 查询已同步的上交所 ETF 每日持仓组合 |
 | `pro_bar` | 查询本地 A 股日线行情，支持不复权、前复权（qfq）和后复权（hfq） |
 | `universe` | 查询已构建的股票池（支持按池名称、ts_code、日期过滤） |
 | `fut_basic` | 查询已同步的期货合约基础信息（支持按交易所、fut_code 过滤） |
@@ -327,11 +375,20 @@ uv run python examples/futures/ft_limit_query_smoke.py
 # 期权示例
 uv run python examples/options/opt_basic_query_smoke.py
 uv run python examples/options/opt_daily_query_smoke.py
+
+# ETF 示例
+uv run python examples/etf/etf_share_size_query_smoke.py
+uv run python examples/etf/etf_sh_cons_query_smoke.py
+
+# 指数示例
+uv run python examples/index/index_daily_query_smoke.py
+uv run python examples/index/index_weight_query_smoke.py
+uv run python examples/index/idx_anns_query_smoke.py
 ```
 
 ## 数据存储结构
 
-目录按 Tushare 数据分类命名：`stock/`（股票数据）、`index/`（指数专题）、`futures/`（期货数据）、`options/`（期权数据）。
+目录按 Tushare 数据分类命名：`stock/`（股票数据）、`etf/`（ETF专题）、`index/`（指数专题）、`futures/`（期货数据）、`options/`（期权数据）。
 
 ```
 data/
@@ -370,11 +427,26 @@ data/
 │       ├── name=univ_trade_zz500/date=YYYYMMDD/data.parquet
 │       ├── name=univ_trade_zz1000/date=YYYYMMDD/data.parquet
 │       └── name=univ_trade_smallcap/date=YYYYMMDD/data.parquet
+├── etf/                                # ETF专题
+│   ├── etf_basic/
+│   │   └── data.parquet
+│   ├── etf_index/
+│   │   └── data.parquet
+│   ├── fund_daily/
+│   │   └── date=YYYYMMDD/data.parquet
+│   ├── fund_adj/
+│   │   └── date=YYYYMMDD/data.parquet
+│   ├── etf_share_size/
+│   │   └── date=YYYYMMDD/data.parquet
+│   └── etf_sh_cons/
+│       └── date=YYYYMMDD/data.parquet
 ├── index/                              # 指数专题
 │   ├── index_daily/
 │   │   └── date=YYYYMMDD/data.parquet  # 含当日全部12个宽基指数
-│   └── index_weight/
-│       └── index_code=*/date=YYYYMMDD/data.parquet
+│   ├── index_weight/
+│   │   └── index_code=*/date=YYYYMMDD/data.parquet
+│   └── idx_anns/
+│       └── date=YYYYMMDD/data.parquet  # 指数公告
 ├── futures/                            # 期货数据
 │   ├── fut_basic/data.parquet          # 全量，每次覆盖
 │   ├── fut_daily/date=YYYYMMDD/data.parquet
@@ -407,8 +479,16 @@ db/
 | `sync --table stk_limit` | 增量同步每日涨跌停价格 |
 | `sync --table index_weight` | 增量同步指数成分和权重 |
 | `sync --table index_daily` | 增量同步12个宽基指数日线行情 |
+| `sync --table idx_anns` | 增量同步指数公司公告（自然日同步） |
 | `sync --table industry` | 同步申万行业分类 + 成分映射（全量覆盖） |
 | `sync --table ci_member` | 同步中信行业成分映射（全量覆盖） |
+| `sync --table etf_basic` | 同步 ETF 基础信息 |
+| `sync --table etf_index` | 同步 ETF 基准指数列表 |
+| `sync --table fund_daily` | 同步 ETF 日线行情 |
+| `sync --table fund_adj` | 同步基金复权因子 |
+| `sync --table etf_share_size` | 同步 ETF 份额规模 |
+| `sync --table etf_sh_cons` | 同步上交所 ETF 每日持仓组合 |
+| `sync --etf` | 同步 ETF 专题全部表 |
 | `sync --table fut_basic` | 同步期货合约基础信息 |
 | `sync --table fut_daily` | 增量同步期货日线行情 |
 | `sync --table fut_holding` | 增量同步期货持仓排名 |
