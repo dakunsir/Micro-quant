@@ -1,5 +1,6 @@
 import tushare as ts
 import pandas as pd
+import requests
 import time
 from loguru import logger
 
@@ -256,13 +257,44 @@ class TushareFetcher:
         frames = []
         limit = 3000
         offset = 0
+        retry_delays = (0.2, 1.0)
         while True:
-            df = self._pro.etf_sh_cons(
-                trade_date=trade_date,
-                fields=",".join(ETF_SH_CONS_COLS),
-                limit=limit,
-                offset=offset,
-            )
+            stop_pagination = False
+            for attempt, delay in enumerate((*retry_delays, None), start=1):
+                try:
+                    df = self._pro.etf_sh_cons(
+                        trade_date=trade_date,
+                        fields=",".join(ETF_SH_CONS_COLS),
+                        limit=limit,
+                        offset=offset,
+                    )
+                    break
+                except Exception as exc:
+                    if frames and "查询数据失败，请确认参数" in str(exc):
+                        logger.warning(
+                            f"etf_sh_cons {trade_date}: pagination stopped at offset={offset}: {exc}"
+                        )
+                        stop_pagination = True
+                        break
+                    if (
+                        delay is not None
+                        and isinstance(
+                            exc,
+                            (
+                                requests.exceptions.ConnectionError,
+                                requests.exceptions.Timeout,
+                            ),
+                        )
+                    ):
+                        logger.warning(
+                            f"etf_sh_cons {trade_date}: page offset={offset} failed "
+                            f"(attempt {attempt}), retry in {delay}s: {exc}"
+                        )
+                        time.sleep(delay)
+                        continue
+                    raise
+            if stop_pagination:
+                break
             if df is None or df.empty:
                 break
             frames.append(df)
