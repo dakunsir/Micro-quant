@@ -49,6 +49,29 @@ def test_start_scheduler_registers_all_configured_jobs(tmp_path):
     assert len(registered_jobs) == 4
 
 
+def test_start_scheduler_sends_startup_notification(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(VALID_CONFIG, encoding="utf-8")
+    notifier = MagicMock()
+
+    with (
+        patch("tushare.pro_api"),
+        patch("zer0share.scheduler.Notifier", return_value=notifier),
+        patch("apscheduler.schedulers.blocking.BlockingScheduler.start"),
+        patch("apscheduler.schedulers.blocking.BlockingScheduler.add_job"),
+        patch("zer0share.scheduler.Pipeline"),
+    ):
+        from zer0share.scheduler import start_scheduler
+
+        start_scheduler(str(cfg_file))
+
+    notifier.send.assert_called_once()
+    message = notifier.send.call_args[0][0]
+    assert "调度器已启动" in message
+    assert "已调度：4 个表" in message
+    assert str(cfg_file) in message
+
+
 def test_start_scheduler_opens_pipeline_only_when_job_runs(tmp_path):
     cfg_file = tmp_path / "settings.toml"
     cfg_file.write_text(VALID_CONFIG, encoding="utf-8")
