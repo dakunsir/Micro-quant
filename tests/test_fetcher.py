@@ -1,5 +1,6 @@
 import pandas as pd
 import pytest
+import requests
 import time
 from datetime import date
 from unittest.mock import call, patch
@@ -1019,6 +1020,56 @@ def test_fetch_etf_sh_cons_combines_paginated_rows(mock_pro):
         call(trade_date="20260615", fields=",".join(ETF_SH_CONS_COLS), limit=3000, offset=0),
         call(trade_date="20260615", fields=",".join(ETF_SH_CONS_COLS), limit=3000, offset=3000),
     ]
+
+
+def test_fetch_etf_sh_cons_stops_when_tushare_rejects_next_page(mock_pro):
+    first_page = pd.DataFrame(
+        [_etf_sh_cons_row(con_code=f"{i:06d}.SH", con_name=f"成分{i}") for i in range(3000)]
+    )
+    mock_pro.etf_sh_cons.side_effect = [
+        first_page,
+        Exception("查询数据失败，请确认参数！可以反馈管理员协助您排查问题"),
+    ]
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_etf_sh_cons("20260615")
+
+    assert list(df.columns) == ETF_SH_CONS_COLS
+    assert len(df) == 3000
+    assert mock_pro.etf_sh_cons.call_args_list == [
+        call(trade_date="20260615", fields=",".join(ETF_SH_CONS_COLS), limit=3000, offset=0),
+        call(trade_date="20260615", fields=",".join(ETF_SH_CONS_COLS), limit=3000, offset=3000),
+    ]
+
+
+def test_fetch_etf_sh_cons_retries_page_timeout(mock_pro):
+    first_page = pd.DataFrame([
+        _etf_sh_cons_row(con_code="000001.SZ", con_name="平安银行")
+    ])
+    mock_pro.etf_sh_cons.side_effect = [
+        requests.exceptions.ConnectionError("Read timed out."),
+        first_page,
+    ]
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_etf_sh_cons("20260615")
+
+    assert list(df.columns) == ETF_SH_CONS_COLS
+    assert len(df) == 1
+    assert mock_pro.etf_sh_cons.call_args_list == [
+        call(trade_date="20260615", fields=",".join(ETF_SH_CONS_COLS), limit=3000, offset=0),
+        call(trade_date="20260615", fields=",".join(ETF_SH_CONS_COLS), limit=3000, offset=0),
+    ]
+
+
+def test_fetch_etf_sh_cons_reraises_first_page_tushare_error(mock_pro):
+    mock_pro.etf_sh_cons.side_effect = Exception(
+        "查询数据失败，请确认参数！可以反馈管理员协助您排查问题"
+    )
+    fetcher = TushareFetcher("fake_token")
+
+    with pytest.raises(Exception, match="查询数据失败"):
+        fetcher.fetch_etf_sh_cons("20260615")
 
 
 def test_fetch_etf_sh_cons_returns_empty_when_none(mock_pro):
