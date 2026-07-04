@@ -10,17 +10,11 @@ log_path = "logs/pipeline.log"
 # 凌晨 — 静态参考数据（增量检查，数据已最新时零API消耗）
 trade_cal         = "02:00"
 basic             = "02:05"
-etf_basic         = "02:10"
-etf_index         = "02:12"
-idx_anns          = "02:15"
 
 # 盘前 — Tushare 盘前推送
 stk_limit         = "09:15"   # 8:40 ready; delayed to avoid early empty responses
 adj_factor        = "09:25"   # 9:15~9:20 ready
 stock_st          = "09:28"   # 9:20 ready
-
-# 次日盘前 — ETF 份额规模（通常 08:30 后更新）
-etf_share_size    = "08:45"
 
 # 收盘后第一波 — 日线行情（15:00~16:00 ready）
 daily_kline       = "16:10"
@@ -44,11 +38,6 @@ fut_index_daily   = "17:47"
 fut_weekly_detail = "17:50"
 opt_basic         = "17:53"
 opt_daily         = "17:56"
-fund_daily        = "18:00"
-fund_adj          = "18:03"
-
-# 晚间错峰 — 单日数据量较大的 ETF 持仓组合
-etf_sh_cons       = "20:30"
 ricequant_stock_minute = "16:30"
 
 [notifier]
