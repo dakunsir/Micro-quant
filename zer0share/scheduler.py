@@ -43,4 +43,7 @@ def start_scheduler(config_path: str = "config/settings.toml") -> None:
         )
     table_count = len(cfg.schedule)
     logger.info(f"调度器启动: {table_count} 个表已调度")
+    notifier.send(
+        f"调度器已启动\n已调度：{table_count} 个表\n配置：{config_path}"
+    )
     scheduler.start()
