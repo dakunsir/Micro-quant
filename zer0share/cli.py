@@ -9,6 +9,10 @@ from zer0share.fetcher import TushareFetcher
 from zer0share.logging import init_logger
 from zer0share.notifier import Notifier
 from zer0share.pipeline import Pipeline
+from zer0share.quality.models import QualityRunOptions
+from zer0share.quality.reporter import QualityReporter, format_summary
+from zer0share.quality.runner import QualityRunner
+from zer0share.quality.targets import select_targets
 from zer0share.storage import MetaStore
 from zer0share.universe import build_universes, build_universes_range
 
@@ -48,6 +52,7 @@ FUTURES_TABLES = [
     "fut_settle",
     "fut_mapping",
     "ft_limit",
+    "fut_weekly",
     "fut_monthly",
     "fut_index_daily",
     "fut_weekly_detail",
@@ -144,6 +149,65 @@ def sync(
             pipeline.run(table, start_date=start_date, end_date=end_date)
         else:
             raise click.UsageError("需要指定 --table、--stock、--futures、--options、--etf 或 --all")
+
+
+@cli.group()
+def quality():
+    """数据质检。"""
+
+
+@quality.command("check")
+@click.option("--table", "table_name", default=None)
+@click.option(
+    "--market",
+    type=click.Choice(["stock", "index", "etf", "futures", "options"]),
+    default=None,
+)
+@click.option("--all", "all_targets", is_flag=True, default=False)
+@click.option(
+    "--mode",
+    type=click.Choice(["full", "daily"]),
+    default="daily",
+    show_default=True,
+)
+@click.option("--start-date", default=None, callback=_validate_date)
+@click.option("--end-date", default=None, callback=_validate_date)
+@click.option("--date", "single_date", default=None, callback=_validate_date)
+def quality_check(
+    table_name: str | None,
+    market: str | None,
+    all_targets: bool,
+    mode: str,
+    start_date: str | None,
+    end_date: str | None,
+    single_date: str | None,
+) -> None:
+    """检查本地 Parquet 数据质量。"""
+    if mode == "full" and (start_date is None or end_date is None):
+        raise click.UsageError("full mode requires --start-date and --end-date")
+    if mode == "daily" and (start_date is not None or end_date is not None):
+        raise click.UsageError("daily mode uses --date, not --start-date/--end-date")
+    if mode == "full" and single_date is not None:
+        raise click.UsageError("full mode does not use --date")
+
+    try:
+        targets = select_targets(table=table_name, market=market, all_targets=all_targets)
+    except ValueError as exc:
+        raise click.UsageError(str(exc)) from exc
+
+    cfg = load_config(Path("config/settings.toml"))
+    options = QualityRunOptions(
+        mode=mode,
+        tables=tuple(target.table for target in targets),
+        start_date=start_date,
+        end_date=end_date,
+        date=single_date,
+    )
+    report = QualityRunner(cfg.data_dir).run(options)
+    QualityReporter(Path("reports") / "quality").write(report)
+    click.echo(format_summary(report))
+    if report.fail_count > 0:
+        raise click.exceptions.Exit(1)
 
 
 @cli.command("build-universe")
