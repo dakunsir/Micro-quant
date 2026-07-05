@@ -52,6 +52,36 @@ def test_load_config_notifier_enabled_true(tmp_path):
     assert cfg.notifier_enabled is True
 
 
+def test_load_config_defaults_quality_disabled(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        """
+[tushare]
+token = "token"
+
+[paths]
+data_dir = "data"
+db_path = "db/meta.duckdb"
+log_path = "logs/pipeline.log"
+
+[scheduler]
+daily_kline = "18:00"
+
+[notifier]
+wecom_webhook_url = ""
+enabled = false
+""",
+        encoding="utf-8",
+    )
+
+    cfg = load_config(cfg_file)
+
+    assert cfg.quality.enabled is False
+    assert cfg.quality.mode == "daily"
+    assert cfg.quality.markets == ["stock", "index", "etf", "futures", "options"]
+    assert cfg.quality.notify_on == ["warn", "fail"]
+
+
 def test_load_config_file_not_found():
     with pytest.raises(FileNotFoundError, match="配置文件不存在"):
         load_config(Path("nonexistent/settings.toml"))

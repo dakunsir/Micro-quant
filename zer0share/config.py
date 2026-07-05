@@ -5,6 +5,14 @@ import tomllib
 
 
 @dataclass(frozen=True)
+class QualityConfig:
+    enabled: bool
+    mode: str
+    markets: list[str]
+    notify_on: list[str]
+
+
+@dataclass(frozen=True)
 class Config:
     tushare_token: str
     data_dir: Path
@@ -13,6 +21,7 @@ class Config:
     schedule: dict[str, str]  # table_name → "HH:MM"
     wecom_webhook_url: str
     notifier_enabled: bool
+    quality: QualityConfig
 
 
 def _parse_schedule(raw_scheduler: dict) -> dict[str, str]:
@@ -26,6 +35,16 @@ def _parse_schedule(raw_scheduler: dict) -> dict[str, str]:
             raise ValueError(f"调度时间格式错误 ({table}): 期望 'HH:MM', 得到 {time_str!r}")
         schedule[table] = time_str
     return schedule
+
+
+def _parse_quality(raw_quality: dict | None) -> QualityConfig:
+    raw_quality = raw_quality or {}
+    return QualityConfig(
+        enabled=bool(raw_quality.get("enabled", False)),
+        mode=str(raw_quality.get("mode", "daily")),
+        markets=list(raw_quality.get("markets", ["stock", "index", "etf", "futures", "options"])),
+        notify_on=list(raw_quality.get("notify_on", ["warn", "fail"])),
+    )
 
 
 def load_config(path: Path = Path("config/settings.toml")) -> Config:
@@ -45,6 +64,7 @@ def load_config(path: Path = Path("config/settings.toml")) -> Config:
             schedule=_parse_schedule(raw["scheduler"]),
             wecom_webhook_url=raw["notifier"]["wecom_webhook_url"],
             notifier_enabled=raw["notifier"]["enabled"],
+            quality=_parse_quality(raw.get("quality")),
         )
     except KeyError as e:
         raise KeyError(f"配置文件缺少必要字段: {e}") from e
