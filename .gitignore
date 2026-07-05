@@ -12,6 +12,7 @@ config/settings.toml
 data/
 db/
 logs/
+reports/
 
 # Python cache
 __pycache__/

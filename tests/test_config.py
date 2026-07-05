@@ -52,6 +52,68 @@ def test_load_config_notifier_enabled_true(tmp_path):
     assert cfg.notifier_enabled is True
 
 
+def test_load_config_accepts_nested_wecom_notifier(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        """
+[tushare]
+token = "test_token"
+
+[paths]
+data_dir = "data"
+db_path = "db/meta.duckdb"
+log_path = "logs/pipeline.log"
+
+[scheduler]
+daily_kline = "16:30"
+
+[notifier]
+enabled = true
+
+[notifier.wecom]
+enabled = true
+webhook_url = "https://example.com/wecom"
+""",
+        encoding="utf-8",
+    )
+
+    cfg = load_config(cfg_file)
+
+    assert cfg.wecom_webhook_url == "https://example.com/wecom"
+    assert cfg.notifier_enabled is True
+
+
+def test_load_config_disables_wecom_when_nested_wecom_disabled(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        """
+[tushare]
+token = "test_token"
+
+[paths]
+data_dir = "data"
+db_path = "db/meta.duckdb"
+log_path = "logs/pipeline.log"
+
+[scheduler]
+daily_kline = "16:30"
+
+[notifier]
+enabled = true
+
+[notifier.wecom]
+enabled = false
+webhook_url = "https://example.com/wecom"
+""",
+        encoding="utf-8",
+    )
+
+    cfg = load_config(cfg_file)
+
+    assert cfg.wecom_webhook_url == "https://example.com/wecom"
+    assert cfg.notifier_enabled is False
+
+
 def test_load_config_defaults_quality_disabled(tmp_path):
     cfg_file = tmp_path / "settings.toml"
     cfg_file.write_text(
