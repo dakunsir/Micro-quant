@@ -231,11 +231,11 @@ class QualityRunner:
             return []
 
         shared_codes = adjustment_codes & market_codes
-        coverage = len(shared_codes) / max(len(adjustment_codes), len(market_codes))
+        coverage = len(shared_codes) / len(market_codes)
         if coverage >= 0.95:
             return []
 
-        missing_count = max(len(adjustment_codes), len(market_codes)) - len(shared_codes)
+        missing_count = len(market_codes - adjustment_codes)
         return [
             QualityFinding(
                 table=target.table,
@@ -252,6 +252,7 @@ class QualityRunner:
                         "adjustment_ts_codes": len(adjustment_codes),
                         "market_ts_codes": len(market_codes),
                         "shared_ts_codes": len(shared_codes),
+                        "missing_market_ts_codes": missing_count,
                     }
                 ],
             )
