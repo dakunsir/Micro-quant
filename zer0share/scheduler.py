@@ -42,14 +42,14 @@ def run_scheduled_table(cfg, fetcher, notifier: Notifier, table_name: str) -> No
             date=dt.datetime.now().strftime("%Y%m%d"),
         )
         report = QualityRunner(cfg.data_dir).run(options)
-        QualityReporter(Path("reports") / "quality").write(report)
+        output_dir = QualityReporter(Path("reports") / "quality").write(report)
         notify_on = set(quality_cfg.notify_on)
         should_notify = (
             ("fail" in notify_on and report.fail_count > 0)
             or ("warn" in notify_on and report.warn_count > 0)
         )
         if should_notify:
-            notifier.send(f"数据质检发现问题\n{format_summary(report)}")
+            notifier.send(f"数据质检发现问题\n{format_summary(report)}\n报告：{output_dir}")
     except Exception as exc:
         logger.error(f"quality check failed after {table_name}: {exc}")
 
