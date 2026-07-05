@@ -50,9 +50,9 @@ class TableSummary:
             "market": self.market,
             "partitions": self.partitions,
             "rows": self.rows,
-            "pass_count": self.pass_count,
-            "warn_count": self.warn_count,
-            "fail_count": self.fail_count,
+            "pass": self.pass_count,
+            "warn": self.warn_count,
+            "fail": self.fail_count,
         }
 
 
