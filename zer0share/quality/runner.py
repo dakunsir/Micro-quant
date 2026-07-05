@@ -76,7 +76,7 @@ class QualityRunner:
             )
             return self._summary(target, 0, 0, findings), findings
 
-        expected_dates = self._expected_dates(options)
+        expected_dates = self._expected_dates(target, options)
         rows = 0
         partitions = 0
 
@@ -137,11 +137,11 @@ class QualityRunner:
             path = path / part
         return path
 
-    def _expected_dates(self, options: QualityRunOptions) -> list[str]:
+    def _expected_dates(self, target: QualityTarget, options: QualityRunOptions) -> list[str]:
         if options.mode == "full":
             if options.start_date is None or options.end_date is None:
                 raise ValueError("full mode requires start_date and end_date")
-            return self._trading_dates(options.start_date, options.end_date)
+            return self._trading_dates(target, options.start_date, options.end_date)
 
         if options.mode == "daily":
             if options.date is not None:
@@ -154,14 +154,25 @@ class QualityRunner:
 
         raise ValueError(f"unknown quality mode: {options.mode}")
 
-    def _trading_dates(self, start_date: str, end_date: str) -> list[str]:
+    def _calendar_exchanges(self, target: QualityTarget) -> set[str] | None:
+        if target.market in {"stock", "index", "etf"}:
+            return {"SSE", "SZSE"}
+        if target.market == "futures":
+            return {"CFFEX", "CZCE", "DCE", "GFEX", "INE", "SHFE"}
+        return None
+
+    def _trading_dates(self, target: QualityTarget, start_date: str, end_date: str) -> list[str]:
         trade_cal_dir = self.data_dir / "stock" / "trade_cal"
         parquet_paths = sorted(trade_cal_dir.glob("exchange=*/data.parquet"))
         if not parquet_paths:
             return _date_range(start_date, end_date)
 
+        allowed_exchanges = self._calendar_exchanges(target)
         frames: list[pd.DataFrame] = []
         for parquet_path in parquet_paths:
+            exchange = parquet_path.parent.name.removeprefix("exchange=")
+            if allowed_exchanges is not None and exchange not in allowed_exchanges:
+                continue
             try:
                 frame = pd.read_parquet(parquet_path)
             except Exception:

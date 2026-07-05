@@ -28,6 +28,45 @@ def _write_trade_cal(data_dir: Path, dates: list[str]) -> None:
     )
 
 
+def test_runner_ignores_futures_only_trading_days_for_stock_targets(tmp_path):
+    _write_parquet(
+        tmp_path / "stock" / "trade_cal" / "exchange=SSE" / "data.parquet",
+        [
+            {
+                "exchange": "SSE",
+                "cal_date": "20240102",
+                "is_open": False,
+                "pretrade_date": "20231229",
+            }
+        ],
+    )
+    _write_parquet(
+        tmp_path / "stock" / "trade_cal" / "exchange=SHFE" / "data.parquet",
+        [
+            {
+                "exchange": "SHFE",
+                "cal_date": "20240102",
+                "is_open": True,
+                "pretrade_date": "20231229",
+            }
+        ],
+    )
+    (tmp_path / "stock" / "daily_kline").mkdir(parents=True)
+    runner = QualityRunner(tmp_path)
+
+    report = runner.run(
+        QualityRunOptions(
+            mode="full",
+            tables=("daily_kline",),
+            start_date="20240102",
+            end_date="20240102",
+        )
+    )
+
+    assert report.findings == []
+    assert report.summaries[0].partitions == 0
+
+
 def test_runner_reports_missing_partition_from_trade_calendar(tmp_path):
     _write_trade_cal(tmp_path, ["20240102"])
     (tmp_path / "stock" / "daily_kline").mkdir(parents=True)
