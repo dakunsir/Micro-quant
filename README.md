@@ -103,6 +103,7 @@ uv run python main.py sync --table fut_wsr            # 期货仓单日报
 uv run python main.py sync --table fut_settle         # 期货结算参数
 uv run python main.py sync --table fut_mapping        # 期货主力与连续合约映射
 uv run python main.py sync --table ft_limit           # 期货涨跌停价格
+uv run python main.py sync --table fut_weekly         # 期货周线行情
 uv run python main.py sync --table fut_monthly        # 期货月线行情
 uv run python main.py sync --table fut_index_daily    # 期货指数日线行情
 uv run python main.py sync --table fut_weekly_detail  # 期货交易所周度明细
@@ -199,6 +200,18 @@ sudo systemctl restart zer0share-scheduler
 uv run python main.py scheduler start
 ```
 
+## 数据质检
+
+数据质检仅在本地运行，不访问外部服务。支持以下命令：
+
+```bash
+uv run python main.py quality check --all --mode full --start-date 20200101 --end-date 20241231
+uv run python main.py quality check --market stock --mode daily
+uv run python main.py quality check --table daily_kline --mode daily --date 20240701
+```
+
+终端输出的是表级摘要，详细报告写入 `reports/quality/YYYYMMDD_HHMMSS/`。
+
 ## 本地查询 API
 
 同步完成后，可以在研究代码中使用类似 Tushare Pro 的本地 Python API 查询数据。查询只读取本地 Parquet 文件，通过 DuckDB 执行，不会访问 Tushare，也不会消耗积分。
@@ -274,6 +287,7 @@ fut_contracts = pro.fut_basic(exchange="SHFE")                                  
 fut_bar = pro.fut_daily(ts_code="RB2410.SHFE", start_date="20240101", end_date="20240331")
 fut_holding = pro.fut_holding(trade_date="20240131", exchange="SHFE")             # 某日持仓排名
 fut_mapping = pro.fut_mapping(ts_code="RB.SHFE", start_date="20240101", end_date="20240331")  # 主连映射
+fut_weekly = pro.fut_weekly(ts_code="RB2501.SHFE", start_date="20240101", end_date="20240331")
 
 # 期权数据
 opt_contracts = pro.opt_basic(exchange="SSE", call_put="C")           # 上交所认购期权合约列表
@@ -314,6 +328,7 @@ opt_snapshot = pro.opt_daily(trade_date="20240102", exchange="SSE")   # 某日�
 | `fut_settle` | 查询已同步的期货结算参数 |
 | `fut_mapping` | 查询已同步的期货主力与连续合约映射 |
 | `ft_limit` | 查询已同步的期货涨跌停价格 |
+| `fut_weekly` | 查询已同步的期货周线行情 |
 | `fut_monthly` | 查询已同步的期货月线行情 |
 | `fut_index_daily` | 查询已同步的期货指数日线行情 |
 | `fut_weekly_detail` | 查询已同步的期货交易所周度明细 |
@@ -321,20 +336,18 @@ opt_snapshot = pro.opt_daily(trade_date="20240102", exchange="SSE")   # 某日�
 | `opt_daily` | 查询已同步的期权日线行情（支持按交易所过滤） |
 | `query` | 按接口名分发，例如 `pro.query("daily", ...)` |
 
-运行冒烟测试（`examples/futures/` 和 `examples/options/` 目录下各有独立脚本）：
+运行冒烟测试。完整示例清单和默认参数见 [examples/README.md](examples/README.md)。
 
 ```bash
-# 期货示例
-uv run python examples/futures/fut_daily_query_smoke.py
-uv run python examples/futures/fut_holding_query_smoke.py
-uv run python examples/futures/fut_settle_query_smoke.py
-uv run python examples/futures/ft_limit_query_smoke.py
-
-# 期权示例
-uv run python examples/options/opt_basic_query_smoke.py
-uv run python examples/options/opt_daily_query_smoke.py
+# 股票示例
+uv run python examples/stock/basic_query_smoke.py
+uv run python examples/stock/daily_query_smoke.py
+uv run python examples/stock/adj_factor_query_smoke.py
 
 # ETF 示例
+uv run python examples/etf/etf_basic_query_smoke.py
+uv run python examples/etf/etf_index_query_smoke.py
+uv run python examples/etf/fund_daily_query_smoke.py
 uv run python examples/etf/etf_share_size_query_smoke.py
 uv run python examples/etf/etf_sh_cons_query_smoke.py
 
@@ -342,6 +355,18 @@ uv run python examples/etf/etf_sh_cons_query_smoke.py
 uv run python examples/index/index_daily_query_smoke.py
 uv run python examples/index/index_weight_query_smoke.py
 uv run python examples/index/idx_anns_query_smoke.py
+
+# 期货示例
+uv run python examples/futures/fut_basic_query_smoke.py
+uv run python examples/futures/fut_daily_query_smoke.py
+uv run python examples/futures/fut_holding_query_smoke.py
+uv run python examples/futures/fut_settle_query_smoke.py
+uv run python examples/futures/fut_weekly_monthly_query_smoke.py
+uv run python examples/futures/ft_limit_query_smoke.py
+
+# 期权示例
+uv run python examples/options/opt_basic_query_smoke.py
+uv run python examples/options/opt_daily_query_smoke.py
 ```
 
 ## 数据存储结构
@@ -412,6 +437,7 @@ data/
 │   ├── fut_settle/date=YYYYMMDD/data.parquet
 │   ├── fut_mapping/date=YYYYMMDD/data.parquet
 │   ├── ft_limit/date=YYYYMMDD/data.parquet
+│   ├── fut_weekly/date=YYYYMMDD/data.parquet
 │   ├── fut_monthly/date=YYYYMMDD/data.parquet
 │   ├── fut_index_daily/date=YYYYMMDD/data.parquet
 │   └── fut_weekly_detail/date=YYYYMMDD/data.parquet
@@ -445,7 +471,6 @@ db/
 | `sync --table fund_adj` | 同步基金复权因子 |
 | `sync --table etf_share_size` | 同步 ETF 份额规模 |
 | `sync --table etf_sh_cons` | 同步上交所 ETF 每日持仓组合 |
-| `sync --etf` | 同步 ETF 专题全部表 |
 | `sync --table fut_basic` | 同步期货合约基础信息 |
 | `sync --table fut_daily` | 增量同步期货日线行情 |
 | `sync --table fut_holding` | 增量同步期货持仓排名 |
@@ -453,12 +478,17 @@ db/
 | `sync --table fut_settle` | 增量同步期货结算参数 |
 | `sync --table fut_mapping` | 增量同步期货主力与连续合约映射 |
 | `sync --table ft_limit` | 增量同步期货涨跌停价格 |
+| `sync --table fut_weekly` | 增量同步期货周线行情 |
 | `sync --table fut_monthly` | 增量同步期货月线行情 |
 | `sync --table fut_index_daily` | 增量同步期货指数日线行情 |
 | `sync --table fut_weekly_detail` | 增量同步期货交易所周度明细 |
 | `sync --table opt_basic` | 同步期权合约基础信息（全量覆盖） |
 | `sync --table opt_daily` | 增量同步期权日线行情 |
 | `sync --all` | 按顺序同步全部 |
+| `sync --stock` | 按顺序同步股票核心与指数、行业相关表 |
+| `sync --futures` | 按顺序同步期货相关表 |
+| `sync --options` | 按顺序同步期权相关表 |
+| `sync --etf` | 按顺序同步 ETF 专题表 |
 | `build-universe` | 从 2016-01-01 到今天增量构建 5 个股票池 |
 | `build-universe --start-date YYYYMMDD --end-date YYYYMMDD` | 构建指定区间的 5 个股票池 |
 | `build-universe --date YYYYMMDD` | 构建指定交易日的 5 个股票池 |
@@ -513,18 +543,24 @@ uv run pytest tests/test_pipeline.py -v
 
 ```
 zer0share/
-├── config.py     # 配置加载
 ├── api.py        # 本地 Tushare-like 查询 API
+├── catalog.py    # 本地表结构、路径和查询规格
+├── cli.py        # Click CLI 入口
+├── config.py     # 配置加载
 ├── fetcher.py    # Tushare API 封装
-├── storage.py    # Parquet 读写 + DuckDB MetaStore
-├── pipeline.py   # 同步业务逻辑
+├── pipeline.py   # 同步任务编排
+├── query/        # 本地查询实现
 ├── scheduler.py  # APScheduler 定时任务
-├── notifier.py   # 企业微信 Webhook 通知
-└── cli.py        # Click CLI 入口
+├── storage.py    # Parquet 读写 + DuckDB MetaStore
+├── sync/         # 各专题同步任务
+└── universe.py   # 股票池构建
 tests/            # pytest 测试套件
 examples/
-├── futures/      # 期货本地查询冒烟测试（fut_daily、fut_holding、fut_settle 等）
-└── options/      # 期权本地查询冒烟测试（opt_basic、opt_daily）
+├── stock/        # 股票本地查询冒烟测试
+├── etf/          # ETF 本地查询冒烟测试
+├── futures/      # 期货本地查询冒烟测试
+├── index/        # 指数本地查询冒烟测试
+└── options/      # 期权本地查询冒烟测试
 config/
 └── settings.example.toml
 ```
