@@ -101,6 +101,8 @@ STOCK_TABLES = [
 RICEQUANT_TABLES = [
     "ricequant_basic",
     "ricequant_stock_minute",
+    "ricequant_etf_basic",
+    "ricequant_etf_minute",
 ]
 
 SYNC_TABLES = [
