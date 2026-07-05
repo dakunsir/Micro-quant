@@ -83,3 +83,47 @@ def test_runner_passes_valid_daily_kline_partition(tmp_path):
     assert report.warn_count == 0
     assert report.summaries[0].rows == 1
     assert report.summaries[0].partitions == 1
+
+
+def test_runner_warns_when_adjustment_coverage_is_low(tmp_path):
+    _write_trade_cal(tmp_path, ["20240102"])
+    _write_parquet(
+        tmp_path / "stock" / "adj_factor" / "date=20240102" / "data.parquet",
+        [
+            {"ts_code": "000001.SZ", "trade_date": "20240102", "adj_factor": 1.0},
+            {"ts_code": "000002.SZ", "trade_date": "20240102", "adj_factor": 1.0},
+        ],
+    )
+    _write_parquet(
+        tmp_path / "stock" / "daily_kline" / "date=20240102" / "data.parquet",
+        [
+            {
+                "ts_code": "000001.SZ",
+                "trade_date": "20240102",
+                "open": 10.0,
+                "high": 11.0,
+                "low": 9.0,
+                "close": 10.5,
+                "pre_close": 10.0,
+                "change": 0.5,
+                "pct_chg": 5.0,
+                "vol": 100.0,
+                "amount": 1000.0,
+            }
+        ],
+    )
+    runner = QualityRunner(tmp_path)
+
+    report = runner.run(
+        QualityRunOptions(
+            mode="full",
+            tables=("adj_factor",),
+            start_date="20240102",
+            end_date="20240102",
+        )
+    )
+
+    assert report.fail_count == 0
+    assert report.warn_count == 1
+    assert report.findings[0].rule == "adjustment_market_coverage"
+    assert report.findings[0].severity.value == "warn"

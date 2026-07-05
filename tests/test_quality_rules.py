@@ -3,6 +3,7 @@ import pandas as pd
 from zer0share.quality.models import QualityFinding, Severity
 from zer0share.quality.rules import (
     check_adjustment_factor_values,
+    check_adjustment_factor_jumps,
     check_duplicate_key,
     check_market_data_values,
     check_required_columns,
@@ -102,3 +103,20 @@ def test_check_adjustment_factor_values_finds_non_positive_factor():
     assert len(findings) == 1
     assert findings[0].severity == Severity.FAIL
     assert findings[0].rule == "positive_adj_factor"
+
+
+def test_check_adjustment_factor_jumps_warns_on_large_change():
+    df = pd.DataFrame(
+        [
+            {"ts_code": "000001.SZ", "trade_date": "20240102", "adj_factor": 1.0},
+            {"ts_code": "000001.SZ", "trade_date": "20240103", "adj_factor": 1.8},
+        ]
+    )
+
+    findings = check_adjustment_factor_jumps("adj_factor", df, threshold=0.5)
+
+    assert len(findings) == 1
+    assert findings[0].severity == Severity.WARN
+    assert findings[0].rule == "adj_factor_jump"
+    assert findings[0].count == 1
+    assert findings[0].date == "20240103"

@@ -14,6 +14,7 @@ from zer0share.quality.models import (
 )
 from zer0share.quality.rules import (
     check_adjustment_factor_values,
+    check_adjustment_factor_jumps,
     check_duplicate_key,
     check_market_data_values,
     check_required_columns,
@@ -125,6 +126,8 @@ class QualityRunner:
                 )
 
             findings.extend(self._check_frame(target, date_value, df))
+            if target.kind == "adjustment":
+                findings.extend(self._check_adjustment_market_coverage(target, date_value, df))
 
         return self._summary(target, partitions, rows, findings), findings
 
@@ -196,7 +199,63 @@ class QualityRunner:
             findings.extend(check_market_data_values(target.table, date_value, df))
         elif target.kind == "adjustment":
             findings.extend(check_adjustment_factor_values(target.table, date_value, df))
+            findings.extend(check_adjustment_factor_jumps(target.table, df))
         return findings
+
+    def _check_adjustment_market_coverage(
+        self,
+        target: QualityTarget,
+        date_value: str,
+        adjustment_df: pd.DataFrame,
+    ) -> list[QualityFinding]:
+        if target.related_table is None:
+            return []
+
+        related_target = get_targets([target.related_table])[0]
+        related_dir = self._target_dir(related_target)
+        related_path = related_dir / f"date={date_value}" / "data.parquet"
+        if not related_path.exists():
+            return []
+
+        try:
+            market_df = pd.read_parquet(related_path)
+        except Exception:  # pragma: no cover - exercised through integration tests
+            return []
+
+        if "ts_code" not in adjustment_df.columns or "ts_code" not in market_df.columns:
+            return []
+
+        adjustment_codes = set(adjustment_df["ts_code"].dropna().astype(str))
+        market_codes = set(market_df["ts_code"].dropna().astype(str))
+        if not adjustment_codes or not market_codes:
+            return []
+
+        shared_codes = adjustment_codes & market_codes
+        coverage = len(shared_codes) / max(len(adjustment_codes), len(market_codes))
+        if coverage >= 0.95:
+            return []
+
+        missing_count = max(len(adjustment_codes), len(market_codes)) - len(shared_codes)
+        return [
+            QualityFinding(
+                table=target.table,
+                date=date_value,
+                severity=Severity.WARN,
+                rule="adjustment_market_coverage",
+                count=missing_count,
+                message=(
+                    f"distinct ts_code coverage against {related_target.table} is {coverage:.1%}, "
+                    "below the 95% warning threshold"
+                ),
+                sample=[
+                    {
+                        "adjustment_ts_codes": len(adjustment_codes),
+                        "market_ts_codes": len(market_codes),
+                        "shared_ts_codes": len(shared_codes),
+                    }
+                ],
+            )
+        ]
 
     def _summary(
         self,

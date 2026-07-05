@@ -180,3 +180,36 @@ def check_adjustment_factor_values(
             sample=_sample(bad, ["ts_code", "trade_date", "adj_factor"]),
         )
     ]
+
+
+def check_adjustment_factor_jumps(
+    table: str,
+    df: pd.DataFrame,
+    threshold: float = 0.5,
+) -> list[QualityFinding]:
+    required_columns = ["ts_code", "trade_date", "adj_factor"]
+    if any(column not in df.columns for column in required_columns):
+        return []
+
+    ordered = df.sort_values(["ts_code", "trade_date"]).copy()
+    ordered["prev_adj_factor"] = ordered.groupby("ts_code")["adj_factor"].shift(1)
+    valid = ordered["prev_adj_factor"].notna() & (ordered["prev_adj_factor"] > 0)
+    if not valid.any():
+        return []
+
+    ordered["relative_change"] = (ordered["adj_factor"] / ordered["prev_adj_factor"]) - 1
+    jumps = ordered[valid & (ordered["relative_change"].abs() > threshold)]
+    if jumps.empty:
+        return []
+
+    return [
+        QualityFinding(
+            table=table,
+            date=str(jumps.iloc[0]["trade_date"]),
+            severity=Severity.WARN,
+            rule="adj_factor_jump",
+            count=len(jumps),
+            message=f"adj_factor changed by more than {threshold:.0%} compared with the previous row for the same ts_code",
+            sample=_sample(jumps, ["ts_code", "trade_date", "prev_adj_factor", "adj_factor", "relative_change"]),
+        )
+    ]
