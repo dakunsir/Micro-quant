@@ -181,16 +181,22 @@ class RiceQuantETFMinuteSyncJob(SyncJob):
         adjust_type = self.cfg.ricequant.etf_minute.adjust_type
         skip_suspended = self.cfg.ricequant.etf_minute.skip_suspended
         current_meta = rt.meta.get_last_date(ETF_MINUTE_TABLE_NAME)
+
+        logger.info(f"{ETF_MINUTE_TABLE_NAME}: start sync {start} ~ {end}, total {len(trading_days)} trading days")
+
         for trade_date in trading_days:
             if self.store.exists(trade_date):
                 if current_meta is None or trade_date > current_meta:
                     rt.meta.update_last_date(ETF_MINUTE_TABLE_NAME, trade_date)
                     current_meta = trade_date
+                logger.info(f"{ETF_MINUTE_TABLE_NAME}: {trade_date} already exists, skipped")
                 continue
 
             frames = []
             failures = []
             started = time.monotonic()
+            logger.info(f"{ETF_MINUTE_TABLE_NAME}: fetching {trade_date}, {len(order_book_ids)} ETFs in {len(list(_chunks(order_book_ids, batch_size)))} batches")
+
             for batch in _chunks(order_book_ids, batch_size):
                 try:
                     df = self.fetcher.fetch_etf_minute(
@@ -224,8 +230,10 @@ class RiceQuantETFMinuteSyncJob(SyncJob):
                 f"{ETF_MINUTE_TABLE_NAME} 同步完成\n"
                 f"日期：{trade_date}｜写入 {len(combined)} 行｜失败 {len(failures)}｜耗时 {elapsed}"
             )
+            logger.info(f"{ETF_MINUTE_TABLE_NAME}: {trade_date} done, wrote {len(combined)} rows, {len(failures)} failures, elapsed {elapsed}")
             if failures:
                 message += "\n失败样例：" + "; ".join(f"{code}: {err}" for code, err in failures[:5])
+                logger.warning(f"{ETF_MINUTE_TABLE_NAME}: {trade_date} failures: {failures[:5]}")
             rt.notifier.send(message)
 
 
