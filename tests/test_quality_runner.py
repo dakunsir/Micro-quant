@@ -223,3 +223,133 @@ def test_runner_does_not_warn_when_adjustment_has_extra_codes(tmp_path):
         finding for finding in report.findings
         if finding.rule == "adjustment_market_coverage"
     ]
+
+
+def test_runner_warns_when_stock_adjusted_return_jumps(tmp_path):
+    _write_trade_cal(tmp_path, ["20240102", "20240103"])
+    for date, close in [("20240102", 10.0), ("20240103", 15.0)]:
+        _write_parquet(
+            tmp_path / "stock" / "daily_kline" / f"date={date}" / "data.parquet",
+            [
+                {
+                    "ts_code": "000001.SZ",
+                    "trade_date": date,
+                    "open": close,
+                    "high": close,
+                    "low": close,
+                    "close": close,
+                    "pre_close": close,
+                    "change": 0.0,
+                    "pct_chg": 0.0,
+                    "vol": 100.0,
+                    "amount": 1000.0,
+                }
+            ],
+        )
+        _write_parquet(
+            tmp_path / "stock" / "adj_factor" / f"date={date}" / "data.parquet",
+            [{"ts_code": "000001.SZ", "trade_date": date, "adj_factor": 1.0}],
+        )
+    runner = QualityRunner(tmp_path)
+
+    report = runner.run(
+        QualityRunOptions(
+            mode="full",
+            tables=("adj_factor",),
+            start_date="20240102",
+            end_date="20240103",
+        )
+    )
+
+    jump_findings = [finding for finding in report.findings if finding.rule == "adjusted_return_jump"]
+    assert len(jump_findings) == 1
+    assert jump_findings[0].severity.value == "warn"
+    assert jump_findings[0].date == "20240103"
+    assert jump_findings[0].sample[0]["adjusted_return"] == 0.5
+
+
+def test_runner_uses_adjusted_close_for_return_jump_detection(tmp_path):
+    _write_trade_cal(tmp_path, ["20240102", "20240103"])
+    for date, close, adj_factor in [
+        ("20240102", 10.0, 1.0),
+        ("20240103", 5.0, 2.0),
+    ]:
+        _write_parquet(
+            tmp_path / "stock" / "daily_kline" / f"date={date}" / "data.parquet",
+            [
+                {
+                    "ts_code": "000001.SZ",
+                    "trade_date": date,
+                    "open": close,
+                    "high": close,
+                    "low": close,
+                    "close": close,
+                    "pre_close": close,
+                    "change": 0.0,
+                    "pct_chg": 0.0,
+                    "vol": 100.0,
+                    "amount": 1000.0,
+                }
+            ],
+        )
+        _write_parquet(
+            tmp_path / "stock" / "adj_factor" / f"date={date}" / "data.parquet",
+            [{"ts_code": "000001.SZ", "trade_date": date, "adj_factor": adj_factor}],
+        )
+    runner = QualityRunner(tmp_path)
+
+    report = runner.run(
+        QualityRunOptions(
+            mode="full",
+            tables=("adj_factor",),
+            start_date="20240102",
+            end_date="20240103",
+        )
+    )
+
+    assert not [
+        finding for finding in report.findings
+        if finding.rule == "adjusted_return_jump"
+    ]
+
+
+def test_runner_ignores_bj_codes_for_adjusted_return_jump_detection(tmp_path):
+    _write_trade_cal(tmp_path, ["20240102", "20240103"])
+    for date, close in [("20240102", 10.0), ("20240103", 20.0)]:
+        _write_parquet(
+            tmp_path / "stock" / "daily_kline" / f"date={date}" / "data.parquet",
+            [
+                {
+                    "ts_code": "920001.BJ",
+                    "trade_date": date,
+                    "open": close,
+                    "high": close,
+                    "low": close,
+                    "close": close,
+                    "pre_close": close,
+                    "change": 0.0,
+                    "pct_chg": 0.0,
+                    "vol": 100.0,
+                    "amount": 1000.0,
+                }
+            ],
+        )
+        _write_parquet(
+            tmp_path / "stock" / "adj_factor" / f"date={date}" / "data.parquet",
+            [{"ts_code": "920001.BJ", "trade_date": date, "adj_factor": 1.0}],
+        )
+    runner = QualityRunner(tmp_path)
+
+    report = runner.run(
+        QualityRunOptions(
+            mode="full",
+            tables=("adj_factor",),
+            start_date="20240102",
+            end_date="20240103",
+        )
+    )
+
+    assert not [
+        finding for finding in report.findings
+        if finding.rule == "adjusted_return_jump"
+    ]

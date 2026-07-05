@@ -21,6 +21,8 @@ from zer0share.quality.rules import (
 )
 from zer0share.quality.targets import QualityTarget, get_targets
 
+AdjustedReturnState = dict[str, tuple[str, float]]
+
 
 def _date_range(start_date: str, end_date: str) -> list[str]:
     start = dt.datetime.strptime(start_date, "%Y%m%d").date()
@@ -79,6 +81,7 @@ class QualityRunner:
         expected_dates = self._expected_dates(target, options)
         rows = 0
         partitions = 0
+        adjusted_return_state: AdjustedReturnState = {}
 
         for date_value in expected_dates:
             parquet_path = target_dir / f"date={date_value}" / "data.parquet"
@@ -128,6 +131,14 @@ class QualityRunner:
             findings.extend(self._check_frame(target, date_value, df))
             if target.kind == "adjustment":
                 findings.extend(self._check_adjustment_market_coverage(target, date_value, df))
+                findings.extend(
+                    self._check_adjusted_return_jumps(
+                        target,
+                        date_value,
+                        df,
+                        adjusted_return_state,
+                    )
+                )
 
         return self._summary(target, partitions, rows, findings), findings
 
@@ -268,6 +279,101 @@ class QualityRunner:
                 ],
             )
         ]
+
+    def _check_adjusted_return_jumps(
+        self,
+        target: QualityTarget,
+        date_value: str,
+        adjustment_df: pd.DataFrame,
+        state: AdjustedReturnState,
+    ) -> list[QualityFinding]:
+        if target.related_table is None:
+            return []
+
+        related_target = get_targets([target.related_table])[0]
+        related_dir = self._target_dir(related_target)
+        related_path = related_dir / f"date={date_value}" / "data.parquet"
+        if not related_path.exists():
+            return []
+
+        try:
+            market_df = pd.read_parquet(related_path, columns=["ts_code", "trade_date", "close"])
+        except Exception:  # pragma: no cover - exercised through integration tests
+            return []
+
+        required_adjustment_columns = {"ts_code", "trade_date", "adj_factor"}
+        if not required_adjustment_columns.issubset(adjustment_df.columns):
+            return []
+        if not {"ts_code", "trade_date", "close"}.issubset(market_df.columns):
+            return []
+
+        current = market_df.merge(
+            adjustment_df[["ts_code", "trade_date", "adj_factor"]],
+            on=["ts_code", "trade_date"],
+            how="inner",
+        )
+        if current.empty:
+            return []
+
+        current = current[~current["ts_code"].astype(str).str.endswith(".BJ")]
+        if current.empty:
+            return []
+
+        current["close"] = pd.to_numeric(current["close"], errors="coerce")
+        current["adj_factor"] = pd.to_numeric(current["adj_factor"], errors="coerce")
+        current["adj_close"] = current["close"] * current["adj_factor"]
+        current = current[current["adj_close"].notna() & (current["adj_close"] > 0)]
+        if current.empty:
+            return []
+
+        threshold = self._adjusted_return_threshold(target)
+        jumps: list[dict[str, object]] = []
+        for row in current.itertuples(index=False):
+            ts_code = str(row.ts_code)
+            adj_close = float(row.adj_close)
+            previous = state.get(ts_code)
+            if previous is not None:
+                prev_date, prev_adj_close = previous
+                adjusted_return = adj_close / prev_adj_close - 1
+                if abs(adjusted_return) > threshold:
+                    jumps.append(
+                        {
+                            "ts_code": ts_code,
+                            "trade_date": str(row.trade_date),
+                            "close": float(row.close),
+                            "adj_factor": float(row.adj_factor),
+                            "adj_close": adj_close,
+                            "prev_trade_date": prev_date,
+                            "prev_adj_close": prev_adj_close,
+                            "adjusted_return": round(adjusted_return, 6),
+                        }
+                    )
+            state[ts_code] = (str(row.trade_date), adj_close)
+
+        if not jumps:
+            return []
+
+        return [
+            QualityFinding(
+                table=target.table,
+                date=date_value,
+                severity=Severity.WARN,
+                rule="adjusted_return_jump",
+                count=len(jumps),
+                message=(
+                    f"absolute adjusted close return exceeds {threshold:.0%}; "
+                    "check market close and adjustment factor continuity"
+                ),
+                sample=jumps[:5],
+            )
+        ]
+
+    def _adjusted_return_threshold(self, target: QualityTarget) -> float:
+        if target.market == "stock":
+            return 0.35
+        if target.market == "etf":
+            return 0.50
+        return 0.50
 
     def _summary(
         self,
