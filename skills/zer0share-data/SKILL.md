@@ -1,6 +1,6 @@
 ---
 name: zer0share-data
-description: 面向中文自然语言的 zer0share 本地金融数据查询技能。用于把股票、指数、行业、期货、期权、股票池、复权行情等请求转成 zer0share 的 Tushare-like 本地查询流程。适用于已经用 zer0share 同步到本地 Parquet/DuckDB 数据的 A 股、期货和期权研究场景；查询不访问在线 Tushare，不消耗 Tushare 积分。
+description: 面向中文自然语言的 zer0share 本地金融数据查询技能。用于把股票、ETF、指数、行业、期货、期权、股票池、复权行情等请求转成 zer0share 的 Tushare-like 本地查询流程。适用于已经用 zer0share 同步到本地 Parquet/DuckDB 数据的 A 股、ETF、期货和期权研究场景；查询不访问在线 Tushare，不消耗 Tushare 积分。
 ---
 
 # zer0share-data
@@ -72,6 +72,7 @@ Map user language to local interfaces:
 - 估值和每日指标: `daily_basic`
 - ST、停牌、涨跌停: `stock_st`, `suspend_d`, `stk_limit`
 - 指数行情和成分: `index_daily`, `index_weight`
+- ETF: `etf_basic`, `etf_index`, `fund_daily`, `fund_adj`, `etf_share_size`
 - 行业分类和成分: `index_classify`, `index_member_all`, `ci_index_member`
 - 股票池: `universe`
 - 期货: `fut_basic`, `fut_daily`, `fut_holding`, `fut_wsr`, `fut_settle`, `fut_mapping`, `ft_limit`, `fut_weekly`, `fut_monthly`, `fut_index_daily`, `fut_weekly_detail`

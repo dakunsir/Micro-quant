@@ -121,6 +121,51 @@ def test_build_universe_rejects_date_with_range():
     assert "--date cannot be used with --start-date or --end-date" in result.output
 
 
+def test_quality_check_full_requires_date_range():
+    runner = CliRunner()
+
+    result = runner.invoke(cli, ["quality", "check", "--all", "--mode", "full"])
+
+    assert result.exit_code != 0
+    assert "full mode requires --start-date and --end-date" in result.output
+
+
+def test_quality_check_runs_selected_table(tmp_path):
+    runner = CliRunner()
+    cfg = MagicMock()
+    cfg.data_dir = tmp_path
+
+    fake_report = MagicMock()
+    fake_report.fail_count = 0
+    fake_report.warn_count = 0
+
+    with (
+        patch("zer0share.cli.load_config", return_value=cfg),
+        patch("zer0share.cli.QualityRunner") as runner_cls,
+        patch("zer0share.cli.QualityReporter") as reporter_cls,
+        patch("zer0share.cli.format_summary", return_value="quality summary"),
+    ):
+        runner_cls.return_value.run.return_value = fake_report
+        reporter_cls.return_value.write.return_value = tmp_path / "reports"
+        result = runner.invoke(
+            cli,
+            [
+                "quality",
+                "check",
+                "--table",
+                "daily_kline",
+                "--mode",
+                "daily",
+                "--date",
+                "20240102",
+            ],
+        )
+
+    assert result.exit_code == 0
+    assert "quality summary" in result.output
+    runner_cls.return_value.run.assert_called_once()
+
+
 def test_sync_industry_calls_pipeline():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
@@ -326,6 +371,32 @@ def test_sync_ft_limit_accepts_date_range():
     assert result.exit_code == 0
     pipeline.run.assert_called_once_with(
         "ft_limit",
+        start_date="20240101",
+        end_date="20240131",
+    )
+
+
+def test_sync_fut_weekly_accepts_date_range():
+    runner = CliRunner()
+    pipeline = _make_mock_pipeline()
+
+    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+        result = runner.invoke(
+            cli,
+            [
+                "sync",
+                "--table",
+                "fut_weekly",
+                "--start-date",
+                "20240101",
+                "--end-date",
+                "20240131",
+            ],
+        )
+
+    assert result.exit_code == 0
+    pipeline.run.assert_called_once_with(
+        "fut_weekly",
         start_date="20240101",
         end_date="20240131",
     )

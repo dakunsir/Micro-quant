@@ -69,6 +69,14 @@ df = pro.query("daily", ts_code="000001.SZ", start_date="20240101", end_date="20
   - ETF basic information, including tracking index, manager, listing status, and fund type.
   - `mgr` and `mgr_name` both filter the stored `mgr_name` column. If both are provided, they must match.
 
+- `etf_index(ts_code=None, pub_date=None, base_date=None, fields=None, limit=None, offset=None)`
+  - Local sync table: `etf_index`
+  - ETF benchmark index metadata.
+
+- `fund_daily(ts_code=None, trade_date=None, start_date=None, end_date=None, fields=None, limit=None, offset=None)`
+  - Local sync table: `fund_daily`
+  - ETF daily OHLCV bars.
+
 - `fund_adj(ts_code=None, trade_date=None, start_date=None, end_date=None, fields=None, limit=None, offset=None)`
   - Local sync table: `fund_adj`
   - Fund adjustment factors used for adjusted fund price calculations.
@@ -156,8 +164,7 @@ df = pro.query("daily", ts_code="000001.SZ", start_date="20240101", end_date="20
 
 ## Unsupported Tushare Areas
 
-zer0share does not currently expose local finance statements, macro data, realtime quotes, news, announcements, funds, Hong Kong stocks, or US stocks. If users ask for these, state that the local skill cannot answer from current synced zer0share data.
-
+zer0share does not currently expose local finance statements, macro data, realtime quotes, news, announcements, non-ETF fund interfaces, Hong Kong stocks, or US stocks. If users ask for these, state that the local skill cannot answer from current synced zer0share data.
 
 
 ## RiceQuant local API

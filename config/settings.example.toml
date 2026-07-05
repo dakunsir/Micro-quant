@@ -62,3 +62,9 @@ request_sleep_seconds = 0.2
 batch_size = 1000
 adjust_type = "none"
 skip_suspended = true
+
+[quality]
+enabled = false
+mode = "daily"
+markets = ["stock", "index", "etf", "futures", "options"]
+notify_on = ["warn", "fail"]
