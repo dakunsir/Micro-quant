@@ -106,6 +106,28 @@ ETF_SH_CONS_COLS = [
     "sca",
     "exchange",
 ]
+RICEQUANT_ETF_BASIC_COLS = [
+    "order_book_id",
+    "symbol",
+    "type",
+    "market",
+    "status",
+]
+RICEQUANT_ETF_MINUTE_COLS = [
+    "order_book_id",
+    "datetime",
+    "open",
+    "close",
+    "high",
+    "low",
+    "limit_up",
+    "limit_down",
+    "total_turnover",
+    "volume",
+    "num_trades",
+    "prev_close",
+    "trade_date",
+]
 SW_CLASSIFY_COLS = [
     "index_code", "industry_name", "level", "parent_code",
     "industry_code", "is_pub", "src",

@@ -39,6 +39,8 @@ fut_weekly_detail = "17:50"
 opt_basic         = "17:53"
 opt_daily         = "17:56"
 ricequant_stock_minute = "16:30"
+ricequant_etf_basic = "02:10"
+ricequant_etf_minute = "16:35"
 
 [notifier]
 enabled = false  # 至少启用一个通道后改为 true
@@ -60,6 +62,13 @@ license_key = ""
 [ricequant.stock_minute]
 request_sleep_seconds = 0.2
 batch_size = 1000
+adjust_type = "none"
+skip_suspended = true
+
+[ricequant.etf_minute]
+enabled = false
+request_sleep_seconds = 0.2
+batch_size = 500
 adjust_type = "none"
 skip_suspended = true
 

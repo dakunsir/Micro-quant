@@ -13,6 +13,15 @@ class RiceQuantStockMinuteConfig:
 
 
 @dataclass(frozen=True)
+class RiceQuantETFMinuteConfig:
+    enabled: bool
+    request_sleep_seconds: float
+    batch_size: int
+    adjust_type: str
+    skip_suspended: bool
+
+
+@dataclass(frozen=True)
 class WeComNotifierConfig:
     enabled: bool
     webhook_url: str
@@ -38,6 +47,7 @@ class RiceQuantConfig:
     password: str
     license_key: str
     stock_minute: RiceQuantStockMinuteConfig
+    etf_minute: RiceQuantETFMinuteConfig
 
 
 @dataclass(frozen=True)
@@ -68,6 +78,12 @@ def _parse_ricequant(raw: dict) -> RiceQuantConfig:
     adjust_type = raw_stock_minute.get("adjust_type", "none")
     if adjust_type != "none":
         raise ValueError("ricequant.stock_minute.adjust_type currently only supports 'none'")
+
+    raw_etf_minute = raw_rq.get("etf_minute", {})
+    etf_adjust_type = raw_etf_minute.get("adjust_type", "none")
+    if etf_adjust_type != "none":
+        raise ValueError("ricequant.etf_minute.adjust_type currently only supports 'none'")
+
     enabled = bool(raw_rq.get("enabled", False))
     username = str(raw_rq.get("username", ""))
     password = str(raw_rq.get("password", ""))
@@ -87,6 +103,13 @@ def _parse_ricequant(raw: dict) -> RiceQuantConfig:
             batch_size=int(raw_stock_minute.get("batch_size", 1000)),
             adjust_type=adjust_type,
             skip_suspended=bool(raw_stock_minute.get("skip_suspended", True)),
+        ),
+        etf_minute=RiceQuantETFMinuteConfig(
+            enabled=bool(raw_etf_minute.get("enabled", False)),
+            request_sleep_seconds=float(raw_etf_minute.get("request_sleep_seconds", 0.2)),
+            batch_size=int(raw_etf_minute.get("batch_size", 500)),
+            adjust_type=etf_adjust_type,
+            skip_suspended=bool(raw_etf_minute.get("skip_suspended", True)),
         ),
     )
 

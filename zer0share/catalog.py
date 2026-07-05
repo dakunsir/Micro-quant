@@ -36,6 +36,8 @@ from zer0share.schema import (
     INDEX_WEIGHT_COLS,
     OPT_BASIC_COLS,
     OPT_DAILY_COLS,
+    RICEQUANT_ETF_BASIC_COLS,
+    RICEQUANT_ETF_MINUTE_COLS,
     STOCK_ST_COLS,
     STK_LIMIT_COLS,
     SUSPEND_D_COLS,
@@ -234,6 +236,34 @@ ETF_SH_CONS_SPEC = DailyTableSpec(
     union_by_name=True,
     first_date="20100101",
 )
+
+# ---------------------------------------------------------------------------
+# RiceQuant
+# ---------------------------------------------------------------------------
+
+RICEQUANT_ETF_BASIC_SPEC = TableSpec(
+    name="ricequant_etf_basic",
+    path_parts=("ricequant", "etf_basic"),
+    columns=RICEQUANT_ETF_BASIC_COLS,
+    parquet_pattern="data.parquet",
+    sync_table="ricequant_etf_basic",
+    order_by="order_book_id",
+)
+
+RICEQUANT_ETF_MINUTE_SPEC = DailyTableSpec(
+    name="ricequant_etf_minute",
+    path_parts=("ricequant", "etf_minute"),
+    columns=RICEQUANT_ETF_MINUTE_COLS,
+    parquet_pattern="date=*/data.parquet",
+    sync_table="ricequant_etf_minute",
+    order_by="order_book_id, datetime",
+    hive_partitioning=True,
+    union_by_name=True,
+)
+
+# ---------------------------------------------------------------------------
+# Calendar
+# ---------------------------------------------------------------------------
 
 TRADE_CAL_SPEC = TableSpec(
     name="trade_cal",
