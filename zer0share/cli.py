@@ -95,6 +95,7 @@ STOCK_TABLES = [
     "index_weight",
     "idx_anns",
     "industry",
+    "sw_daily",
     "ci_member",
 ]
 

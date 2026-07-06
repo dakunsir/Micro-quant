@@ -61,6 +61,10 @@ class LocalPro:
         _check_dates(kwargs)
         return index.index_weight(self._ctx, **kwargs)
 
+    def sw_daily(self, **kwargs):
+        _check_dates(kwargs)
+        return index.sw_daily(self._ctx, **kwargs)
+
     def idx_anns(self, **kwargs):
         _check_dates(kwargs)
         return index.idx_anns(self._ctx, **kwargs)
@@ -172,6 +176,7 @@ class LocalPro:
             "stk_limit": self.stk_limit,
             "index_daily": self.index_daily,
             "index_weight": self.index_weight,
+            "sw_daily": self.sw_daily,
             "idx_anns": self.idx_anns,
             "universe": self.universe,
             "pro_bar": self.pro_bar,

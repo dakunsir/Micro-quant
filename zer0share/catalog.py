@@ -42,6 +42,7 @@ from zer0share.schema import (
     STK_LIMIT_COLS,
     SUSPEND_D_COLS,
     SW_CLASSIFY_COLS,
+    SW_DAILY_COLS,
     SW_MEMBER_COLS,
     TRADE_CAL_COLS,
 )
@@ -295,6 +296,18 @@ SW_MEMBER_SPEC = TableSpec(
     parquet_pattern="data.parquet",
     sync_table="industry",
     order_by="ts_code, l1_code",
+)
+
+SW_DAILY_SPEC = DailyTableSpec(
+    name="sw_daily",
+    path_parts=("stock", "industry", "sw_daily"),
+    columns=SW_DAILY_COLS,
+    parquet_pattern="date=*/data.parquet",
+    sync_table="sw_daily",
+    order_by="ts_code, trade_date",
+    hive_partitioning=True,
+    union_by_name=True,
+    first_date="20000104",
 )
 
 CI_MEMBER_SPEC = TableSpec(

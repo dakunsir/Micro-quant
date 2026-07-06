@@ -52,6 +52,11 @@ INDEX_DAILY_COLS = [
     "ts_code", "trade_date", "open", "high", "low",
     "close", "pre_close", "change", "pct_chg", "vol", "amount",
 ]
+SW_DAILY_COLS = [
+    "ts_code", "trade_date", "name", "open", "high", "low",
+    "close", "change", "pct_change", "vol", "amount",
+    "pe", "pb", "float_mv", "total_mv",
+]
 IDX_ANNS_COLS = ["ann_date", "title", "url", "source", "type"]
 ETF_BASIC_COLS = [
     "ts_code",

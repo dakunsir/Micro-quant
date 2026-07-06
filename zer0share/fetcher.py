@@ -38,6 +38,7 @@ from zer0share.schema import (
     STK_LIMIT_COLS,
     SUSPEND_D_COLS,
     SW_CLASSIFY_COLS,
+    SW_DAILY_COLS,
     SW_MEMBER_COLS,
     TRADE_CAL_COLS,
 )
@@ -455,6 +456,18 @@ class TushareFetcher:
             .reset_index(drop=True)
         )
         return _select_columns_or_empty(result, SW_MEMBER_COLS)
+
+    def fetch_sw_daily(
+        self, ts_code: str, start_date: str, end_date: str
+    ) -> pd.DataFrame:
+        logger.debug(f"拉取申万行业日线: {ts_code} {start_date}~{end_date}")
+        df = self._pro.sw_daily(
+            ts_code=ts_code,
+            start_date=start_date,
+            end_date=end_date,
+            fields=",".join(SW_DAILY_COLS),
+        )
+        return _select_columns_or_empty(df, SW_DAILY_COLS)
 
     def fetch_ci_member(self) -> pd.DataFrame:
         initial_df = self._pro.ci_index_member()

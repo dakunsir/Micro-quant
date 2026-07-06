@@ -1,6 +1,6 @@
 import pandas as pd
 
-from zer0share.catalog import IDX_ANNS_SPEC, INDEX_DAILY_SPEC, INDEX_WEIGHT_SPEC
+from zer0share.catalog import IDX_ANNS_SPEC, INDEX_DAILY_SPEC, INDEX_WEIGHT_SPEC, SW_DAILY_SPEC
 from zer0share.query import QueryContext
 from zer0share.query.repository import (
     BaseParquetRepository,
@@ -38,6 +38,15 @@ def index_weight(ctx: QueryContext, index_code=None, trade_date=None,
         filters.append(eq_filter("index_code", index_code, INDEX_WEIGHT_SPEC.columns))
     filters.extend(date_range_filters("trade_date", trade_date, start_date, end_date, INDEX_WEIGHT_SPEC.columns))
     return repo.query(fields=fields, filters=filters, limit=limit, offset=offset)
+
+
+def sw_daily(ctx: QueryContext, ts_code=None, trade_date=None,
+             start_date=None, end_date=None, fields=None,
+             limit: int | None = None, offset: int | None = None) -> pd.DataFrame:
+    """Query daily OHLCV bar data for Shenwan industry indices."""
+    return _daily_repo(ctx, SW_DAILY_SPEC).query(
+        ts_code, trade_date, start_date, end_date, fields, limit=limit, offset=offset
+    )
 
 
 def idx_anns(
