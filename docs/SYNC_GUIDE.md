@@ -1,142 +1,114 @@
 # 数据同步指南
 
-## 前置条件
+本文档是同步相关的完整参考：Tushare 积分要求、全部同步表清单、首次同步顺序和定时调度配置。
 
-### 1. 安装依赖
+## Tushare 积分要求
 
-```bash
-uv sync --dev
-```
+同步数据需要 [Tushare Pro](https://tushare.pro) Token。各类数据的积分门槛：
 
-### 2. 配置文件
-
-复制示例配置并填写真实参数：
-
-```bash
-cp config/settings.example.toml config/settings.toml
-```
-
-编辑 `config/settings.toml`：
-
-```toml
-[tushare]
-token = "你的 Tushare Pro Token"
-
-[paths]
-data_dir = "data"
-db_path = "db/meta.duckdb"
-log_path = "logs/pipeline.log"
-
-[scheduler]
-daily_kline_hour = 18
-daily_kline_minute = 0
-basic_hour = 8
-adj_factor_hour = 18
-adj_factor_minute = 5
-futures_hour = 17
-futures_start_minute = 0
-
-[notifier]
-wecom_webhook_url = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY"
-enabled = false
-```
-
-> Tushare Token 在 [tushare.pro](https://tushare.pro) 注册后获取，需要积分 >= 2000 才能调用基础行情接口；`stock_st` 需积分 >= 3000，中信行业和部分期货扩展数据需更高积分。
-
----
+| 数据 | 积分要求 |
+|---|---|
+| 基础行情（日历、基础信息、日线、复权因子、每日指标） | ≥ 2000 |
+| `stock_st`（每日 ST 列表） | ≥ 3000 |
+| 中信行业成分、`opt_basic`、部分期货扩展数据 | ≥ 5000 |
+| ETF 日线行情 `fund_daily` | ≥ 5000（8000 积分频次更高） |
+| 基金复权因子 `fund_adj` | ≥ 600（5000 积分以上频次更高） |
+| 指数公告 `idx_anns` | ≥ 6000 |
+| ETF 基础信息、ETF 份额规模、上交所 ETF 持仓 | ≥ 8000 |
 
 ## 首次同步
 
-### 步骤一：同步交易日历
-
-交易日历是其他同步的前置依赖，**必须最先执行**。
+一键同步全部，或按专题分组同步：
 
 ```bash
-uv run python main.py sync --table trade_cal
+uv run python main.py sync --all      # 全部
+uv run python main.py sync --stock    # 股票核心 + 指数 + 行业
+uv run python main.py sync --etf      # ETF 专题
+uv run python main.py sync --futures  # 期货
+uv run python main.py sync --options  # 期权
 ```
 
-此命令会：
-- 首次拉取 SSE、SZSE 共 2 个交易所从 1990-01-01 到当年年底的日历
-- 后续从本地最大 `cal_date` 的下一天增量拉取到当年年底
-- 合并写入 `data/trade_cal/exchange=XXX/data.parquet`
-- 加载到 DuckDB 供后续查询
+也可以逐表执行（顺序不可颠倒）。首次同步日线等历史数据量较大，受 Tushare 每分钟调用频次限制影响，全量回填可能需要数小时。
 
-预计耗时：1～3 分钟（受网络和 Tushare 限速影响）。
-
-### 步骤二：同步股票基础信息
+### 股票核心（必选）
 
 ```bash
-uv run python main.py sync --table basic
+uv run python main.py sync --table trade_cal    # 交易日历（必须最先，8 个交易所）
+uv run python main.py sync --table basic        # 股票基础信息
+uv run python main.py sync --table daily_kline  # 日线行情（依赖交易日历）
+uv run python main.py sync --table adj_factor   # 复权因子（依赖交易日历）
+uv run python main.py sync --table daily_basic  # 每日指标：总市值、流通市值等
+uv run python main.py sync --table stock_st     # 每日 ST 股票列表
+uv run python main.py sync --table suspend_d    # 每日停牌列表
+uv run python main.py sync --table stk_limit    # 每日涨跌停价格
+uv run python main.py sync --table index_weight # 沪深300/中证500/中证1000成分
+uv run python main.py sync --table index_daily  # 宽基指数日线行情
+uv run python main.py sync --table idx_anns     # 指数公司公告（自然日同步）
+uv run python main.py sync --table industry     # 申万行业分类 + 成分映射
+uv run python main.py sync --table ci_member    # 中信行业成分映射
+uv run python main.py sync --table sw_daily     # 申万行业指数日线行情
 ```
 
-此命令会：
-- 拉取全市场所有状态（上市 L、退市 D、暂停 P、精选层 G）的股票基础信息
-- 写入 `data/basic/data.parquet`
-
-### 步骤三：同步日线行情
+### ETF 专题（可选）
 
 ```bash
-uv run python main.py sync --table daily_kline
+uv run python main.py sync --table etf_basic       # ETF 基础信息
+uv run python main.py sync --table etf_index       # ETF 基准指数列表
+uv run python main.py sync --table fund_daily      # ETF 日线行情
+uv run python main.py sync --table fund_adj        # 基金复权因子
+uv run python main.py sync --table etf_share_size  # ETF 份额规模（通常次日 08:30 后更新）
+uv run python main.py sync --table etf_sh_cons     # 上交所 ETF 每日持仓组合
 ```
 
-此命令会：
-- 以 SSE 交易日历为基准，只对真实交易日拉取数据（跳过周末和节假日）
-- 从 2016-01-01 起增量同步到今天
-- 每个交易日写入 `data/daily_kline/date=YYYYMMDD/data.parquet`
-
-> **注意**：首次同步历史数据量较大（约 10 年 × 3800 只股票），耗时可能在 1～2 小时，受 Tushare 每分钟调用频次限制影响。
-
-### 步骤四：同步复权因子
+### 期货扩展（可选，需积分 ≥ 5000）
 
 ```bash
-uv run python main.py sync --table adj_factor
+uv run python main.py sync --table fut_basic          # 期货合约基础信息
+uv run python main.py sync --table fut_daily          # 期货日线行情
+uv run python main.py sync --table fut_holding        # 期货持仓排名
+uv run python main.py sync --table fut_wsr            # 期货仓单日报
+uv run python main.py sync --table fut_settle         # 期货结算参数
+uv run python main.py sync --table fut_mapping        # 期货主力与连续合约映射
+uv run python main.py sync --table ft_limit           # 期货涨跌停价格
+uv run python main.py sync --table fut_weekly         # 期货周线行情
+uv run python main.py sync --table fut_monthly        # 期货月线行情
+uv run python main.py sync --table fut_index_daily    # 期货指数日线行情
+uv run python main.py sync --table fut_weekly_detail  # 期货交易所周度明细
 ```
 
-此命令会：
-- 以 SSE 交易日历为基准，拉取每个交易日全市场的前复权因子
-- 从 2016-01-01 起增量同步到今天
-- 每个交易日写入 `data/adj_factor/date=YYYYMMDD/data.parquet`
-
-字段：`ts_code`（股票代码）、`trade_date`（交易日）、`adj_factor`（复权因子值）。
-
----
-
-## 一键同步全部
-
-常用表可合并为一条命令。当前 `--all` 会按 CLI 中固定顺序同步股票、指数、行业和期货数据：
+### 期权扩展（可选，需积分 ≥ 5000）
 
 ```bash
-uv run python main.py sync --all
+uv run python main.py sync --table opt_basic          # 期权合约基础信息
+uv run python main.py sync --table opt_daily          # 期权日线行情
 ```
 
-也可以分组逐步同步：
+### RiceQuant 分钟线（可选，需 RiceQuant 账号）
 
 ```bash
-# 股票和指数扩展数据
-uv run python main.py sync --table daily_basic
-uv run python main.py sync --table stock_st
-uv run python main.py sync --table suspend_d
-uv run python main.py sync --table stk_limit
-uv run python main.py sync --table index_weight
-uv run python main.py sync --table index_daily
-uv run python main.py sync --table industry
-uv run python main.py sync --table ci_member
-
-# 期货数据
-uv run python main.py sync --table fut_basic
-uv run python main.py sync --table fut_daily
-uv run python main.py sync --table fut_holding
-uv run python main.py sync --table fut_wsr
-uv run python main.py sync --table fut_settle
-uv run python main.py sync --table fut_mapping
-uv run python main.py sync --table ft_limit
-uv run python main.py sync --table fut_weekly
-uv run python main.py sync --table fut_monthly
-uv run python main.py sync --table fut_index_daily
-uv run python main.py sync --table fut_weekly_detail
+uv run python main.py sync --ricequant                          # 按顺序同步全部 RiceQuant 表
+uv run python main.py sync --table ricequant_basic              # 合约基础信息
+uv run python main.py sync --table ricequant_stock_minute       # 股票分钟线
+uv run python main.py sync --table ricequant_etf_basic          # ETF 基础信息
+uv run python main.py sync --table ricequant_etf_minute         # ETF 分钟线
 ```
 
----
+需要在 `config/settings.toml` 的 `[ricequant]` 里配置 license key 或用户名/密码，详见 [RiceQuant 分钟线文档](ricequant.md)。
+
+## 首次验证建议
+
+先同步一个小区间，确认 Tushare 权限和字段可用后再全量回填：
+
+```bash
+uv run python main.py sync --table daily_basic --start-date 20240101 --end-date 20240131
+uv run python main.py sync --table stock_st --start-date 20240101 --end-date 20240131
+uv run python main.py sync --table suspend_d --start-date 20240101 --end-date 20240131
+uv run python main.py sync --table stk_limit --start-date 20240101 --end-date 20240131
+uv run python main.py sync --table index_weight --start-date 20240101 --end-date 20240131
+uv run python main.py sync --table fut_daily --start-date 20240101 --end-date 20240131
+uv run python main.py sync --table ft_limit --start-date 20240101 --end-date 20240131
+uv run python main.py sync --table opt_daily --start-date 20240101 --end-date 20240131
+```
 
 ## 查看同步状态
 
@@ -144,114 +116,49 @@ uv run python main.py sync --table fut_weekly_detail
 uv run python main.py status
 ```
 
-输出示例：
+## 定时调度
 
+每个表在 `config/settings.toml` 的 `[scheduler]` 里单独配置触发时间（`HH:MM`），默认值基于 Tushare 各接口实际入库时间设计：
+
+```toml
+[scheduler]
+# 凌晨 — 静态参考数据（增量检查，数据已最新时零API消耗）
+trade_cal         = "02:00"
+basic             = "02:05"
+# 盘前 — Tushare 盘前推送
+stk_limit         = "09:15"   # 8:40 ready; delayed to avoid early empty responses
+adj_factor        = "09:25"   # 9:15~9:20 ready
+stock_st          = "09:28"   # 9:20 ready
+# 收盘后第一波 — 日线行情（15:00~16:00 ready）
+daily_kline       = "16:10"
+# 收盘后第二波 — 每日指标及其余数据（3min 间隔，17:05~17:56）
+daily_basic       = "17:05"
+# ... 完整示例见 config/settings.example.toml
 ```
-trade_cal    last sync: 2026-04-17
-basic        last sync: 2026-04-17
-daily_kline  last sync: 2026-04-17
-adj_factor   last sync: 2026-04-17
-```
 
----
+同步失败可通过企业微信告警，在 `[notifier]` 里配置 webhook。
 
-## 增量更新
-
-再次运行任意 `sync` 命令时，pipeline 会自动从上次同步的日期之后继续拉取，无需重新全量同步。交易日历按每个交易所本地已有的最大 `cal_date` 增量补齐。
+### systemd 服务（推荐，服务器常驻）
 
 ```bash
-# 每个交易日收盘后更新日线行情
-uv run python main.py sync --table daily_kline
+# 安装并启用服务
+sudo cp scripts/zer0share-scheduler.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable zer0share-scheduler
+sudo systemctl start zer0share-scheduler
 
-# 指定日期范围更新日分区表
-uv run python main.py sync --table daily_basic --start-date 2024-01-01 --end-date 2024-01-31
-uv run python main.py sync --table fut_daily --start-date 2024-01-01 --end-date 2024-01-31
-uv run python main.py sync --table ft_limit --start-date 2024-01-01 --end-date 2024-01-31
+# 查看状态
+sudo systemctl status zer0share-scheduler
+
+# 查看实时日志
+journalctl -u zer0share-scheduler -f
+
+# 修改 settings.toml 后重启生效
+sudo systemctl restart zer0share-scheduler
 ```
 
----
-
-## 自动化调度
-
-启动后台定时任务，按配置自动在收盘后同步：
+### 手动启动（调试用）
 
 ```bash
 uv run python main.py scheduler start
-```
-
-默认调度时间（可在 `settings.toml` 修改）：
-
-| 任务 | 触发时间 | 说明 |
-|------|----------|------|
-| daily_kline | 每天 18:00 | 仅交易日写入数据，非交易日自动跳过 |
-| index_daily | 每天 18:00 | 同步宽基指数日线行情 |
-| adj_factor | 每天 18:05 | 仅交易日写入数据，非交易日自动跳过 |
-| basic | 每天 08:00 | 每日全量刷新 |
-| futures | 每天 17:00 起 | 依次同步 11 个期货任务，每个任务间隔 10 分钟 |
-
-> 调度器需保持进程运行。生产环境建议配合 `systemd` 或 `supervisor` 管理进程。
-
----
-
-## 数据目录结构
-
-同步完成后，本地数据布局如下：
-
-```
-data/
-├── trade_cal/
-│   ├── exchange=SSE/data.parquet
-│   └── exchange=SZSE/data.parquet
-├── basic/
-│   └── data.parquet
-├── daily_kline/
-│   ├── date=20160104/data.parquet
-│   ├── date=20160105/data.parquet
-│   └── ...
-├── adj_factor/
-│   ├── date=20160104/data.parquet
-│   ├── date=20160105/data.parquet
-│   └── ...
-├── daily_basic/
-│   └── date=20160104/data.parquet
-├── stock_st/
-│   └── date=20160104/data.parquet
-├── suspend_d/
-│   └── date=20160104/data.parquet
-├── stk_limit/
-│   └── date=20160104/data.parquet
-├── index_weight/
-│   └── index_code=399300.SZ/date=20160104/data.parquet
-├── index_daily/
-│   └── date=20160104/data.parquet
-├── industry/
-│   ├── sw_classify/data.parquet
-│   ├── sw_member/data.parquet
-│   └── ci_member/data.parquet
-├── futures/
-│   ├── fut_basic/date=YYYYMMDD/data.parquet
-│   ├── fut_daily/date=YYYYMMDD/data.parquet
-│   ├── fut_holding/date=YYYYMMDD/data.parquet
-│   ├── fut_wsr/date=YYYYMMDD/data.parquet
-│   ├── fut_settle/date=YYYYMMDD/data.parquet
-│   ├── fut_mapping/date=YYYYMMDD/data.parquet
-│   ├── ft_limit/date=YYYYMMDD/data.parquet
-│   ├── fut_weekly/date=YYYYMMDD/data.parquet
-│   ├── fut_monthly/date=YYYYMMDD/data.parquet
-│   ├── fut_index_daily/date=YYYYMMDD/data.parquet
-│   └── fut_weekly_detail/date=YYYYMMDD/data.parquet
-db/
-└── meta.duckdb
-logs/
-└── pipeline.log
-```
-
-## RiceQuant 私有数据源
-
-`ricequant_stock_minute` 需要 `[ricequant].enabled = true`，并配置 RiceQuant `license_key` 或 `username/password`。同步前需要先完成 `ricequant_basic` 和 `trade_cal`：
-
-```bash
-uv run python main.py sync --table ricequant_basic
-uv run python main.py sync --table trade_cal
-uv run python main.py sync --table ricequant_stock_minute --start-date 20240102 --end-date 20240102
 ```
