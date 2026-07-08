@@ -60,7 +60,10 @@ def _source_minute_df():
 def test_ricequant_fetcher_init_uses_username_password(monkeypatch):
     calls = _fake_rqdatac(monkeypatch, _source_minute_df())
 
-    RiceQuantFetcher(username="user", password="password")
+    fetcher = RiceQuantFetcher(username="user", password="password")
+    assert "init" not in calls  # 构造时不连接，首次拉取才连接
+
+    fetcher.fetch_stock_minute("000001.XSHE", "20240102", "20240102")
 
     assert calls["init"] == ("user", "password")
 
@@ -68,7 +71,10 @@ def test_ricequant_fetcher_init_uses_username_password(monkeypatch):
 def test_ricequant_fetcher_init_uses_license_key(monkeypatch):
     calls = _fake_rqdatac(monkeypatch, _source_minute_df())
 
-    RiceQuantFetcher(license_key="rq_license_key")
+    fetcher = RiceQuantFetcher(license_key="rq_license_key")
+    assert "init" not in calls  # 构造时不连接，首次拉取才连接
+
+    fetcher.fetch_stock_minute("000001.XSHE", "20240102", "20240102")
 
     assert calls["init"] == ("license", "rq_license_key")
 

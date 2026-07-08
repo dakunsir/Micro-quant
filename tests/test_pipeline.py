@@ -216,7 +216,7 @@ def test_pipeline_registry_contains_all_tables(pipeline):
         "trade_cal",
         "basic", "daily_kline", "adj_factor", "daily_basic", "stock_st",
         "suspend_d", "stk_limit", "index_weight", "index_daily", "idx_anns",
-        "industry", "ci_member",
+        "industry", "ci_member", "sw_daily",
         "fut_basic", "fut_daily", "fut_holding", "fut_wsr", "fut_settle",
         "fut_mapping", "ft_limit", "fut_weekly", "fut_monthly",
         "fut_index_daily", "fut_weekly_detail",
@@ -224,7 +224,7 @@ def test_pipeline_registry_contains_all_tables(pipeline):
         "fund_daily", "fund_adj", "etf_share_size", "etf_sh_cons", "etf_basic", "etf_index",
     }
     assert set(pipeline.registry.keys()) == expected
-    assert len(pipeline.registry) == 32
+    assert len(pipeline.registry) == 33
 
 
 def test_opt_daily_spec_uses_option_market_first_date(pipeline):
