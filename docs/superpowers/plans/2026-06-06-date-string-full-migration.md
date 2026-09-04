@@ -4,23 +4,23 @@
 
 **Goal:** Replace all `date` objects with `YYYYMMDD` strings across every module boundary — fetcher, storage, MetaStore, sync loops, and CLI — leaving `date` objects only inside `dateutil.py` and `MetaStore` SQL internals.
 
-**Architecture:** A new `zer0share/dateutil.py` module owns all date arithmetic and exposes a pure-string interface. `storage.py` converts strings to `date` objects only inside MetaStore SQL calls. Everything else — sync loop variables, function signatures, CLI args — uses `str`. The invariant is machine-verifiable: `grep "from datetime import date" zer0share/` must only match `dateutil.py` and `storage.py`.
+**Architecture:** A new `microshare/dateutil.py` module owns all date arithmetic and exposes a pure-string interface. `storage.py` converts strings to `date` objects only inside MetaStore SQL calls. Everything else — sync loop variables, function signatures, CLI args — uses `str`. The invariant is machine-verifiable: `grep "from datetime import date" microshare/` must only match `dateutil.py` and `storage.py`.
 
 **Tech Stack:** Python 3.11+, pytest, DuckDB, PyArrow/Parquet, Click 8
 
 ---
 
-### Task 1: Create `zer0share/dateutil.py`
+### Task 1: Create `microshare/dateutil.py`
 
 **Files:**
-- Create: `zer0share/dateutil.py`
+- Create: `microshare/dateutil.py`
 - Create: `tests/test_dateutil.py`
 
 - [ ] **Step 1: Write failing tests**
 
 ```python
 # tests/test_dateutil.py
-from zer0share.dateutil import add_days, month_ranges, today, week_ranges
+from microshare.dateutil import add_days, month_ranges, today, week_ranges
 
 
 def test_today_returns_yyyymmdd_string():
@@ -100,9 +100,9 @@ def test_week_ranges_advances_by_7():
 ```bash
 python -m pytest tests/test_dateutil.py -v
 ```
-Expected: `ModuleNotFoundError: No module named 'zer0share.dateutil'`
+Expected: `ModuleNotFoundError: No module named 'microshare.dateutil'`
 
-- [ ] **Step 3: Implement `zer0share/dateutil.py`**
+- [ ] **Step 3: Implement `microshare/dateutil.py`**
 
 ```python
 from datetime import date, timedelta
@@ -167,7 +167,7 @@ Expected: all 11 tests PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add zer0share/dateutil.py tests/test_dateutil.py
+git add microshare/dateutil.py tests/test_dateutil.py
 git commit -m "feat: add dateutil module with string-based date arithmetic"
 ```
 
@@ -176,7 +176,7 @@ git commit -m "feat: add dateutil module with string-based date arithmetic"
 ### Task 2: Update `MetaStore` public API and all storage functions
 
 **Files:**
-- Modify: `zer0share/storage.py`
+- Modify: `microshare/storage.py`
 - Modify: `tests/test_storage.py`
 - Modify: `tests/test_api.py`
 
@@ -515,7 +515,7 @@ Expected: all tests PASS
 - [ ] **Step 7: Commit**
 
 ```bash
-git add zer0share/storage.py tests/test_storage.py tests/test_api.py
+git add microshare/storage.py tests/test_storage.py tests/test_api.py
 git commit -m "refactor: MetaStore and storage functions accept/return str dates"
 ```
 
@@ -524,7 +524,7 @@ git commit -m "refactor: MetaStore and storage functions accept/return str dates
 ### Task 3: Update `sync/_helpers.py`
 
 **Files:**
-- Modify: `zer0share/sync/_helpers.py`
+- Modify: `microshare/sync/_helpers.py`
 
 - [ ] **Step 1: Rewrite `_helpers.py`**
 
@@ -537,9 +537,9 @@ from typing import Callable
 
 from loguru import logger
 
-import zer0share.dateutil as dateutil
-from zer0share.storage import daily_partition_exists, write_daily_partition
-from zer0share.sync import SyncContext
+import microshare.dateutil as dateutil
+from microshare.storage import daily_partition_exists, write_daily_partition
+from microshare.sync import SyncContext
 
 
 FIRST_DATE = "20160101"
@@ -576,7 +576,7 @@ def index_weight_meta_key(index_code: str) -> str:
 
 
 def ensure_trade_cal_loaded(ctx: SyncContext) -> None:
-    from zer0share.sync import calendar as cal_module
+    from microshare.sync import calendar as cal_module
     if ctx.meta.get_last_date("trade_cal") is None:
         cal_module.sync_trade_cal(ctx)
 
@@ -685,7 +685,7 @@ Expected: all tests PASS (no tests import `parse_tushare_date` or `month_ranges`
 - [ ] **Step 3: Commit**
 
 ```bash
-git add zer0share/sync/_helpers.py
+git add microshare/sync/_helpers.py
 git commit -m "refactor: sync/_helpers.py — str dates, remove parse_tushare_date, use dateutil"
 ```
 
@@ -694,11 +694,11 @@ git commit -m "refactor: sync/_helpers.py — str dates, remove parse_tushare_da
 ### Task 4: Update sync domain modules
 
 **Files:**
-- Modify: `zer0share/sync/calendar.py`
-- Modify: `zer0share/sync/equities.py`
-- Modify: `zer0share/sync/futures.py`
-- Modify: `zer0share/sync/options.py`
-- Modify: `zer0share/sync/industry.py`
+- Modify: `microshare/sync/calendar.py`
+- Modify: `microshare/sync/equities.py`
+- Modify: `microshare/sync/futures.py`
+- Modify: `microshare/sync/options.py`
+- Modify: `microshare/sync/industry.py`
 
 - [ ] **Step 1: Rewrite `sync/calendar.py`**
 
@@ -706,10 +706,10 @@ git commit -m "refactor: sync/_helpers.py — str dates, remove parse_tushare_da
 import pandas as pd
 from loguru import logger
 
-import zer0share.dateutil as dateutil
-from zer0share.storage import read_trade_cal, write_trade_cal
-from zer0share.sync import SyncContext
-from zer0share.sync._helpers import ALL_EXCHANGES, TRADE_CAL_FIRST_DATE
+import microshare.dateutil as dateutil
+from microshare.storage import read_trade_cal, write_trade_cal
+from microshare.sync import SyncContext
+from microshare.sync._helpers import ALL_EXCHANGES, TRADE_CAL_FIRST_DATE
 
 
 def _merge_trade_cal(existing: pd.DataFrame, fetched: pd.DataFrame) -> pd.DataFrame:
@@ -768,17 +768,17 @@ from loguru import logger
 
 import pandas as pd
 
-import zer0share.dateutil as dateutil
-from zer0share.storage import (
+import microshare.dateutil as dateutil
+from microshare.storage import (
     daily_partition_exists, write_basic,
     write_daily_partition, write_index_weight, index_weight_partition_exists,
 )
-from zer0share.sync import SyncContext
-from zer0share.sync._helpers import (
+from microshare.sync import SyncContext
+from microshare.sync._helpers import (
     FIRST_DATE, INDEX_CODES, index_weight_meta_key,
     should_log_progress, skip_if_not_trading, sync_daily_partitioned,
 )
-from zer0share.fetcher import INDEX_DAILY_CODES
+from microshare.fetcher import INDEX_DAILY_CODES
 
 
 def sync_basic(ctx: SyncContext) -> None:
@@ -962,13 +962,13 @@ from loguru import logger
 
 import pandas as pd
 
-import zer0share.dateutil as dateutil
-from zer0share.storage import daily_partition_exists, write_daily_partition
-from zer0share.sync import SyncContext
-from zer0share.sync._helpers import (
+import microshare.dateutil as dateutil
+from microshare.storage import daily_partition_exists, write_daily_partition
+from microshare.sync import SyncContext
+from microshare.sync._helpers import (
     FIRST_DATE, skip_if_not_trading, sync_daily_partitioned,
 )
-from zer0share.fetcher import FUTURES_EXCHANGES
+from microshare.fetcher import FUTURES_EXCHANGES
 
 
 def sync_fut_basic(ctx: SyncContext) -> None:
@@ -1170,11 +1170,11 @@ from loguru import logger
 
 import pandas as pd
 
-import zer0share.dateutil as dateutil
-from zer0share.storage import write_opt_basic
-from zer0share.sync import SyncContext
-from zer0share.sync._helpers import skip_if_not_trading, sync_daily_partitioned
-from zer0share.fetcher import OPTIONS_EXCHANGES
+import microshare.dateutil as dateutil
+from microshare.storage import write_opt_basic
+from microshare.sync import SyncContext
+from microshare.sync._helpers import skip_if_not_trading, sync_daily_partitioned
+from microshare.fetcher import OPTIONS_EXCHANGES
 
 
 def sync_opt_basic(ctx: SyncContext) -> None:
@@ -1211,10 +1211,10 @@ def sync_opt_daily(ctx: SyncContext, start_date: str | None = None, end_date: st
 ```python
 from loguru import logger
 
-import zer0share.dateutil as dateutil
-from zer0share.storage import write_sw_classify, write_sw_member, write_ci_member
-from zer0share.sync import SyncContext
-from zer0share.sync._helpers import skip_if_not_trading
+import microshare.dateutil as dateutil
+from microshare.storage import write_sw_classify, write_sw_member, write_ci_member
+from microshare.sync import SyncContext
+from microshare.sync._helpers import skip_if_not_trading
 
 
 def sync_industry(ctx: SyncContext) -> None:
@@ -1262,7 +1262,7 @@ Expected: all tests PASS
 - [ ] **Step 7: Commit**
 
 ```bash
-git add zer0share/sync/calendar.py zer0share/sync/equities.py zer0share/sync/futures.py zer0share/sync/options.py zer0share/sync/industry.py
+git add microshare/sync/calendar.py microshare/sync/equities.py microshare/sync/futures.py microshare/sync/options.py microshare/sync/industry.py
 git commit -m "refactor: sync domain modules — str dates, remove date imports"
 ```
 
@@ -1271,7 +1271,7 @@ git commit -m "refactor: sync domain modules — str dates, remove date imports"
 ### Task 5: Update CLI and its tests
 
 **Files:**
-- Modify: `zer0share/cli.py`
+- Modify: `microshare/cli.py`
 - Modify: `tests/test_cli.py`
 
 - [ ] **Step 1: Update `tests/test_cli.py` — new assertions**
@@ -1301,7 +1301,7 @@ def test_sync_daily_kline_accepts_date_range():
     pipeline.__enter__.return_value = pipeline
     pipeline.__exit__.return_value = False
 
-    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli,
             [
@@ -1331,8 +1331,8 @@ def test_build_universe_accepts_date_range(tmp_path):
     cfg.log_path = tmp_path / "pipeline.log"
 
     with (
-        patch("zer0share.cli.load_config", return_value=cfg),
-        patch("zer0share.cli.build_universes_range") as mock_build_range,
+        patch("microshare.cli.load_config", return_value=cfg),
+        patch("microshare.cli.build_universes_range") as mock_build_range,
     ):
         mock_build_range.return_value = {
             "start_date": "20240101",
@@ -1381,13 +1381,13 @@ from pathlib import Path
 import click
 from loguru import logger
 
-from zer0share.config import load_config
-from zer0share.fetcher import TushareFetcher
-from zer0share.logging import init_logger
-from zer0share.notifier import Notifier
-from zer0share.pipeline import Pipeline
-from zer0share.storage import MetaStore
-from zer0share.universe import build_universes, build_universes_range
+from microshare.config import load_config
+from microshare.fetcher import TushareFetcher
+from microshare.logging import init_logger
+from microshare.notifier import Notifier
+from microshare.pipeline import Pipeline
+from microshare.storage import MetaStore
+from microshare.universe import build_universes, build_universes_range
 
 
 def _make_pipeline(config_path: str = "config/settings.toml") -> Pipeline:
@@ -1553,22 +1553,22 @@ Expected: all tests PASS
 - [ ] **Step 6: Static invariant check**
 
 ```bash
-grep -rn "from datetime import date" zer0share/
+grep -rn "from datetime import date" microshare/
 ```
 Expected output — exactly two lines:
 ```
-zer0share/dateutil.py:1:from datetime import date, timedelta
-zer0share/storage.py:5:from datetime import date, datetime, timezone
+microshare/dateutil.py:1:from datetime import date, timedelta
+microshare/storage.py:5:from datetime import date, datetime, timezone
 ```
 
 ```bash
-grep -rn "\.strftime\|timedelta\|date\.today\|parse_tushare_date" zer0share/sync/
+grep -rn "\.strftime\|timedelta\|date\.today\|parse_tushare_date" microshare/sync/
 ```
 Expected: no output (empty)
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add zer0share/cli.py tests/test_cli.py
+git add microshare/cli.py tests/test_cli.py
 git commit -m "refactor: CLI accepts YYYYMMDD strings, remove click.DateTime from sync command"
 ```

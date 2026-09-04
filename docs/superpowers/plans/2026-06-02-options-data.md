@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 在 zer0share 中接入 Tushare Pro 期权数据，支持 `opt_basic`（合约基础信息）和 `opt_daily`（日线行情）的增量同步、本地查询和定时调度。
+**Goal:** 在 microshare 中接入 Tushare Pro 期权数据，支持 `opt_basic`（合约基础信息）和 `opt_daily`（日线行情）的增量同步、本地查询和定时调度。
 
 **Architecture:** 完全镜像现有期货模式——`opt_basic` 全量按交易所迭代写入 `data/options/`，`opt_daily` 复用 `_sync_daily_partitioned` 按日分区；API 新增对称的 `opt_basic()` / `opt_daily()` 查询方法；调度器在 `futures_hour + 110/120 min` 触发。
 
@@ -14,11 +14,11 @@
 
 | 文件 | 变更类型 | 内容 |
 |------|---------|------|
-| `zer0share/fetcher.py` | Modify | 新增 `OPTIONS_EXCHANGES`, `OPT_BASIC_COLS`, `OPT_DAILY_COLS`, `fetch_opt_basic`, `fetch_opt_daily` |
-| `zer0share/pipeline.py` | Modify | 新增 `sync_opt_basic`, `sync_opt_daily`；import `OPTIONS_EXCHANGES` |
-| `zer0share/api.py` | Modify | 新增 `opt_basic`, `opt_daily` 方法；注册进 `query()` dispatch；import 新常量 |
-| `zer0share/scheduler.py` | Modify | 新增 `options_tables` block |
-| `zer0share/cli.py` | Modify | `SYNC_TABLES`、`range_tables`、`sync` 命令新增期权分支 |
+| `microshare/fetcher.py` | Modify | 新增 `OPTIONS_EXCHANGES`, `OPT_BASIC_COLS`, `OPT_DAILY_COLS`, `fetch_opt_basic`, `fetch_opt_daily` |
+| `microshare/pipeline.py` | Modify | 新增 `sync_opt_basic`, `sync_opt_daily`；import `OPTIONS_EXCHANGES` |
+| `microshare/api.py` | Modify | 新增 `opt_basic`, `opt_daily` 方法；注册进 `query()` dispatch；import 新常量 |
+| `microshare/scheduler.py` | Modify | 新增 `options_tables` block |
+| `microshare/cli.py` | Modify | `SYNC_TABLES`、`range_tables`、`sync` 命令新增期权分支 |
 | `tests/test_fetcher.py` | Modify | 新增 8 个期权 fetcher 测试 |
 | `tests/test_pipeline.py` | Modify | 新增 6 个期权 pipeline 测试 |
 | `tests/test_api.py` | Modify | 新增 6 个期权 API 测试 |
@@ -30,7 +30,7 @@
 ## Task 1: fetcher.py — 常量与 fetch 方法
 
 **Files:**
-- Modify: `zer0share/fetcher.py`
+- Modify: `microshare/fetcher.py`
 - Test: `tests/test_fetcher.py`
 
 - [ ] **Step 1: 写失败测试（常量 + fetch_opt_basic）**
@@ -40,7 +40,7 @@
 ```python
 # --- Options fetcher tests ---
 
-from zer0share.fetcher import (
+from microshare.fetcher import (
     OPTIONS_EXCHANGES, OPT_BASIC_COLS, OPT_DAILY_COLS,
 )
 
@@ -239,7 +239,7 @@ Expected: all PASSED
 - [ ] **Step 6: Commit**
 
 ```bash
-git add zer0share/fetcher.py tests/test_fetcher.py
+git add microshare/fetcher.py tests/test_fetcher.py
 git commit -m "feat: add options fetcher constants and fetch methods"
 ```
 
@@ -248,7 +248,7 @@ git commit -m "feat: add options fetcher constants and fetch methods"
 ## Task 2: pipeline.py — sync_opt_basic + sync_opt_daily
 
 **Files:**
-- Modify: `zer0share/pipeline.py`
+- Modify: `microshare/pipeline.py`
 - Test: `tests/test_pipeline.py`
 
 - [ ] **Step 1: 写失败测试**
@@ -258,7 +258,7 @@ git commit -m "feat: add options fetcher constants and fetch methods"
 ```python
 # --- Options pipeline tests ---
 
-from zer0share.fetcher import OPTIONS_EXCHANGES
+from microshare.fetcher import OPTIONS_EXCHANGES
 
 
 def test_sync_opt_basic_writes_to_options_subdir(pipeline, cfg):
@@ -282,8 +282,8 @@ def test_sync_opt_basic_writes_to_options_subdir(pipeline, cfg):
 
     pipeline._fetcher.fetch_opt_basic.side_effect = opt_basic_side_effect
 
-    with patch("zer0share.pipeline.time.sleep"), \
-         patch("zer0share.pipeline.date") as mock_date:
+    with patch("microshare.pipeline.time.sleep"), \
+         patch("microshare.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_opt_basic()
@@ -295,8 +295,8 @@ def test_sync_opt_basic_writes_to_options_subdir(pipeline, cfg):
 def test_sync_opt_basic_calls_all_exchanges(pipeline, cfg):
     pipeline._fetcher.fetch_opt_basic.return_value = pd.DataFrame()
 
-    with patch("zer0share.pipeline.time.sleep"), \
-         patch("zer0share.pipeline.date") as mock_date:
+    with patch("microshare.pipeline.time.sleep"), \
+         patch("microshare.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_opt_basic()
@@ -347,8 +347,8 @@ def test_sync_opt_daily_writes_to_options_subdir(pipeline, cfg):
     pipeline._fetcher.fetch_opt_daily.return_value = opt_df
     pipeline._meta.update_last_date("opt_daily", date(2024, 1, 1))
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("microshare.pipeline.date") as mock_date, \
+         patch("microshare.pipeline.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_opt_daily()
@@ -366,8 +366,8 @@ def test_sync_opt_daily_skips_existing_partitions(pipeline, cfg):
         pd.DataFrame({"ts_code": ["10004462.SH"], "trade_date": [date(2024, 1, 2)]}),
     )
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("microshare.pipeline.date") as mock_date, \
+         patch("microshare.pipeline.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_opt_daily()
@@ -394,7 +394,7 @@ Expected: FAIL with `AttributeError: 'MagicMock' object has no attribute 'fetch_
 在 `pipeline.py` 第 9 行的 import 中，把 `FUTURES_EXCHANGES` 改为同时导入 `OPTIONS_EXCHANGES`：
 
 ```python
-from zer0share.fetcher import TushareFetcher, INDEX_DAILY_CODES, FUTURES_EXCHANGES, OPTIONS_EXCHANGES
+from microshare.fetcher import TushareFetcher, INDEX_DAILY_CODES, FUTURES_EXCHANGES, OPTIONS_EXCHANGES
 ```
 
 在 `sync_fut_daily` 方法之后插入：
@@ -455,7 +455,7 @@ Expected: all PASSED
 - [ ] **Step 6: Commit**
 
 ```bash
-git add zer0share/pipeline.py tests/test_pipeline.py
+git add microshare/pipeline.py tests/test_pipeline.py
 git commit -m "feat: add options pipeline sync methods"
 ```
 
@@ -464,7 +464,7 @@ git commit -m "feat: add options pipeline sync methods"
 ## Task 3: api.py — opt_basic + opt_daily 查询方法
 
 **Files:**
-- Modify: `zer0share/api.py`
+- Modify: `microshare/api.py`
 - Test: `tests/test_api.py`
 
 - [ ] **Step 1: 写失败测试**
@@ -474,7 +474,7 @@ git commit -m "feat: add options pipeline sync methods"
 ```python
 # --- Options API tests ---
 
-from zer0share.fetcher import OPT_BASIC_COLS, OPT_DAILY_COLS
+from microshare.fetcher import OPT_BASIC_COLS, OPT_DAILY_COLS
 
 
 def _write_opt_daily_data(data_dir, trade_date, ts_codes=None):
@@ -706,7 +706,7 @@ Expected: all PASSED
 - [ ] **Step 6: Commit**
 
 ```bash
-git add zer0share/api.py tests/test_api.py
+git add microshare/api.py tests/test_api.py
 git commit -m "feat: add options query methods to LocalPro API"
 ```
 
@@ -715,8 +715,8 @@ git commit -m "feat: add options query methods to LocalPro API"
 ## Task 4: scheduler.py + cli.py — 调度与 CLI 接入
 
 **Files:**
-- Modify: `zer0share/scheduler.py`
-- Modify: `zer0share/cli.py`
+- Modify: `microshare/scheduler.py`
+- Modify: `microshare/cli.py`
 - Test: `tests/test_scheduler.py`
 - Test: `tests/test_cli.py`
 
@@ -765,7 +765,7 @@ def test_sync_opt_basic_calls_pipeline():
     pipeline.__enter__.return_value = pipeline
     pipeline.__exit__.return_value = False
 
-    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--table", "opt_basic"])
 
     assert result.exit_code == 0
@@ -778,7 +778,7 @@ def test_sync_opt_daily_accepts_date_range():
     pipeline.__enter__.return_value = pipeline
     pipeline.__exit__.return_value = False
 
-    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli,
             ["sync", "--table", "opt_daily", "--start-date", "2024-01-01", "--end-date", "2024-01-31"],
@@ -797,7 +797,7 @@ def test_sync_opt_basic_rejects_date_range():
     pipeline.__enter__.return_value = pipeline
     pipeline.__exit__.return_value = False
 
-    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli, ["sync", "--table", "opt_basic", "--start-date", "2024-01-01"]
         )
@@ -812,7 +812,7 @@ def test_sync_all_includes_options_tables():
     pipeline.__enter__.return_value = pipeline
     pipeline.__exit__.return_value = False
 
-    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--all"])
 
     assert result.exit_code == 0
@@ -894,6 +894,6 @@ Expected: all PASSED
 - [ ] **Step 8: Commit**
 
 ```bash
-git add zer0share/scheduler.py zer0share/cli.py tests/test_scheduler.py tests/test_cli.py
+git add microshare/scheduler.py microshare/cli.py tests/test_scheduler.py tests/test_cli.py
 git commit -m "feat: wire options data into scheduler and CLI"
 ```

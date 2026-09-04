@@ -2,7 +2,7 @@
 
 ## Goal
 
-Add local synchronization and query support for the Tushare `idx_anns` interface in zer0share.
+Add local synchronization and query support for the Tushare `idx_anns` interface in microshare.
 
 The feature should mirror index-company announcements locally so research workflows can query announcement metadata from Parquet through the existing Tushare-like local API without spending Tushare points.
 
@@ -156,7 +156,7 @@ Behavior:
 Examples:
 
 ```python
-from zer0share import pro_api
+from microshare import pro_api
 
 pro = pro_api()
 
@@ -172,10 +172,10 @@ df = pro.idx_anns(
 
 Implementation wiring:
 
-- Add `index.idx_anns(...)` in `zer0share/query/index.py`.
+- Add `index.idx_anns(...)` in `microshare/query/index.py`.
 - Use `DailyPartitionRepository` with `IDX_ANNS_SPEC`.
 - Add an equality filter from `src` to `source`.
-- Add `LocalPro.idx_anns(...)` in `zer0share/api.py`.
+- Add `LocalPro.idx_anns(...)` in `microshare/api.py`.
 - Add `"idx_anns": self.idx_anns` to `LocalPro.query(...)`.
 - Extend `_check_dates` so it validates `ann_date`, then validate `ann_date`, `start_date`, and `end_date` for this API.
 
@@ -183,19 +183,19 @@ Implementation wiring:
 
 Add `idx_anns` to the existing index-related sync wiring:
 
-- `zer0share/schema.py`: add `IDX_ANNS_COLS`.
-- `zer0share/catalog.py`: add `IDX_ANNS_SPEC`.
-- `zer0share/fetcher.py`: add `fetch_idx_anns`.
-- `zer0share/sync/_jobs.py`: add `CalendarDateSyncJob`.
-- `zer0share/sync/index.py`: add a sync job for `idx_anns`.
-- `zer0share/cli.py`: add `idx_anns` to `STOCK_TABLES`.
-- `zer0share/api.py`: expose the local method and dispatch entry.
+- `microshare/schema.py`: add `IDX_ANNS_COLS`.
+- `microshare/catalog.py`: add `IDX_ANNS_SPEC`.
+- `microshare/fetcher.py`: add `fetch_idx_anns`.
+- `microshare/sync/_jobs.py`: add `CalendarDateSyncJob`.
+- `microshare/sync/index.py`: add a sync job for `idx_anns`.
+- `microshare/cli.py`: add `idx_anns` to `STOCK_TABLES`.
+- `microshare/api.py`: expose the local method and dispatch entry.
 
 `idx_anns` should be listed under `STOCK_TABLES` because the current project groups index tables such as `index_daily` and `index_weight` there.
 
 ## Error Handling
 
-Use existing zer0share behavior where possible:
+Use existing microshare behavior where possible:
 
 - Missing local data raises `FileNotFoundError` through the repository layer and mentions `sync --table idx_anns`.
 - Invalid date strings raise `ValueError` through `_check_dates`.

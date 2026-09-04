@@ -142,19 +142,19 @@ daily_basic       = "17:05"
 
 ```bash
 # 安装并启用服务
-sudo cp scripts/micro-scheduler.service /etc/systemd/system/
+sudo cp scripts/microshare-scheduler.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable micro-scheduler
-sudo systemctl start micro-scheduler
+sudo systemctl enable microshare-scheduler
+sudo systemctl start microshare-scheduler
 
 # 查看状态
-sudo systemctl status micro-scheduler
+sudo systemctl status microshare-scheduler
 
 # 查看实时日志
-journalctl -u micro-scheduler -f
+journalctl -u microshare-scheduler -f
 
 # 修改 settings.toml 后重启生效
-sudo systemctl restart micro-scheduler
+sudo systemctl restart microshare-scheduler
 ```
 
 ### 手动启动（调试用）

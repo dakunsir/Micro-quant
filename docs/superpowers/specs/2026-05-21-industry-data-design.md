@@ -110,7 +110,7 @@ data/industry/
 ## 使用示例
 
 ```python
-from zer0share import pro_api
+from microshare import pro_api
 pro = pro_api()
 
 # 申万一级行业列表
@@ -133,11 +133,11 @@ pro.query("index_member_all", ts_code='000001.SZ')
 
 | 文件 | 变更 |
 |------|------|
-| `zer0share/fetcher.py` | 新增 3 个列定义 + 3 个 fetch 方法 |
-| `zer0share/storage.py` | 新增 6 个读写函数 |
-| `zer0share/pipeline.py` | 新增 2 个 sync 方法 + 对应 import |
-| `zer0share/cli.py` | SYNC_TABLES 新增 2 项 + sync 分支 |
-| `zer0share/api.py` | 新增 3 个列定义 + 3 个查询方法 + dispatch 注册 |
+| `microshare/fetcher.py` | 新增 3 个列定义 + 3 个 fetch 方法 |
+| `microshare/storage.py` | 新增 6 个读写函数 |
+| `microshare/pipeline.py` | 新增 2 个 sync 方法 + 对应 import |
+| `microshare/cli.py` | SYNC_TABLES 新增 2 项 + sync 分支 |
+| `microshare/api.py` | 新增 3 个列定义 + 3 个查询方法 + dispatch 注册 |
 | `tests/test_fetcher.py` | 新增 fetch 方法测试 |
 | `tests/test_storage.py` | 新增读写函数测试 |
 | `tests/test_pipeline.py` | 新增 sync 方法测试 |

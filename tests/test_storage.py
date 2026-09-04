@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from micro.storage import (
+from microshare.storage import (
     MetaStore,
     read_trade_cal,
     write_trade_cal,
@@ -202,7 +202,7 @@ def test_is_trading_day_returns_true_when_no_calendar_loaded(tmp_path):
 
 
 def test_daily_partition_store_write_and_exists(tmp_path):
-    from micro.storage import DailyPartitionStore
+    from microshare.storage import DailyPartitionStore
 
     store = DailyPartitionStore(tmp_path / "daily_kline")
     df = pd.DataFrame({"ts_code": ["000001.SZ"], "trade_date": ["20240102"]})
@@ -213,7 +213,7 @@ def test_daily_partition_store_write_and_exists(tmp_path):
 
 
 def test_daily_partition_store_read(tmp_path):
-    from micro.storage import DailyPartitionStore
+    from microshare.storage import DailyPartitionStore
 
     store = DailyPartitionStore(tmp_path / "daily_kline")
     df = pd.DataFrame({"ts_code": ["000001.SZ"], "trade_date": ["20240102"]})
@@ -224,14 +224,14 @@ def test_daily_partition_store_read(tmp_path):
 
 
 def test_daily_partition_store_read_missing_returns_empty(tmp_path):
-    from micro.storage import DailyPartitionStore
+    from microshare.storage import DailyPartitionStore
 
     store = DailyPartitionStore(tmp_path / "daily_kline")
     assert store.read("20240102").empty
 
 
 def test_snapshot_store_write_and_read(tmp_path):
-    from micro.storage import SnapshotStore
+    from microshare.storage import SnapshotStore
 
     store = SnapshotStore(tmp_path / "basic" / "data.parquet")
     df = pd.DataFrame({"ts_code": ["000001.SZ"], "name": ["平安银行"]})
@@ -242,14 +242,14 @@ def test_snapshot_store_write_and_read(tmp_path):
 
 
 def test_snapshot_store_read_missing_returns_empty(tmp_path):
-    from micro.storage import SnapshotStore
+    from microshare.storage import SnapshotStore
 
     store = SnapshotStore(tmp_path / "basic" / "data.parquet")
     assert store.read().empty
 
 
 def test_index_weight_store_write_and_exists(tmp_path):
-    from micro.storage import IndexWeightStore
+    from microshare.storage import IndexWeightStore
 
     store = IndexWeightStore(tmp_path / "index_weight")
     df = pd.DataFrame({"index_code": ["399300.SZ"], "con_code": ["000001.SZ"], "weight": [1.0]})

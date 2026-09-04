@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from micro import pro_api
+from microshare import pro_api
 
 FIELDS = "exchange,cal_date,is_open,pretrade_date"
 ALL_EXCHANGES = ["SSE", "SZSE", "CFFEX", "DCE", "SHFE", "CZCE", "INE", "GFEX"]

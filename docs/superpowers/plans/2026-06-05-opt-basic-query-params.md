@@ -12,7 +12,7 @@
 
 ## File Structure
 
-- Modify `zer0share/api.py`: update `LocalPro.opt_basic()` signature and SQL construction.
+- Modify `microshare/api.py`: update `LocalPro.opt_basic()` signature and SQL construction.
 - Modify `tests/test_api.py`: add focused tests using the existing `_make_opt_basic_df()` fixture and `write_opt_basic()` helper.
 
 ---
@@ -69,12 +69,12 @@ git commit -m "test: cover opt_basic name and list_date filters"
 ### Task 2: Implement Exact-Match Filters
 
 **Files:**
-- Modify: `zer0share/api.py`
+- Modify: `microshare/api.py`
 - Test: `tests/test_api.py`
 
 - [ ] **Step 1: Update `opt_basic()` signature**
 
-Change the signature in `zer0share/api.py` to:
+Change the signature in `microshare/api.py` to:
 
 ```python
 def opt_basic(
@@ -115,7 +115,7 @@ Expected: PASS.
 - [ ] **Step 4: Commit filter implementation**
 
 ```bash
-git add zer0share/api.py tests/test_api.py
+git add microshare/api.py tests/test_api.py
 git commit -m "feat: add opt_basic name and list_date filters"
 ```
 
@@ -165,12 +165,12 @@ git commit -m "test: cover opt_basic pagination"
 ### Task 4: Implement Pagination
 
 **Files:**
-- Modify: `zer0share/api.py`
+- Modify: `microshare/api.py`
 - Test: `tests/test_api.py`
 
 - [ ] **Step 1: Update `opt_basic()` signature**
 
-Change the signature in `zer0share/api.py` to:
+Change the signature in `microshare/api.py` to:
 
 ```python
 def opt_basic(
@@ -213,7 +213,7 @@ Expected: PASS.
 - [ ] **Step 4: Commit pagination implementation**
 
 ```bash
-git add zer0share/api.py tests/test_api.py
+git add microshare/api.py tests/test_api.py
 git commit -m "feat: add opt_basic pagination"
 ```
 

@@ -2,7 +2,7 @@
 
 ## 目标
 
-将 `zer0share/sync/` 从函数式风格重构为面向对象设计，同时：
+将 `microshare/sync/` 从函数式风格重构为面向对象设计，同时：
 
 1. 修复已知 3 个 bug（`FutWeeklyDetailSyncJob` 跳过检查顺序、已最新时抛 ValueError、`FutIndexDailySyncJob` 遍历日历日）
 2. 消除 5 个模块中重复的 `_today()` / `_date_str()` / `date = None` 测试注入代码
@@ -41,7 +41,7 @@
 ## 模块结构
 
 ```
-zer0share/
+microshare/
 ├── dateutil.py           — 纯日期工具（扩充 date_str / parse_date，零依赖）
 ├── trading_calendar.py   — TradingCalendar（新建）
 ├── catalog.py            — 所有表的 TableSpec 常量（新建）
@@ -76,7 +76,7 @@ def parse_date(s: str) -> date: ...            # 原各模块的 _parse
 ### TradingCalendar
 
 ```python
-# zer0share/trading_calendar.py
+# microshare/trading_calendar.py
 class TradingCalendar:
     def __init__(self, meta: MetaStore, today_fn: Callable[[], str] = dateutil.today):
         self._meta = meta
@@ -101,9 +101,9 @@ class TradingCalendar:
 所有表的 `TableSpec` 常量集中存放，query 层和 sync 层共同导入，消除路径和列名重复：
 
 ```python
-# zer0share/catalog.py
-from zer0share.query.repository import DailyTableSpec, TableSpec
-from zer0share.schema import DAILY_COLS, ADJ_FACTOR_COLS, ...
+# microshare/catalog.py
+from microshare.query.repository import DailyTableSpec, TableSpec
+from microshare.schema import DAILY_COLS, ADJ_FACTOR_COLS, ...
 
 DAILY_KLINE_SPEC = DailyTableSpec(
     name="daily_kline",
@@ -190,7 +190,7 @@ class IndexWeightStore:
 ### SyncRuntime
 
 ```python
-# zer0share/sync/__init__.py
+# microshare/sync/__init__.py
 @dataclass
 class SyncRuntime:
     calendar: TradingCalendar
@@ -203,7 +203,7 @@ class SyncRuntime:
 ### SyncJob 层次结构
 
 ```python
-# zer0share/sync/_jobs.py
+# microshare/sync/_jobs.py
 class SyncJob(ABC):
     table_name: str
     supports_date_range: bool
@@ -250,7 +250,7 @@ FutWeeklyDetailSyncJob — DailyPartitionStore（key 为周一日期），修复
 ### Pipeline
 
 ```python
-# zer0share/pipeline.py
+# microshare/pipeline.py
 class Pipeline:
     def __init__(self, cfg: Config, fetcher: TushareFetcher, notifier: Notifier):
         meta = MetaStore(cfg.db_path)
@@ -260,7 +260,7 @@ class Pipeline:
         self._build_registry(cfg, fetcher)
 
     def _build_registry(self, cfg: Config, fetcher: TushareFetcher) -> None:
-        from zer0share.sync import calendar, equities, industry, futures, options
+        from microshare.sync import calendar, equities, industry, futures, options
         for module in [calendar, equities, industry, futures, options]:
             for job in module.build_jobs(cfg, fetcher):
                 self._registry[job.table_name] = job

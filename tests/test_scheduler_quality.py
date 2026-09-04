@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
 
-from micro.scheduler import run_scheduled_table
+from microshare.scheduler import run_scheduled_table
 
 
 def test_run_scheduled_table_runs_quality_without_raising(tmp_path):
@@ -18,10 +18,10 @@ def test_run_scheduled_table_runs_quality_without_raising(tmp_path):
     report.fail_count = 0
 
     with (
-        patch("micro.scheduler.Pipeline") as pipeline_cls,
-        patch("micro.scheduler.QualityRunner") as runner_cls,
-        patch("micro.scheduler.QualityReporter") as reporter_cls,
-        patch("micro.scheduler.format_summary", return_value="quality summary"),
+        patch("microshare.scheduler.Pipeline") as pipeline_cls,
+        patch("microshare.scheduler.QualityRunner") as runner_cls,
+        patch("microshare.scheduler.QualityReporter") as reporter_cls,
+        patch("microshare.scheduler.format_summary", return_value="quality summary"),
     ):
         pipeline_cls.return_value.__enter__.return_value = pipeline_cls.return_value
         pipeline_cls.return_value.__exit__.return_value = False

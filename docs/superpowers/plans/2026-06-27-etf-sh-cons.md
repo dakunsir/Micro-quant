@@ -4,7 +4,7 @@
 
 **Goal:** Add local sync and query support for Tushare `etf_sh_cons`, the Shanghai ETF daily constituent portfolio interface.
 
-**Architecture:** Follow the existing zer0share ETF path: schema constants define columns, `TushareFetcher` fetches paginated upstream data, ETF sync jobs write daily Parquet partitions, catalog specs expose table metadata, and `LocalPro` delegates local queries to `DailyPartitionRepository`. The implementation should mirror `etf_share_size` where possible, with an extra `con_code` query filter and endpoint pagination.
+**Architecture:** Follow the existing microshare ETF path: schema constants define columns, `TushareFetcher` fetches paginated upstream data, ETF sync jobs write daily Parquet partitions, catalog specs expose table metadata, and `LocalPro` delegates local queries to `DailyPartitionRepository`. The implementation should mirror `etf_share_size` where possible, with an extra `con_code` query filter and endpoint pagination.
 
 **Tech Stack:** Python 3.11, pandas, click, pytest, Tushare Pro, DuckDB-backed Parquet query layer.
 
@@ -12,13 +12,13 @@
 
 ## File Structure
 
-- Modify `zer0share/schema.py`: add `ETF_SH_CONS_COLS`.
-- Modify `zer0share/fetcher.py`: import `ETF_SH_CONS_COLS` and add paginated `fetch_etf_sh_cons`.
-- Modify `zer0share/catalog.py`: add `ETF_SH_CONS_SPEC`.
-- Modify `zer0share/sync/etf.py`: add a `DailySyncJob` for `etf_sh_cons`.
-- Modify `zer0share/cli.py`: add `etf_sh_cons` to `ETF_TABLES`.
-- Modify `zer0share/query/etf.py`: add local query function with `con_code` filter.
-- Modify `zer0share/api.py`: expose `LocalPro.etf_sh_cons` and query dispatch.
+- Modify `microshare/schema.py`: add `ETF_SH_CONS_COLS`.
+- Modify `microshare/fetcher.py`: import `ETF_SH_CONS_COLS` and add paginated `fetch_etf_sh_cons`.
+- Modify `microshare/catalog.py`: add `ETF_SH_CONS_SPEC`.
+- Modify `microshare/sync/etf.py`: add a `DailySyncJob` for `etf_sh_cons`.
+- Modify `microshare/cli.py`: add `etf_sh_cons` to `ETF_TABLES`.
+- Modify `microshare/query/etf.py`: add local query function with `con_code` filter.
+- Modify `microshare/api.py`: expose `LocalPro.etf_sh_cons` and query dispatch.
 - Modify `tests/test_fetcher.py`: add fetcher pagination tests.
 - Modify `tests/test_pipeline.py`: add daily sync tests and registry assertion.
 - Modify `tests/test_cli.py`: add CLI table/date-range tests and update `--etf` order.
@@ -31,9 +31,9 @@
 ### Task 1: Schema, Catalog, and Fetcher Pagination
 
 **Files:**
-- Modify: `zer0share/schema.py`
-- Modify: `zer0share/fetcher.py`
-- Modify: `zer0share/catalog.py`
+- Modify: `microshare/schema.py`
+- Modify: `microshare/fetcher.py`
+- Modify: `microshare/catalog.py`
 - Test: `tests/test_fetcher.py`
 
 - [ ] **Step 1: Add failing fetcher tests**
@@ -136,7 +136,7 @@ Expected: FAIL because `TushareFetcher.fetch_etf_sh_cons` and `ETF_SH_CONS_COLS`
 
 - [ ] **Step 3: Add schema columns**
 
-In `zer0share/schema.py`, add after `ETF_SHARE_SIZE_COLS`:
+In `microshare/schema.py`, add after `ETF_SHARE_SIZE_COLS`:
 
 ```python
 ETF_SH_CONS_COLS = [
@@ -155,7 +155,7 @@ ETF_SH_CONS_COLS = [
 
 - [ ] **Step 4: Add catalog spec**
 
-In `zer0share/catalog.py`, import `ETF_SH_CONS_COLS` from `zer0share.schema` in the existing schema import list.
+In `microshare/catalog.py`, import `ETF_SH_CONS_COLS` from `microshare.schema` in the existing schema import list.
 
 Add after `ETF_SHARE_SIZE_SPEC`:
 
@@ -175,7 +175,7 @@ ETF_SH_CONS_SPEC = DailyTableSpec(
 
 - [ ] **Step 5: Implement paginated fetcher**
 
-In `zer0share/fetcher.py`, add `ETF_SH_CONS_COLS` to the schema import list.
+In `microshare/fetcher.py`, add `ETF_SH_CONS_COLS` to the schema import list.
 
 Add after `fetch_etf_share_size`:
 
@@ -221,7 +221,7 @@ Expected: PASS.
 Run:
 
 ```bash
-git add zer0share/schema.py zer0share/catalog.py zer0share/fetcher.py tests/test_fetcher.py
+git add microshare/schema.py microshare/catalog.py microshare/fetcher.py tests/test_fetcher.py
 git commit -m "feat: fetch etf_sh_cons data"
 ```
 
@@ -230,8 +230,8 @@ git commit -m "feat: fetch etf_sh_cons data"
 ### Task 2: Sync Job and CLI Wiring
 
 **Files:**
-- Modify: `zer0share/sync/etf.py`
-- Modify: `zer0share/cli.py`
+- Modify: `microshare/sync/etf.py`
+- Modify: `microshare/cli.py`
 - Test: `tests/test_pipeline.py`
 - Test: `tests/test_cli.py`
 
@@ -287,7 +287,7 @@ def test_sync_etf_sh_cons_calls_pipeline():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--table", "etf_sh_cons"])
 
     assert result.exit_code == 0
@@ -298,7 +298,7 @@ def test_sync_etf_sh_cons_accepts_date_range():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli,
             [
@@ -345,10 +345,10 @@ Expected: FAIL because the sync registry and CLI choices do not include `etf_sh_
 
 - [ ] **Step 4: Wire ETF sync job**
 
-In `zer0share/sync/etf.py`, import `ETF_SH_CONS_SPEC`:
+In `microshare/sync/etf.py`, import `ETF_SH_CONS_SPEC`:
 
 ```python
-from zer0share.catalog import ETF_BASIC_SPEC, ETF_INDEX_SPEC, ETF_SHARE_SIZE_SPEC, ETF_SH_CONS_SPEC, FUND_DAILY_SPEC
+from microshare.catalog import ETF_BASIC_SPEC, ETF_INDEX_SPEC, ETF_SHARE_SIZE_SPEC, ETF_SH_CONS_SPEC, FUND_DAILY_SPEC
 ```
 
 Add this job after the `etf_share_size` job:
@@ -364,7 +364,7 @@ Add this job after the `etf_share_size` job:
 
 - [ ] **Step 5: Wire CLI table list**
 
-In `zer0share/cli.py`, add `"etf_sh_cons"` to `ETF_TABLES` after `"etf_share_size"`:
+In `microshare/cli.py`, add `"etf_sh_cons"` to `ETF_TABLES` after `"etf_share_size"`:
 
 ```python
 ETF_TABLES = [
@@ -392,7 +392,7 @@ Expected: PASS.
 Run:
 
 ```bash
-git add zer0share/sync/etf.py zer0share/cli.py tests/test_pipeline.py tests/test_cli.py
+git add microshare/sync/etf.py microshare/cli.py tests/test_pipeline.py tests/test_cli.py
 git commit -m "feat: sync etf_sh_cons table"
 ```
 
@@ -401,8 +401,8 @@ git commit -m "feat: sync etf_sh_cons table"
 ### Task 3: Local Query API
 
 **Files:**
-- Modify: `zer0share/query/etf.py`
-- Modify: `zer0share/api.py`
+- Modify: `microshare/query/etf.py`
+- Modify: `microshare/api.py`
 - Test: `tests/test_api.py`
 
 - [ ] **Step 1: Add failing local API tests**
@@ -512,7 +512,7 @@ Expected: FAIL because `LocalPro.etf_sh_cons` is not implemented.
 
 - [ ] **Step 3: Implement query function**
 
-In `zer0share/query/etf.py`, import `ETF_SH_CONS_SPEC` with the other ETF specs.
+In `microshare/query/etf.py`, import `ETF_SH_CONS_SPEC` with the other ETF specs.
 
 Add after `etf_share_size`:
 
@@ -546,7 +546,7 @@ def etf_sh_cons(
 
 - [ ] **Step 4: Expose LocalPro method and dispatch**
 
-In `zer0share/api.py`, add after `etf_share_size`:
+In `microshare/api.py`, add after `etf_share_size`:
 
 ```python
     def etf_sh_cons(self, **kwargs):
@@ -575,7 +575,7 @@ Expected: PASS.
 Run:
 
 ```bash
-git add zer0share/query/etf.py zer0share/api.py tests/test_api.py
+git add microshare/query/etf.py microshare/api.py tests/test_api.py
 git commit -m "feat: query etf_sh_cons locally"
 ```
 
@@ -598,7 +598,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from zer0share import pro_api
+from microshare import pro_api
 
 
 FIELDS = "trade_date,ts_code,con_code,con_name,qty,sub_flag,cpr,rdr,sca,exchange"

@@ -38,11 +38,11 @@ def test_start_scheduler_registers_all_configured_jobs(tmp_path):
             "apscheduler.schedulers.blocking.BlockingScheduler.add_job",
             side_effect=fake_add_job,
         ),
-        patch("micro.scheduler.Pipeline") as mock_pipeline_cls,
+        patch("microshare.scheduler.Pipeline") as mock_pipeline_cls,
     ):
         mock_pipeline_cls.return_value.__enter__ = lambda s: s
         mock_pipeline_cls.return_value.__exit__ = MagicMock(return_value=False)
-        from micro.scheduler import start_scheduler
+        from microshare.scheduler import start_scheduler
         start_scheduler(str(cfg_file))
 
     assert set(registered_jobs) == {"trade_cal", "basic", "daily_kline", "adj_factor"}
@@ -56,12 +56,12 @@ def test_start_scheduler_sends_startup_notification(tmp_path):
 
     with (
         patch("tushare.pro_api"),
-        patch("micro.scheduler.build_notifier", return_value=notifier),
+        patch("microshare.scheduler.build_notifier", return_value=notifier),
         patch("apscheduler.schedulers.blocking.BlockingScheduler.start"),
         patch("apscheduler.schedulers.blocking.BlockingScheduler.add_job"),
-        patch("micro.scheduler.Pipeline"),
+        patch("microshare.scheduler.Pipeline"),
     ):
-        from micro.scheduler import start_scheduler
+        from microshare.scheduler import start_scheduler
 
         start_scheduler(str(cfg_file))
 
@@ -88,13 +88,13 @@ def test_start_scheduler_opens_pipeline_only_when_job_runs(tmp_path):
             "apscheduler.schedulers.blocking.BlockingScheduler.add_job",
             side_effect=fake_add_job,
         ),
-        patch("micro.scheduler.Pipeline") as mock_pipeline_cls,
+        patch("microshare.scheduler.Pipeline") as mock_pipeline_cls,
     ):
         mock_pipeline = mock_pipeline_cls.return_value
         mock_pipeline.__enter__.return_value = mock_pipeline
         mock_pipeline.__exit__.return_value = False
 
-        from micro.scheduler import start_scheduler
+        from microshare.scheduler import start_scheduler
 
         start_scheduler(str(cfg_file))
 
@@ -124,17 +124,17 @@ def test_start_scheduler_uses_correct_cron_times(tmp_path):
 
     with (
         patch("tushare.pro_api"),
-        patch("micro.scheduler.CronTrigger", side_effect=fake_cron_trigger),
+        patch("microshare.scheduler.CronTrigger", side_effect=fake_cron_trigger),
         patch("apscheduler.schedulers.blocking.BlockingScheduler.start"),
         patch(
             "apscheduler.schedulers.blocking.BlockingScheduler.add_job",
             side_effect=fake_add_job,
         ),
-        patch("micro.scheduler.Pipeline") as mock_pipeline_cls,
+        patch("microshare.scheduler.Pipeline") as mock_pipeline_cls,
     ):
         mock_pipeline_cls.return_value.__enter__ = lambda s: s
         mock_pipeline_cls.return_value.__exit__ = MagicMock(return_value=False)
-        from micro.scheduler import start_scheduler
+        from microshare.scheduler import start_scheduler
         start_scheduler(str(cfg_file))
 
     assert job_cron_map["trade_cal"] == {"hour": 9, "minute": 0}

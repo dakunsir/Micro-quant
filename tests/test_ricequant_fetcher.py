@@ -4,7 +4,7 @@ import types
 import pandas as pd
 import pytest
 
-from micro.sources.ricequant import (
+from microshare.sources.ricequant import (
     RiceQuantFetcher,
 )
 

@@ -3,14 +3,14 @@ from unittest.mock import patch
 
 import pandas as pd
 
-from micro.storage import (
+from microshare.storage import (
     DailyPartitionStore,
     IndexWeightStore,
     SnapshotStore,
     write_trade_cal,
     write_universe,
 )
-from micro.universe import build_universe_detail, build_universes, build_universes_range
+from microshare.universe import build_universe_detail, build_universes, build_universes_range
 
 
 def _basic(codes: list[str], trade_date: date) -> pd.DataFrame:
@@ -316,7 +316,7 @@ def test_build_universes_range_logs_progress(tmp_path):
             )
             write_universe(tmp_path, name, trade_date, out)
 
-    with patch("micro.universe.logger.info") as mock_info:
+    with patch("microshare.universe.logger.info") as mock_info:
         summary = build_universes_range(tmp_path, days[0], days[-1])
 
     messages = [call.args[0] for call in mock_info.call_args_list]
@@ -447,7 +447,7 @@ def test_build_universes_range_defaults_start_after_latest_complete_universe(tmp
                 ),
             )
 
-    with patch("micro.universe.logger.info") as mock_info:
+    with patch("microshare.universe.logger.info") as mock_info:
         summary = build_universes_range(tmp_path)
 
     assert summary["trading_days"] == 0

@@ -13,7 +13,7 @@
 ### Task 1: Add `is_trading_day` to MetaStore
 
 **Files:**
-- Modify: `zer0share/storage.py:84-98` (after `get_trading_days`)
+- Modify: `microshare/storage.py:84-98` (after `get_trading_days`)
 - Test: `tests/test_storage.py`
 
 - [ ] **Step 1: Write failing tests for `is_trading_day`**
@@ -72,12 +72,12 @@ def test_is_trading_day_returns_true_when_no_calendar_loaded(tmp_path):
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd /data/projects/zer0share && uv run pytest tests/test_storage.py::test_is_trading_day_returns_true_for_open_day tests/test_storage.py::test_is_trading_day_returns_false_for_closed_day tests/test_storage.py::test_is_trading_day_returns_true_when_date_not_in_calendar tests/test_storage.py::test_is_trading_day_returns_true_when_no_calendar_loaded -v`
+Run: `cd /data/projects/microshare && uv run pytest tests/test_storage.py::test_is_trading_day_returns_true_for_open_day tests/test_storage.py::test_is_trading_day_returns_false_for_closed_day tests/test_storage.py::test_is_trading_day_returns_true_when_date_not_in_calendar tests/test_storage.py::test_is_trading_day_returns_true_when_no_calendar_loaded -v`
 Expected: FAIL — `AttributeError: 'MetaStore' object has no attribute 'is_trading_day'`
 
 - [ ] **Step 3: Implement `is_trading_day` in MetaStore**
 
-Add after `get_trading_days` in `zer0share/storage.py` (after line 98):
+Add after `get_trading_days` in `microshare/storage.py` (after line 98):
 
 ```python
     def is_trading_day(self, exchange: str, cal_date: date) -> bool:
@@ -97,18 +97,18 @@ Add after `get_trading_days` in `zer0share/storage.py` (after line 98):
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd /data/projects/zer0share && uv run pytest tests/test_storage.py::test_is_trading_day_returns_true_for_open_day tests/test_storage.py::test_is_trading_day_returns_false_for_closed_day tests/test_storage.py::test_is_trading_day_returns_true_when_date_not_in_calendar tests/test_storage.py::test_is_trading_day_returns_true_when_no_calendar_loaded -v`
+Run: `cd /data/projects/microshare && uv run pytest tests/test_storage.py::test_is_trading_day_returns_true_for_open_day tests/test_storage.py::test_is_trading_day_returns_false_for_closed_day tests/test_storage.py::test_is_trading_day_returns_true_when_date_not_in_calendar tests/test_storage.py::test_is_trading_day_returns_true_when_no_calendar_loaded -v`
 Expected: All 4 PASS
 
 - [ ] **Step 5: Run full test suite to confirm no regressions**
 
-Run: `cd /data/projects/zer0share && uv run pytest tests/ -v`
+Run: `cd /data/projects/microshare && uv run pytest tests/ -v`
 Expected: All tests PASS
 
 - [ ] **Step 6: Commit**
 
 ```bash
-cd /data/projects/zer0share && git add zer0share/storage.py tests/test_storage.py && git commit -m "feat: add is_trading_day method to MetaStore"
+cd /data/projects/microshare && git add microshare/storage.py tests/test_storage.py && git commit -m "feat: add is_trading_day method to MetaStore"
 ```
 
 ---
@@ -116,7 +116,7 @@ cd /data/projects/zer0share && git add zer0share/storage.py tests/test_storage.p
 ### Task 2: Add `ALL_EXCHANGES`, `_ensure_trade_cal_loaded`, and `_skip_if_not_trading` to Pipeline
 
 **Files:**
-- Modify: `zer0share/pipeline.py:33` (add constant) and `pipeline.py:110-115` (Pipeline class)
+- Modify: `microshare/pipeline.py:33` (add constant) and `pipeline.py:110-115` (Pipeline class)
 - Test: `tests/test_pipeline.py`
 
 - [ ] **Step 1: Write failing tests for `_skip_if_not_trading` and `_ensure_trade_cal_loaded`**
@@ -124,7 +124,7 @@ cd /data/projects/zer0share && git add zer0share/storage.py tests/test_storage.p
 Append to `tests/test_pipeline.py`:
 
 ```python
-from zer0share.pipeline import ALL_EXCHANGES
+from microshare.pipeline import ALL_EXCHANGES
 
 
 def test_all_exchanges_contains_all_8():
@@ -142,7 +142,7 @@ def test_skip_if_not_trading_returns_true_on_non_trading_day(pipeline, cfg):
     pipeline._meta.load_trade_cal_from_parquet(cfg.data_dir)
     pipeline._meta.update_last_date("trade_cal", date(2024, 1, 3))
 
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("microshare.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 3)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         assert pipeline._skip_if_not_trading("SSE") is True
@@ -159,7 +159,7 @@ def test_skip_if_not_trading_returns_false_on_trading_day(pipeline, cfg):
     pipeline._meta.load_trade_cal_from_parquet(cfg.data_dir)
     pipeline._meta.update_last_date("trade_cal", date(2024, 1, 2))
 
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("microshare.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         assert pipeline._skip_if_not_trading("SSE") is False
@@ -172,7 +172,7 @@ def test_ensure_trade_cal_loaded_triggers_sync_when_no_meta(pipeline, cfg):
         "is_open": [True],
         "pretrade_date": [date(2023, 12, 29)],
     })
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("microshare.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 6, 1)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline._ensure_trade_cal_loaded()
@@ -181,7 +181,7 @@ def test_ensure_trade_cal_loaded_triggers_sync_when_no_meta(pipeline, cfg):
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd /data/projects/zer0share && uv run pytest tests/test_pipeline.py::test_all_exchanges_contains_all_8 tests/test_pipeline.py::test_skip_if_not_trading_returns_true_on_non_trading_day tests/test_pipeline.py::test_skip_if_not_trading_returns_false_on_trading_day tests/test_pipeline.py::test_ensure_trade_cal_loaded_triggers_sync_when_no_meta -v`
+Run: `cd /data/projects/microshare && uv run pytest tests/test_pipeline.py::test_all_exchanges_contains_all_8 tests/test_pipeline.py::test_skip_if_not_trading_returns_true_on_non_trading_day tests/test_pipeline.py::test_skip_if_not_trading_returns_false_on_trading_day tests/test_pipeline.py::test_ensure_trade_cal_loaded_triggers_sync_when_no_meta -v`
 Expected: FAIL — `ImportError: cannot import name 'ALL_EXCHANGES'`
 
 - [ ] **Step 3: Implement changes in `pipeline.py`**
@@ -212,18 +212,18 @@ ALL_EXCHANGES = ["SSE", "SZSE", "CFFEX", "DCE", "SHFE", "CZCE", "INE", "GFEX"]
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd /data/projects/zer0share && uv run pytest tests/test_pipeline.py::test_all_exchanges_contains_all_8 tests/test_pipeline.py::test_skip_if_not_trading_returns_true_on_non_trading_day tests/test_pipeline.py::test_skip_if_not_trading_returns_false_on_trading_day tests/test_pipeline.py::test_ensure_trade_cal_loaded_triggers_sync_when_no_meta -v`
+Run: `cd /data/projects/microshare && uv run pytest tests/test_pipeline.py::test_all_exchanges_contains_all_8 tests/test_pipeline.py::test_skip_if_not_trading_returns_true_on_non_trading_day tests/test_pipeline.py::test_skip_if_not_trading_returns_false_on_trading_day tests/test_pipeline.py::test_ensure_trade_cal_loaded_triggers_sync_when_no_meta -v`
 Expected: All 4 PASS
 
 - [ ] **Step 5: Run full test suite**
 
-Run: `cd /data/projects/zer0share && uv run pytest tests/ -v`
+Run: `cd /data/projects/microshare && uv run pytest tests/ -v`
 Expected: All tests PASS
 
 - [ ] **Step 6: Commit**
 
 ```bash
-cd /data/projects/zer0share && git add zer0share/pipeline.py tests/test_pipeline.py && git commit -m "feat: add ALL_EXCHANGES constant, _skip_if_not_trading and _ensure_trade_cal_loaded to Pipeline"
+cd /data/projects/microshare && git add microshare/pipeline.py tests/test_pipeline.py && git commit -m "feat: add ALL_EXCHANGES constant, _skip_if_not_trading and _ensure_trade_cal_loaded to Pipeline"
 ```
 
 ---
@@ -231,7 +231,7 @@ cd /data/projects/zer0share && git add zer0share/pipeline.py tests/test_pipeline
 ### Task 3: Extend `sync_trade_cal` to all 8 exchanges
 
 **Files:**
-- Modify: `zer0share/pipeline.py:129-164` (`sync_trade_cal` method)
+- Modify: `microshare/pipeline.py:129-164` (`sync_trade_cal` method)
 - Test: `tests/test_pipeline.py`
 
 - [ ] **Step 1: Write failing test**
@@ -239,12 +239,12 @@ cd /data/projects/zer0share && git add zer0share/pipeline.py tests/test_pipeline
 Append to `tests/test_pipeline.py`:
 
 ```python
-from zer0share.pipeline import ALL_EXCHANGES as NEW_ALL_EXCHANGES
+from microshare.pipeline import ALL_EXCHANGES as NEW_ALL_EXCHANGES
 
 
 def test_sync_trade_cal_writes_all_8_exchanges(pipeline, cfg):
     pipeline._fetcher.fetch_trade_cal.return_value = _trade_cal_df("SSE")
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("microshare.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 5, 18)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_trade_cal()
@@ -254,12 +254,12 @@ def test_sync_trade_cal_writes_all_8_exchanges(pipeline, cfg):
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd /data/projects/zer0share && uv run pytest tests/test_pipeline.py::test_sync_trade_cal_writes_all_8_exchanges -v`
+Run: `cd /data/projects/microshare && uv run pytest tests/test_pipeline.py::test_sync_trade_cal_writes_all_8_exchanges -v`
 Expected: FAIL — only SSE and SZSE parquet files exist
 
 - [ ] **Step 3: Update `sync_trade_cal` to use `ALL_EXCHANGES`**
 
-In `zer0share/pipeline.py`, change `sync_trade_cal` to use `ALL_EXCHANGES` instead of `EXCHANGES`:
+In `microshare/pipeline.py`, change `sync_trade_cal` to use `ALL_EXCHANGES` instead of `EXCHANGES`:
 
 Line 133: change `for exchange in EXCHANGES:` to `for exchange in ALL_EXCHANGES:`
 
@@ -267,12 +267,12 @@ Line 157: change `self._meta.load_trade_cal_from_parquet(self._cfg.data_dir, EXC
 
 - [ ] **Step 4: Run new test**
 
-Run: `cd /data/projects/zer0share && uv run pytest tests/test_pipeline.py::test_sync_trade_cal_writes_all_8_exchanges -v`
+Run: `cd /data/projects/microshare && uv run pytest tests/test_pipeline.py::test_sync_trade_cal_writes_all_8_exchanges -v`
 Expected: PASS
 
 - [ ] **Step 5: Run full test suite**
 
-Run: `cd /data/projects/zer0share && uv run pytest tests/ -v`
+Run: `cd /data/projects/microshare && uv run pytest tests/ -v`
 Expected: All tests PASS. Note: existing `test_sync_trade_cal_writes_all_exchanges` uses `EXCHANGES` (2 exchanges) and will still pass because the test asserts files exist for those 2 — they still will.
 
 - [ ] **Step 6: Update existing test to import from pipeline**
@@ -282,7 +282,7 @@ The existing `test_sync_trade_cal_writes_all_exchanges` imports `EXCHANGES` from
 - [ ] **Step 7: Commit**
 
 ```bash
-cd /data/projects/zer0share && git add zer0share/pipeline.py tests/test_pipeline.py && git commit -m "feat: extend sync_trade_cal to all 8 exchanges"
+cd /data/projects/microshare && git add microshare/pipeline.py tests/test_pipeline.py && git commit -m "feat: extend sync_trade_cal to all 8 exchanges"
 ```
 
 ---
@@ -290,7 +290,7 @@ cd /data/projects/zer0share && git add zer0share/pipeline.py tests/test_pipeline
 ### Task 4: Add non-trading-day skip to 6 sync methods
 
 **Files:**
-- Modify: `zer0share/pipeline.py` — 6 methods: `sync_basic`, `sync_industry`, `sync_ci_member`, `sync_fut_basic`, `sync_opt_basic`, `sync_fut_index_daily`
+- Modify: `microshare/pipeline.py` — 6 methods: `sync_basic`, `sync_industry`, `sync_ci_member`, `sync_fut_basic`, `sync_opt_basic`, `sync_fut_index_daily`
 - Test: `tests/test_pipeline.py`
 
 - [ ] **Step 1: Write failing tests**
@@ -313,7 +313,7 @@ def _setup_non_trading_day(pipeline, cfg):
 
 def test_sync_basic_skips_non_trading_day(pipeline, cfg):
     _setup_non_trading_day(pipeline, cfg)
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("microshare.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 3)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_basic()
@@ -323,7 +323,7 @@ def test_sync_basic_skips_non_trading_day(pipeline, cfg):
 
 def test_sync_industry_skips_non_trading_day(pipeline, cfg):
     _setup_non_trading_day(pipeline, cfg)
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("microshare.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 3)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_industry()
@@ -333,7 +333,7 @@ def test_sync_industry_skips_non_trading_day(pipeline, cfg):
 
 def test_sync_ci_member_skips_non_trading_day(pipeline, cfg):
     _setup_non_trading_day(pipeline, cfg)
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("microshare.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 3)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_ci_member()
@@ -343,7 +343,7 @@ def test_sync_ci_member_skips_non_trading_day(pipeline, cfg):
 
 def test_sync_fut_basic_skips_non_trading_day(pipeline, cfg):
     _setup_non_trading_day(pipeline, cfg)
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("microshare.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 3)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_fut_basic()
@@ -353,7 +353,7 @@ def test_sync_fut_basic_skips_non_trading_day(pipeline, cfg):
 
 def test_sync_opt_basic_skips_non_trading_day(pipeline, cfg):
     _setup_non_trading_day(pipeline, cfg)
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("microshare.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 3)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_opt_basic()
@@ -364,7 +364,7 @@ def test_sync_opt_basic_skips_non_trading_day(pipeline, cfg):
 def test_sync_fut_index_daily_skips_non_trading_day(pipeline, cfg):
     _setup_non_trading_day(pipeline, cfg)
     pipeline._meta.update_last_date("fut_index_daily", date(2024, 1, 1))
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("microshare.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 3)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_fut_index_daily()
@@ -374,7 +374,7 @@ def test_sync_fut_index_daily_skips_non_trading_day(pipeline, cfg):
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd /data/projects/zer0share && uv run pytest tests/test_pipeline.py::test_sync_basic_skips_non_trading_day tests/test_pipeline.py::test_sync_industry_skips_non_trading_day tests/test_pipeline.py::test_sync_ci_member_skips_non_trading_day tests/test_pipeline.py::test_sync_fut_basic_skips_non_trading_day tests/test_pipeline.py::test_sync_opt_basic_skips_non_trading_day tests/test_pipeline.py::test_sync_fut_index_daily_skips_non_trading_day -v`
+Run: `cd /data/projects/microshare && uv run pytest tests/test_pipeline.py::test_sync_basic_skips_non_trading_day tests/test_pipeline.py::test_sync_industry_skips_non_trading_day tests/test_pipeline.py::test_sync_ci_member_skips_non_trading_day tests/test_pipeline.py::test_sync_fut_basic_skips_non_trading_day tests/test_pipeline.py::test_sync_opt_basic_skips_non_trading_day tests/test_pipeline.py::test_sync_fut_index_daily_skips_non_trading_day -v`
 Expected: FAIL — fetcher is called (no skip guard in place)
 
 - [ ] **Step 3: Add skip guard to each of the 6 methods in `pipeline.py`**
@@ -423,12 +423,12 @@ Expected: FAIL — fetcher is called (no skip guard in place)
 
 - [ ] **Step 4: Run the 6 new tests**
 
-Run: `cd /data/projects/zer0share && uv run pytest tests/test_pipeline.py::test_sync_basic_skips_non_trading_day tests/test_pipeline.py::test_sync_industry_skips_non_trading_day tests/test_pipeline.py::test_sync_ci_member_skips_non_trading_day tests/test_pipeline.py::test_sync_fut_basic_skips_non_trading_day tests/test_pipeline.py::test_sync_opt_basic_skips_non_trading_day tests/test_pipeline.py::test_sync_fut_index_daily_skips_non_trading_day -v`
+Run: `cd /data/projects/microshare && uv run pytest tests/test_pipeline.py::test_sync_basic_skips_non_trading_day tests/test_pipeline.py::test_sync_industry_skips_non_trading_day tests/test_pipeline.py::test_sync_ci_member_skips_non_trading_day tests/test_pipeline.py::test_sync_fut_basic_skips_non_trading_day tests/test_pipeline.py::test_sync_opt_basic_skips_non_trading_day tests/test_pipeline.py::test_sync_fut_index_daily_skips_non_trading_day -v`
 Expected: All 6 PASS
 
 - [ ] **Step 5: Run full test suite**
 
-Run: `cd /data/projects/zer0share && uv run pytest tests/ -v`
+Run: `cd /data/projects/microshare && uv run pytest tests/ -v`
 Expected: All tests PASS. Existing tests for these methods mock `date.today()` to a trading day or don't set up a calendar (so `_skip_if_not_trading` triggers `_ensure_trade_cal_loaded` which syncs a calendar). Review output carefully.
 
 **Important:** Existing tests like `test_sync_basic_first_run_writes_parquet` do NOT set up a trade_cal. With the new `_skip_if_not_trading` guard, `_ensure_trade_cal_loaded` will fire and call `sync_trade_cal`, which calls `fetch_trade_cal` on the mock. The mock returns a DataFrame with is_open=True by default. Since `date.today()` isn't mocked in that test, it will check the real today against the calendar. We need to ensure existing tests still pass. If they fail, patch `date.today()` in the existing tests or make `_skip_if_not_trading` more resilient.
@@ -438,7 +438,7 @@ If existing tests break, the fix is to add `date` patching to existing tests tha
 - [ ] **Step 6: Commit**
 
 ```bash
-cd /data/projects/zer0share && git add zer0share/pipeline.py tests/test_pipeline.py && git commit -m "feat: add non-trading-day skip to sync_basic, sync_industry, sync_ci_member, sync_fut_basic, sync_opt_basic, sync_fut_index_daily"
+cd /data/projects/microshare && git add microshare/pipeline.py tests/test_pipeline.py && git commit -m "feat: add non-trading-day skip to sync_basic, sync_industry, sync_ci_member, sync_fut_basic, sync_opt_basic, sync_fut_index_daily"
 ```
 
 ---
@@ -446,7 +446,7 @@ cd /data/projects/zer0share && git add zer0share/pipeline.py tests/test_pipeline
 ### Task 5: Add `exchange` parameter to `_sync_daily_partitioned`
 
 **Files:**
-- Modify: `zer0share/pipeline.py:854-945` (`_sync_daily_partitioned` method)
+- Modify: `microshare/pipeline.py:854-945` (`_sync_daily_partitioned` method)
 - Test: `tests/test_pipeline.py`
 
 - [ ] **Step 1: Write failing test**
@@ -482,8 +482,8 @@ def test_sync_daily_partitioned_uses_exchange_param(pipeline, cfg):
     })
     pipeline._meta.update_last_date("fut_daily", date(2024, 1, 1))
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("microshare.pipeline.date") as mock_date, \
+         patch("microshare.pipeline.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         # DCE has 1/2 as trading day; SSE does not
@@ -497,12 +497,12 @@ def test_sync_daily_partitioned_uses_exchange_param(pipeline, cfg):
 
 - [ ] **Step 2: Run test to see current behavior**
 
-Run: `cd /data/projects/zer0share && uv run pytest tests/test_pipeline.py::test_sync_daily_partitioned_uses_exchange_param -v`
+Run: `cd /data/projects/microshare && uv run pytest tests/test_pipeline.py::test_sync_daily_partitioned_uses_exchange_param -v`
 Expected: FAIL — currently `_sync_daily_partitioned` hardcodes `"SSE"` and doesn't have the `exchange` parameter yet
 
 - [ ] **Step 3: Add `exchange` parameter to `_sync_daily_partitioned`**
 
-Change the method signature in `zer0share/pipeline.py` (line 854):
+Change the method signature in `microshare/pipeline.py` (line 854):
 
 From:
 ```python
@@ -559,18 +559,18 @@ To:
 
 - [ ] **Step 4: Run the new test**
 
-Run: `cd /data/projects/zer0share && uv run pytest tests/test_pipeline.py::test_sync_daily_partitioned_uses_exchange_param -v`
+Run: `cd /data/projects/microshare && uv run pytest tests/test_pipeline.py::test_sync_daily_partitioned_uses_exchange_param -v`
 Expected: PASS (SSE says 1/2 is closed, fetcher not called)
 
 - [ ] **Step 5: Run full test suite**
 
-Run: `cd /data/projects/zer0share && uv run pytest tests/ -v`
+Run: `cd /data/projects/microshare && uv run pytest tests/ -v`
 Expected: All tests PASS — default `"SSE"` maintains backward compatibility
 
 - [ ] **Step 6: Commit**
 
 ```bash
-cd /data/projects/zer0share && git add zer0share/pipeline.py tests/test_pipeline.py && git commit -m "feat: add exchange parameter to _sync_daily_partitioned"
+cd /data/projects/microshare && git add microshare/pipeline.py tests/test_pipeline.py && git commit -m "feat: add exchange parameter to _sync_daily_partitioned"
 ```
 
 ---
@@ -578,9 +578,9 @@ cd /data/projects/zer0share && git add zer0share/pipeline.py tests/test_pipeline
 ### Task 6: Add trade_cal scheduler job and config
 
 **Files:**
-- Modify: `zer0share/config.py` — add `scheduler_trade_cal_hour`, `scheduler_trade_cal_minute`
+- Modify: `microshare/config.py` — add `scheduler_trade_cal_hour`, `scheduler_trade_cal_minute`
 - Modify: `config/settings.example.toml` — add trade_cal schedule
-- Modify: `zer0share/scheduler.py` — add trade_cal as first job
+- Modify: `microshare/scheduler.py` — add trade_cal as first job
 - Test: `tests/test_config.py`
 - Test: `tests/test_scheduler.py`
 
@@ -731,11 +731,11 @@ def test_start_scheduler_registers_trade_cal_job(tmp_path):
             "apscheduler.schedulers.blocking.BlockingScheduler.add_job",
             side_effect=fake_add_job,
         ),
-        patch("zer0share.scheduler.Pipeline") as mock_pipeline_cls,
+        patch("microshare.scheduler.Pipeline") as mock_pipeline_cls,
     ):
         mock_pipeline_cls.return_value.__enter__ = lambda s: s
         mock_pipeline_cls.return_value.__exit__ = MagicMock(return_value=False)
-        from zer0share.scheduler import start_scheduler
+        from microshare.scheduler import start_scheduler
 
         start_scheduler(str(cfg_file))
 
@@ -766,12 +766,12 @@ And add `"trade_cal"` to the expected set:
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd /data/projects/zer0share && uv run pytest tests/test_config.py tests/test_scheduler.py -v`
+Run: `cd /data/projects/microshare && uv run pytest tests/test_config.py tests/test_scheduler.py -v`
 Expected: FAIL — `Config` doesn't have `scheduler_trade_cal_hour` field
 
 - [ ] **Step 3: Update `config.py`**
 
-Add two fields to the `Config` dataclass in `zer0share/config.py`:
+Add two fields to the `Config` dataclass in `microshare/config.py`:
 
 ```python
     scheduler_trade_cal_hour: int
@@ -796,7 +796,7 @@ trade_cal_minute = 0
 
 - [ ] **Step 5: Update `scheduler.py`**
 
-In `zer0share/scheduler.py`, add a trade_cal job before the existing daily_kline job (after line 22, before the first `scheduler.add_job`):
+In `microshare/scheduler.py`, add a trade_cal job before the existing daily_kline job (after line 22, before the first `scheduler.add_job`):
 
 ```python
         scheduler.add_job(
@@ -822,18 +822,18 @@ Update the log message to include trade_cal:
 
 - [ ] **Step 6: Run tests**
 
-Run: `cd /data/projects/zer0share && uv run pytest tests/test_config.py tests/test_scheduler.py -v`
+Run: `cd /data/projects/microshare && uv run pytest tests/test_config.py tests/test_scheduler.py -v`
 Expected: All PASS
 
 - [ ] **Step 7: Run full test suite**
 
-Run: `cd /data/projects/zer0share && uv run pytest tests/ -v`
+Run: `cd /data/projects/microshare && uv run pytest tests/ -v`
 Expected: All tests PASS
 
 - [ ] **Step 8: Commit**
 
 ```bash
-cd /data/projects/zer0share && git add zer0share/config.py zer0share/scheduler.py config/settings.example.toml tests/test_config.py tests/test_scheduler.py && git commit -m "feat: add trade_cal scheduler job with config support"
+cd /data/projects/microshare && git add microshare/config.py microshare/scheduler.py config/settings.example.toml tests/test_config.py tests/test_scheduler.py && git commit -m "feat: add trade_cal scheduler job with config support"
 ```
 
 ---
@@ -842,11 +842,11 @@ cd /data/projects/zer0share && git add zer0share/config.py zer0share/scheduler.p
 
 **Files:**
 - Possibly modify: `tests/test_pipeline.py` (fix any broken existing tests)
-- Possibly modify: `zer0share/pipeline.py` (minor adjustments)
+- Possibly modify: `microshare/pipeline.py` (minor adjustments)
 
 - [ ] **Step 1: Run full test suite**
 
-Run: `cd /data/projects/zer0share && uv run pytest tests/ -v`
+Run: `cd /data/projects/microshare && uv run pytest tests/ -v`
 Expected: All tests PASS
 
 If any tests fail due to the `_skip_if_not_trading` guard (e.g., `test_sync_basic_first_run_writes_parquet`), the fix pattern is to either:
@@ -854,15 +854,15 @@ If any tests fail due to the `_skip_if_not_trading` guard (e.g., `test_sync_basi
 a) Mock `date.today()` to a trading day and ensure a trade_cal is loaded, OR
 b) Mock `_skip_if_not_trading` to return `False` for that specific test
 
-Option (b) is cleaner — add `patch("zer0share.pipeline.Pipeline._skip_if_not_trading", return_value=False)` as a decorator or context manager to existing tests that don't set up a trade_cal.
+Option (b) is cleaner — add `patch("microshare.pipeline.Pipeline._skip_if_not_trading", return_value=False)` as a decorator or context manager to existing tests that don't set up a trade_cal.
 
 - [ ] **Step 2: Run full test suite again**
 
-Run: `cd /data/projects/zer0share && uv run pytest tests/ -v`
+Run: `cd /data/projects/microshare && uv run pytest tests/ -v`
 Expected: All tests PASS
 
 - [ ] **Step 3: Commit any test fixes**
 
 ```bash
-cd /data/projects/zer0share && git add tests/ zer0share/ && git commit -m "fix: update existing tests for non-trading-day skip guard"
+cd /data/projects/microshare && git add tests/ microshare/ && git commit -m "fix: update existing tests for non-trading-day skip guard"
 ```

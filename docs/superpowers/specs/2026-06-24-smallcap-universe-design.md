@@ -2,7 +2,7 @@
 
 ## Goal
 
-Add a local zer0share stock universe for small-cap stocks. The universe should be available through the existing `build-universe` command and `pro.universe(...)` query path, just like the existing base and index universes.
+Add a local microshare stock universe for small-cap stocks. The universe should be available through the existing `build-universe` command and `pro.universe(...)` query path, just like the existing base and index universes.
 
 ## Definition
 

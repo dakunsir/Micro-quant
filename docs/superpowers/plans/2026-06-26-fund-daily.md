@@ -12,13 +12,13 @@
 
 ## File Structure
 
-- Modify `zer0share/schema.py`: add `FUND_DAILY_COLS`.
-- Modify `zer0share/catalog.py`: import `FUND_DAILY_COLS` and add `FUND_DAILY_SPEC`.
-- Modify `zer0share/fetcher.py`: import `FUND_DAILY_COLS` and add `TushareFetcher.fetch_fund_daily`.
-- Modify `zer0share/query/etf.py`: import `FUND_DAILY_SPEC`, `DailyPartitionRepository`, and add `fund_daily`.
-- Modify `zer0share/api.py`: add `LocalPro.fund_daily` and dispatch support.
-- Modify `zer0share/sync/etf.py`: import `FUND_DAILY_SPEC`, `DailyPartitionStore`, `DailySyncJob`, and register the daily job.
-- Modify `zer0share/cli.py`: include `fund_daily` in `ETF_TABLES`.
+- Modify `microshare/schema.py`: add `FUND_DAILY_COLS`.
+- Modify `microshare/catalog.py`: import `FUND_DAILY_COLS` and add `FUND_DAILY_SPEC`.
+- Modify `microshare/fetcher.py`: import `FUND_DAILY_COLS` and add `TushareFetcher.fetch_fund_daily`.
+- Modify `microshare/query/etf.py`: import `FUND_DAILY_SPEC`, `DailyPartitionRepository`, and add `fund_daily`.
+- Modify `microshare/api.py`: add `LocalPro.fund_daily` and dispatch support.
+- Modify `microshare/sync/etf.py`: import `FUND_DAILY_SPEC`, `DailyPartitionStore`, `DailySyncJob`, and register the daily job.
+- Modify `microshare/cli.py`: include `fund_daily` in `ETF_TABLES`.
 - Modify `README.md`: document sync command, local API example, API table row, data tree, and CLI command summary.
 - Create `examples/etf/fund_daily_query_smoke.py`: local query smoke script.
 - Modify `examples/README.md`: list and show the ETF daily smoke example.
@@ -32,9 +32,9 @@
 ### Task 1: Schema, Catalog, And Fetcher
 
 **Files:**
-- Modify: `zer0share/schema.py`
-- Modify: `zer0share/catalog.py`
-- Modify: `zer0share/fetcher.py`
+- Modify: `microshare/schema.py`
+- Modify: `microshare/catalog.py`
+- Modify: `microshare/fetcher.py`
 - Test: `tests/test_fetcher.py`
 
 - [ ] **Step 1: Write failing fetcher tests**
@@ -108,7 +108,7 @@ Expected: FAIL with `AttributeError: 'TushareFetcher' object has no attribute 'f
 
 - [ ] **Step 3: Add schema columns**
 
-In `zer0share/schema.py`, add this after `ETF_INDEX_COLS`:
+In `microshare/schema.py`, add this after `ETF_INDEX_COLS`:
 
 ```python
 FUND_DAILY_COLS = [
@@ -119,7 +119,7 @@ FUND_DAILY_COLS = [
 
 - [ ] **Step 4: Add catalog spec**
 
-In `zer0share/catalog.py`, add `FUND_DAILY_COLS` to the `from zer0share.schema import (...)` import list.
+In `microshare/catalog.py`, add `FUND_DAILY_COLS` to the `from microshare.schema import (...)` import list.
 
 Add this after `ETF_INDEX_SPEC`:
 
@@ -139,7 +139,7 @@ FUND_DAILY_SPEC = DailyTableSpec(
 
 - [ ] **Step 5: Add fetcher method**
 
-In `zer0share/fetcher.py`, add `FUND_DAILY_COLS` to the schema import list.
+In `microshare/fetcher.py`, add `FUND_DAILY_COLS` to the schema import list.
 
 Add this method after `fetch_etf_index`:
 
@@ -166,7 +166,7 @@ Expected: PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add zer0share/schema.py zer0share/catalog.py zer0share/fetcher.py tests/test_fetcher.py
+git add microshare/schema.py microshare/catalog.py microshare/fetcher.py tests/test_fetcher.py
 git commit -m "feat: add fund_daily fetcher metadata"
 ```
 
@@ -175,8 +175,8 @@ git commit -m "feat: add fund_daily fetcher metadata"
 ### Task 2: Local Query API
 
 **Files:**
-- Modify: `zer0share/query/etf.py`
-- Modify: `zer0share/api.py`
+- Modify: `microshare/query/etf.py`
+- Modify: `microshare/api.py`
 - Test: `tests/test_api.py`
 
 - [ ] **Step 1: Write failing API tests**
@@ -277,11 +277,11 @@ Expected: FAIL with `AttributeError: 'LocalPro' object has no attribute 'fund_da
 
 - [ ] **Step 3: Add query function**
 
-In `zer0share/query/etf.py`, change the imports to include `FUND_DAILY_SPEC` and `DailyPartitionRepository`:
+In `microshare/query/etf.py`, change the imports to include `FUND_DAILY_SPEC` and `DailyPartitionRepository`:
 
 ```python
-from zer0share.catalog import ETF_BASIC_SPEC, ETF_INDEX_SPEC, FUND_DAILY_SPEC
-from zer0share.query.repository import (
+from microshare.catalog import ETF_BASIC_SPEC, ETF_INDEX_SPEC, FUND_DAILY_SPEC
+from microshare.query.repository import (
     BaseParquetRepository,
     DailyPartitionRepository,
     eq_filter,
@@ -316,7 +316,7 @@ def fund_daily(
 
 - [ ] **Step 4: Expose API method and dispatch**
 
-In `zer0share/api.py`, add this method after `etf_index`:
+In `microshare/api.py`, add this method after `etf_index`:
 
 ```python
     def fund_daily(self, **kwargs):
@@ -343,7 +343,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add zer0share/query/etf.py zer0share/api.py tests/test_api.py
+git add microshare/query/etf.py microshare/api.py tests/test_api.py
 git commit -m "feat: expose fund_daily local query"
 ```
 
@@ -352,8 +352,8 @@ git commit -m "feat: expose fund_daily local query"
 ### Task 3: Sync Pipeline And CLI
 
 **Files:**
-- Modify: `zer0share/sync/etf.py`
-- Modify: `zer0share/cli.py`
+- Modify: `microshare/sync/etf.py`
+- Modify: `microshare/cli.py`
 - Test: `tests/test_pipeline.py`
 - Test: `tests/test_cli.py`
 
@@ -426,7 +426,7 @@ def test_sync_fund_daily_calls_pipeline():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--table", "fund_daily"])
 
     assert result.exit_code == 0
@@ -437,7 +437,7 @@ def test_sync_fund_daily_accepts_date_range():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli,
             [
@@ -471,12 +471,12 @@ Expected: FAIL because `fund_daily` is not registered in the pipeline or CLI cho
 
 - [ ] **Step 4: Register sync job**
 
-Replace the imports in `zer0share/sync/etf.py` with:
+Replace the imports in `microshare/sync/etf.py` with:
 
 ```python
-from zer0share.catalog import ETF_BASIC_SPEC, ETF_INDEX_SPEC, FUND_DAILY_SPEC
-from zer0share.storage import DailyPartitionStore, SnapshotStore
-from zer0share.sync._jobs import DailySyncJob, SnapshotSyncJob, SyncJob
+from microshare.catalog import ETF_BASIC_SPEC, ETF_INDEX_SPEC, FUND_DAILY_SPEC
+from microshare.storage import DailyPartitionStore, SnapshotStore
+from microshare.sync._jobs import DailySyncJob, SnapshotSyncJob, SyncJob
 ```
 
 Add this job to the list returned by `build_jobs`, after the `etf_index` snapshot job:
@@ -492,7 +492,7 @@ Add this job to the list returned by `build_jobs`, after the `etf_index` snapsho
 
 - [ ] **Step 5: Add CLI table choice**
 
-In `zer0share/cli.py`, add `fund_daily` to `ETF_TABLES`:
+In `microshare/cli.py`, add `fund_daily` to `ETF_TABLES`:
 
 ```python
 ETF_TABLES = [
@@ -515,7 +515,7 @@ Expected: PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add zer0share/sync/etf.py zer0share/cli.py tests/test_pipeline.py tests/test_cli.py
+git add microshare/sync/etf.py microshare/cli.py tests/test_pipeline.py tests/test_cli.py
 git commit -m "feat: sync fund_daily ETF bars"
 ```
 
@@ -538,7 +538,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from zer0share import pro_api
+from microshare import pro_api
 
 
 FIELDS = "ts_code,trade_date,open,high,low,close,pre_close,change,pct_chg,vol,amount"

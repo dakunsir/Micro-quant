@@ -1,8 +1,8 @@
 import pandas as pd
 import pytest
 
-from micro.query import QueryContext
-from micro.query.repository import (
+from microshare.query import QueryContext
+from microshare.query.repository import (
     BaseParquetRepository,
     DailyPartitionRepository,
     DailyTableSpec,

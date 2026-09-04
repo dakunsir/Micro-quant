@@ -10,7 +10,7 @@
 """
 
 from pathlib import Path
-from micro.rq_api import rq_api
+from microshare.rq_api import rq_api
 
 
 def main():

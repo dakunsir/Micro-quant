@@ -13,7 +13,7 @@ from pathlib import Path
 import pandas as pd
 import tushare as ts
 
-from micro.config import load_config
+from microshare.config import load_config
 
 
 def load_kline(data_dir: Path, ts_code: str, start: str, end: str) -> pd.DataFrame:

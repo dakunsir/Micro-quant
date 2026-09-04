@@ -1,4 +1,4 @@
-from micro.cli import cli
+from microshare.cli import cli
 
 if __name__ == "__main__":
     cli()

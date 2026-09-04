@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from micro import pro_api
+from microshare import pro_api
 
 
 FIELDS = "ts_code,trade_date,open,high,low,close,pre_close,change,pct_chg,vol,amount"
@@ -18,8 +18,14 @@ def _print_frame(title, df, rows: int = 5) -> None:
     print(df.head(rows).to_string(index=False))
 
 
-def _pick_sample(pro, ts_code: str):
-    sample = pro.daily(ts_code=ts_code, limit=1, fields=FIELDS)
+def _pick_sample(pro, ts_code: str, start_date: str, end_date: str):
+    sample = pro.daily(
+        ts_code=ts_code,
+        start_date=start_date,
+        end_date=end_date,
+        limit=1,
+        fields=FIELDS,
+    )
     if sample.empty:
         raise ValueError(
             f"no daily data found for ts_code={ts_code}; "
@@ -31,7 +37,12 @@ def _pick_sample(pro, ts_code: str):
 def run_smoke(ts_code: str, start_date: str, end_date: str,
               offset: int, limit: int) -> None:
     pro = pro_api()
-    sample = _pick_sample(pro, ts_code=ts_code)
+    sample = _pick_sample(
+        pro,
+        ts_code=ts_code,
+        start_date=start_date,
+        end_date=end_date,
+    )
 
     trade_date = sample["trade_date"]
 
@@ -42,7 +53,13 @@ def run_smoke(ts_code: str, start_date: str, end_date: str,
 
     _print_frame(
         "filter_by_ts_code",
-        pro.daily(ts_code=ts_code, limit=limit, fields=FIELDS),
+        pro.daily(
+            ts_code=ts_code,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit,
+            fields=FIELDS,
+        ),
     )
     _print_frame(
         "filter_by_trade_date",
@@ -62,11 +79,17 @@ def run_smoke(ts_code: str, start_date: str, end_date: str,
     )
     _print_frame(
         "limit_only",
-        pro.daily(limit=limit, fields=FIELDS),
+        pro.daily(start_date=start_date, end_date=end_date, limit=limit, fields=FIELDS),
     )
     _print_frame(
         "offset_and_limit",
-        pro.daily(offset=offset, limit=limit, fields=FIELDS),
+        pro.daily(
+            start_date=start_date,
+            end_date=end_date,
+            offset=offset,
+            limit=limit,
+            fields=FIELDS,
+        ),
     )
     _print_frame(
         "no_fields_filter",

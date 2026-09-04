@@ -1,8 +1,8 @@
 import pandas as pd
 import pytest
-from micro.storage import MetaStore, write_trade_cal
-from micro.trading_calendar import TradingCalendar
-from micro.sync import SyncRuntime
+from microshare.storage import MetaStore, write_trade_cal
+from microshare.trading_calendar import TradingCalendar
+from microshare.sync import SyncRuntime
 
 
 @pytest.fixture

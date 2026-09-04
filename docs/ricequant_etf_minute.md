@@ -1,6 +1,6 @@
 # 米筐 ETF 分钟数据使用指南
 
-本文档介绍如何使用 Micro 的米筐 ETF 分钟数据功能。
+本文档介绍如何使用 Microshare 的米筐 ETF 分钟数据功能。
 
 ## 功能概述
 
@@ -89,7 +89,7 @@ python main.py sync --table ricequant_etf_minute
 ### 使用 rq_api 本地接口
 
 ```python
-from micro.rq_api import rq_api
+from microshare.rq_api import rq_api
 
 # 初始化 API
 api = rq_api("config/settings.toml")
@@ -129,8 +129,8 @@ print(df_daily)
 
 ```python
 from pathlib import Path
-from micro.query import QueryContext
-from micro.query import ricequant
+from microshare.query import QueryContext
+from microshare.query import ricequant
 
 # 初始化查询上下文
 ctx = QueryContext(Path("data"))
@@ -190,7 +190,7 @@ python examples/ricequant/etf_minute_query_smoke.py
 A: 分钟数据同步任务需要从 ETF 基础信息表中读取 ETF 列表，因此必须先同步基础信息。
 
 ### Q: 如何只同步特定的 ETF？
-A: 当前版本同步所有 Active 状态的 ETF。如需自定义，可以修改 `micro/sync/ricequant.py` 中的 `_load_order_book_ids` 方法。
+A: 当前版本同步所有 Active 状态的 ETF。如需自定义，可以修改 `microshare/sync/ricequant.py` 中的 `_load_order_book_ids` 方法。
 
 ### Q: 数据查询很慢怎么办？
 A: ETF 分钟数据采用 DuckDB + Parquet 存储，查询效率较高。如果查询慢，检查：

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Add the Tushare `etf_index` interface to `zer0share` so ETF benchmark index metadata can be synced once, stored locally, queried through the local Pro API, and documented with a smoke example.
+Add the Tushare `etf_index` interface to `microshare` so ETF benchmark index metadata can be synced once, stored locally, queried through the local Pro API, and documented with a smoke example.
 
 ## Scope
 
@@ -63,7 +63,7 @@ Return handling uses the existing `_select_columns_or_empty` helper so `None` an
 
 ## Sync Flow
 
-Extend `zer0share/sync/etf.py` with a second `SnapshotSyncJob`.
+Extend `microshare/sync/etf.py` with a second `SnapshotSyncJob`.
 
 The job:
 
@@ -76,7 +76,7 @@ The CLI includes `etf_index` in `ETF_TABLES`, so `--table etf_index`, `--etf`, `
 
 ## Local Query API
 
-Add `zer0share.query.etf.etf_index`.
+Add `microshare.query.etf.etf_index`.
 
 Parameters:
 

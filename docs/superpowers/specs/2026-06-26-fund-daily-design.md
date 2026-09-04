@@ -2,7 +2,7 @@
 
 ## Goal
 
-Add Tushare `fund_daily` to `zer0share` so ETF daily OHLCV data can be synced after market close, stored locally by trading day, queried through the local Pro API, and included in ETF batch syncs.
+Add Tushare `fund_daily` to `microshare` so ETF daily OHLCV data can be synced after market close, stored locally by trading day, queried through the local Pro API, and included in ETF batch syncs.
 
 ## Scope
 
@@ -84,7 +84,7 @@ Return handling uses the existing `_select_columns_or_empty` helper so `None` an
 
 ## Sync Flow
 
-Extend `zer0share/sync/etf.py` with a `DailySyncJob`.
+Extend `microshare/sync/etf.py` with a `DailySyncJob`.
 
 The job:
 
@@ -106,7 +106,7 @@ User-facing sync entry points:
 
 ## Local Query API
 
-Add `zer0share.query.etf.fund_daily`.
+Add `microshare.query.etf.fund_daily`.
 
 Parameters:
 

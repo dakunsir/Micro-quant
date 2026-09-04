@@ -2,7 +2,7 @@
 
 ## Context
 
-`zer0share` already syncs these Tushare datasets into local Parquet files:
+`microshare` already syncs these Tushare datasets into local Parquet files:
 
 - `stock_basic` -> `data/basic/data.parquet`
 - `trade_cal` -> `data/trade_cal/exchange=*/data.parquet`
@@ -41,7 +41,7 @@ Add `src/api.py` with a `LocalPro` class and expose `pro_api()` from
 Example usage:
 
 ```python
-from zer0share import pro_api
+from microshare import pro_api
 
 pro = pro_api()
 

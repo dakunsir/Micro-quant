@@ -4,18 +4,18 @@
 
 **Goal:** Add `univ_trade_smallcap`, a daily stock universe containing the bottom 20% by `total_mv` among `univ_trade_base` stocks.
 
-**Architecture:** Reuse the existing `zer0share.universe` build path. Add the new universe to the central universe-name list so build output, range completeness checks, and incremental skipping all treat the new partition as required. Keep the persisted universe schema unchanged: `trade_date`, `universe`, `ts_code`.
+**Architecture:** Reuse the existing `microshare.universe` build path. Add the new universe to the central universe-name list so build output, range completeness checks, and incremental skipping all treat the new partition as required. Keep the persisted universe schema unchanged: `trade_date`, `universe`, `ts_code`.
 
-**Tech Stack:** Python, pandas, pytest, existing zer0share Parquet stores.
+**Tech Stack:** Python, pandas, pytest, existing microshare Parquet stores.
 
 ---
 
 ## File Structure
 
-- Modify `zer0share/universe.py`: add `univ_trade_smallcap` to `UNIVERSE_NAMES`, select bottom 20% of trade-base rows by `total_mv`, and write it with the existing universe writer.
+- Modify `microshare/universe.py`: add `univ_trade_smallcap` to `UNIVERSE_NAMES`, select bottom 20% of trade-base rows by `total_mv`, and write it with the existing universe writer.
 - Modify `tests/test_universe.py`: add assertions for small-cap output and update completeness fixtures to include the new universe name.
 - Modify `README.md`: document the new stock pool and storage partition.
-- Modify `skills/zer0share-data/references/api.md`: list `univ_trade_smallcap` as a built universe.
+- Modify `skills/microshare-data/references/api.md`: list `univ_trade_smallcap` as a built universe.
 
 ### Task 1: Test Small-Cap Universe Output
 
@@ -54,11 +54,11 @@ Expected: FAIL with a missing `univ_trade_smallcap` key or missing partition.
 ### Task 2: Implement `univ_trade_smallcap`
 
 **Files:**
-- Modify: `zer0share/universe.py`
+- Modify: `microshare/universe.py`
 
 - [ ] **Step 1: Add the universe name constant**
 
-Change the constants at the top of `zer0share/universe.py` to include a derived trade universe:
+Change the constants at the top of `microshare/universe.py` to include a derived trade universe:
 
 ```python
 BASE_UNIVERSES = ("univ_research_base", "univ_trade_base")
@@ -154,7 +154,7 @@ Expected: all `tests/test_universe.py` tests pass.
 
 **Files:**
 - Modify: `README.md`
-- Modify: `skills/zer0share-data/references/api.md`
+- Modify: `skills/microshare-data/references/api.md`
 
 - [ ] **Step 1: Update README stock-pool table**
 
@@ -178,7 +178,7 @@ If it is no longer the last line, use `├──` instead of `└──` for the
 
 - [ ] **Step 3: Update API reference**
 
-In `skills/zer0share-data/references/api.md`, update the available universe list to include `univ_trade_smallcap`.
+In `skills/microshare-data/references/api.md`, update the available universe list to include `univ_trade_smallcap`.
 
 ### Task 5: Final Verification
 
@@ -200,7 +200,7 @@ Expected: all selected tests pass.
 Run:
 
 ```bash
-git diff -- zer0share/universe.py tests/test_universe.py README.md skills/zer0share-data/references/api.md
+git diff -- microshare/universe.py tests/test_universe.py README.md skills/microshare-data/references/api.md
 ```
 
 Expected: only small-cap universe implementation, tests, and documentation changes appear.

@@ -9,7 +9,7 @@
 
 ## 1. 概述
 
-在 zer0share 项目中新增期货数据支持，采用方案 A（直接扩展现有模块），严格对齐 Tushare API 接口命名和参数。期货数据统一存放在 `data/futures/` 子目录下，按日期分区存储。
+在 microshare 项目中新增期货数据支持，采用方案 A（直接扩展现有模块），严格对齐 Tushare API 接口命名和参数。期货数据统一存放在 `data/futures/` 子目录下，按日期分区存储。
 
 ### 第一批数据类型
 
@@ -290,12 +290,12 @@ python main.py sync --all
 
 | 文件 | 变更内容 |
 |------|---------|
-| `zer0share/fetcher.py` | 新增 FUT_*_COLS 常量、FUTURES_EXCHANGES、6 个 fetch 方法 |
-| `zer0share/storage.py` | 新增 6 组 write/exists/read 函数（共 18 个函数） |
-| `zer0share/pipeline.py` | 新增 6 个 sync 方法 |
-| `zer0share/api.py` | LocalPro 新增 6 个查询方法 |
-| `zer0share/scheduler.py` | 注册 6 个期货定时任务 |
-| `zer0share/cli.py` | SYNC_TABLES 扩展 6 个期货表名 |
+| `microshare/fetcher.py` | 新增 FUT_*_COLS 常量、FUTURES_EXCHANGES、6 个 fetch 方法 |
+| `microshare/storage.py` | 新增 6 组 write/exists/read 函数（共 18 个函数） |
+| `microshare/pipeline.py` | 新增 6 个 sync 方法 |
+| `microshare/api.py` | LocalPro 新增 6 个查询方法 |
+| `microshare/scheduler.py` | 注册 6 个期货定时任务 |
+| `microshare/cli.py` | SYNC_TABLES 扩展 6 个期货表名 |
 
 无新增文件，无新增依赖，完全在现有模块内扩展。
 

@@ -12,19 +12,19 @@
 
 ## File Structure
 
-- Modify `zer0share/schema.py`: add `ETF_SHARE_SIZE_COLS`.
-- Modify `zer0share/catalog.py`: import `ETF_SHARE_SIZE_COLS` and add `ETF_SHARE_SIZE_SPEC`.
-- Modify `zer0share/fetcher.py`: import `ETF_SHARE_SIZE_COLS` and add `TushareFetcher.fetch_etf_share_size`.
-- Modify `zer0share/sync/etf.py`: import `ETF_SHARE_SIZE_SPEC` and register a `DailySyncJob`.
-- Modify `zer0share/cli.py`: add `etf_share_size` to `ETF_TABLES`.
-- Modify `zer0share/query/etf.py`: import `ETF_SHARE_SIZE_SPEC` and add local query function with `exchange` filtering.
-- Modify `zer0share/api.py`: expose `LocalPro.etf_share_size` and `query("etf_share_size")`.
+- Modify `microshare/schema.py`: add `ETF_SHARE_SIZE_COLS`.
+- Modify `microshare/catalog.py`: import `ETF_SHARE_SIZE_COLS` and add `ETF_SHARE_SIZE_SPEC`.
+- Modify `microshare/fetcher.py`: import `ETF_SHARE_SIZE_COLS` and add `TushareFetcher.fetch_etf_share_size`.
+- Modify `microshare/sync/etf.py`: import `ETF_SHARE_SIZE_SPEC` and register a `DailySyncJob`.
+- Modify `microshare/cli.py`: add `etf_share_size` to `ETF_TABLES`.
+- Modify `microshare/query/etf.py`: import `ETF_SHARE_SIZE_SPEC` and add local query function with `exchange` filtering.
+- Modify `microshare/api.py`: expose `LocalPro.etf_share_size` and `query("etf_share_size")`.
 - Modify `tests/test_fetcher.py`: add fetcher tests.
 - Modify `tests/test_pipeline.py`: add sync tests.
 - Modify `tests/test_cli.py`: add CLI tests and update ETF batch expectation.
 - Modify `tests/test_api.py`: add local query tests.
 - Modify `README.md`: add sync command, local API example, API list, storage tree, and CLI summary row.
-- Modify `skills/zer0share-data/references/api.md`: add local API reference.
+- Modify `skills/microshare-data/references/api.md`: add local API reference.
 - Create `examples/etf/etf_share_size_query_smoke.py`: add manual local smoke query script.
 
 ---
@@ -33,9 +33,9 @@
 
 **Files:**
 - Modify: `tests/test_fetcher.py`
-- Modify: `zer0share/schema.py`
-- Modify: `zer0share/catalog.py`
-- Modify: `zer0share/fetcher.py`
+- Modify: `microshare/schema.py`
+- Modify: `microshare/catalog.py`
+- Modify: `microshare/fetcher.py`
 
 - [ ] **Step 1: Add failing fetcher tests**
 
@@ -145,7 +145,7 @@ Expected: FAIL because `TushareFetcher.fetch_etf_share_size` is not defined.
 
 - [ ] **Step 3: Add schema and catalog metadata**
 
-In `zer0share/schema.py`, add this immediately after `FUND_ADJ_COLS`:
+In `microshare/schema.py`, add this immediately after `FUND_ADJ_COLS`:
 
 ```python
 ETF_SHARE_SIZE_COLS = [
@@ -160,7 +160,7 @@ ETF_SHARE_SIZE_COLS = [
 ]
 ```
 
-In `zer0share/catalog.py`, add `ETF_SHARE_SIZE_COLS` to the `from zer0share.schema import (...)` import list.
+In `microshare/catalog.py`, add `ETF_SHARE_SIZE_COLS` to the `from microshare.schema import (...)` import list.
 
 Then add this spec immediately after `FUND_ADJ_SPEC`:
 
@@ -180,7 +180,7 @@ ETF_SHARE_SIZE_SPEC = DailyTableSpec(
 
 - [ ] **Step 4: Implement fetcher method**
 
-In `zer0share/fetcher.py`, add `ETF_SHARE_SIZE_COLS` to the schema import list.
+In `microshare/fetcher.py`, add `ETF_SHARE_SIZE_COLS` to the schema import list.
 
 Insert this method immediately after `fetch_fund_adj`:
 
@@ -217,7 +217,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add tests/test_fetcher.py zer0share/schema.py zer0share/catalog.py zer0share/fetcher.py
+git add tests/test_fetcher.py microshare/schema.py microshare/catalog.py microshare/fetcher.py
 git commit -m "feat: fetch etf_share_size data"
 ```
 
@@ -228,8 +228,8 @@ git commit -m "feat: fetch etf_share_size data"
 **Files:**
 - Modify: `tests/test_pipeline.py`
 - Modify: `tests/test_cli.py`
-- Modify: `zer0share/sync/etf.py`
-- Modify: `zer0share/cli.py`
+- Modify: `microshare/sync/etf.py`
+- Modify: `microshare/cli.py`
 
 - [ ] **Step 1: Add failing pipeline tests**
 
@@ -288,7 +288,7 @@ def test_sync_etf_share_size_calls_pipeline():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--table", "etf_share_size"])
 
     assert result.exit_code == 0
@@ -299,7 +299,7 @@ def test_sync_etf_share_size_accepts_date_range():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli,
             [
@@ -345,10 +345,10 @@ Expected: FAIL because `etf_share_size` is not registered as a sync job or CLI t
 
 - [ ] **Step 4: Register the sync job**
 
-In `zer0share/sync/etf.py`, change the catalog import to include `ETF_SHARE_SIZE_SPEC`:
+In `microshare/sync/etf.py`, change the catalog import to include `ETF_SHARE_SIZE_SPEC`:
 
 ```python
-from zer0share.catalog import ETF_BASIC_SPEC, ETF_INDEX_SPEC, ETF_SHARE_SIZE_SPEC, FUND_DAILY_SPEC
+from microshare.catalog import ETF_BASIC_SPEC, ETF_INDEX_SPEC, ETF_SHARE_SIZE_SPEC, FUND_DAILY_SPEC
 ```
 
 Keep the existing `FUND_ADJ_SPEC` fallback as-is.
@@ -366,7 +366,7 @@ Insert this `DailySyncJob` immediately after the `fund_adj` job:
 
 - [ ] **Step 5: Register the CLI table**
 
-In `zer0share/cli.py`, update `ETF_TABLES` to:
+In `microshare/cli.py`, update `ETF_TABLES` to:
 
 ```python
 ETF_TABLES = [
@@ -391,7 +391,7 @@ Expected: PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add tests/test_pipeline.py tests/test_cli.py zer0share/sync/etf.py zer0share/cli.py
+git add tests/test_pipeline.py tests/test_cli.py microshare/sync/etf.py microshare/cli.py
 git commit -m "feat: sync etf_share_size table"
 ```
 
@@ -401,8 +401,8 @@ git commit -m "feat: sync etf_share_size table"
 
 **Files:**
 - Modify: `tests/test_api.py`
-- Modify: `zer0share/query/etf.py`
-- Modify: `zer0share/api.py`
+- Modify: `microshare/query/etf.py`
+- Modify: `microshare/api.py`
 
 - [ ] **Step 1: Add failing API tests**
 
@@ -509,7 +509,7 @@ Expected: FAIL because `LocalPro.etf_share_size` is not defined.
 
 - [ ] **Step 3: Implement query function**
 
-In `zer0share/query/etf.py`, update the catalog import to include `ETF_SHARE_SIZE_SPEC`.
+In `microshare/query/etf.py`, update the catalog import to include `ETF_SHARE_SIZE_SPEC`.
 
 Append this function after `fund_adj`:
 
@@ -544,7 +544,7 @@ def etf_share_size(
 If the current `try/except ImportError` fallback block still exists for `FUND_ADJ_SPEC`, remove the fallback and use a direct import:
 
 ```python
-from zer0share.catalog import (
+from microshare.catalog import (
     ETF_BASIC_SPEC,
     ETF_INDEX_SPEC,
     ETF_SHARE_SIZE_SPEC,
@@ -555,7 +555,7 @@ from zer0share.catalog import (
 
 - [ ] **Step 4: Expose LocalPro method and dispatch**
 
-In `zer0share/api.py`, insert this method immediately after `fund_adj`:
+In `microshare/api.py`, insert this method immediately after `fund_adj`:
 
 ```python
     def etf_share_size(self, **kwargs):
@@ -582,7 +582,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add tests/test_api.py zer0share/query/etf.py zer0share/api.py
+git add tests/test_api.py microshare/query/etf.py microshare/api.py
 git commit -m "feat: query etf_share_size locally"
 ```
 
@@ -592,7 +592,7 @@ git commit -m "feat: query etf_share_size locally"
 
 **Files:**
 - Modify: `README.md`
-- Modify: `skills/zer0share-data/references/api.md`
+- Modify: `skills/microshare-data/references/api.md`
 - Create: `examples/etf/etf_share_size_query_smoke.py`
 
 - [ ] **Step 1: Update README ETF sync command list**
@@ -651,7 +651,7 @@ In the CLI summary table, add:
 
 - [ ] **Step 6: Update local skill API reference**
 
-In `skills/zer0share-data/references/api.md`, add this entry after `fund_adj`:
+In `skills/microshare-data/references/api.md`, add this entry after `fund_adj`:
 
 ```markdown
 - `etf_share_size(ts_code=None, trade_date=None, start_date=None, end_date=None, exchange=None, fields=None, limit=None, offset=None)`
@@ -664,7 +664,7 @@ In `skills/zer0share-data/references/api.md`, add this entry after `fund_adj`:
 Create `examples/etf/etf_share_size_query_smoke.py`:
 
 ```python
-from zer0share import pro_api
+from microshare import pro_api
 
 
 FIELDS = "trade_date,ts_code,etf_name,total_share,total_size,nav,close,exchange"
@@ -725,7 +725,7 @@ Expected: PASS with no output.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add README.md skills/zer0share-data/references/api.md examples/etf/etf_share_size_query_smoke.py
+git add README.md skills/microshare-data/references/api.md examples/etf/etf_share_size_query_smoke.py
 git commit -m "docs: document etf_share_size interface"
 ```
 

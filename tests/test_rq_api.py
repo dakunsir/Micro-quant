@@ -1,9 +1,9 @@
 import pandas as pd
 import pytest
 
-from micro import rq_api
-from micro.rq_api import RQLocal
-from micro.storage import DailyPartitionStore
+from microshare import rq_api
+from microshare.rq_api import RQLocal
+from microshare.storage import DailyPartitionStore
 
 
 def _write_minute(data_dir, trade_date="20240102"):
@@ -24,7 +24,7 @@ def _write_minute(data_dir, trade_date="20240102"):
 
 
 def _write_basic(data_dir):
-    from micro.storage import SnapshotStore
+    from microshare.storage import SnapshotStore
 
     SnapshotStore(data_dir / "ricequant" / "basic" / "data.parquet").write(
         pd.DataFrame(

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
-from micro.cli import cli
+from microshare.cli import cli
 
 
 def _make_mock_pipeline(supports_date_range_for=None):
@@ -31,7 +31,7 @@ def test_sync_daily_kline_accepts_date_range():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli,
             [
@@ -72,8 +72,8 @@ def test_build_universe_accepts_date_range(tmp_path):
     cfg.log_path = tmp_path / "pipeline.log"
 
     with (
-        patch("micro.cli.load_config", return_value=cfg),
-        patch("micro.cli.build_universes_range") as mock_build_range,
+        patch("microshare.cli.load_config", return_value=cfg),
+        patch("microshare.cli.build_universes_range") as mock_build_range,
     ):
         mock_build_range.return_value = {
             "start_date": date(2024, 1, 1),
@@ -140,10 +140,10 @@ def test_quality_check_runs_selected_table(tmp_path):
     fake_report.warn_count = 0
 
     with (
-        patch("micro.cli.load_config", return_value=cfg),
-        patch("micro.cli.QualityRunner") as runner_cls,
-        patch("micro.cli.QualityReporter") as reporter_cls,
-        patch("micro.cli.format_summary", return_value="quality summary"),
+        patch("microshare.cli.load_config", return_value=cfg),
+        patch("microshare.cli.QualityRunner") as runner_cls,
+        patch("microshare.cli.QualityReporter") as reporter_cls,
+        patch("microshare.cli.format_summary", return_value="quality summary"),
     ):
         runner_cls.return_value.run.return_value = fake_report
         reporter_cls.return_value.write.return_value = tmp_path / "reports"
@@ -170,7 +170,7 @@ def test_sync_industry_calls_pipeline():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--table", "industry"])
 
     assert result.exit_code == 0
@@ -181,7 +181,7 @@ def test_sync_ci_member_calls_pipeline():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--table", "ci_member"])
 
     assert result.exit_code == 0
@@ -192,7 +192,7 @@ def test_sync_all_includes_industry_and_ci_member():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--all"])
 
     assert result.exit_code == 0
@@ -204,7 +204,7 @@ def test_sync_industry_rejects_date_range():
     # industry does not support date range
     pipeline = _make_mock_pipeline(supports_date_range_for=set())
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli, ["sync", "--table", "industry", "--start-date", "20240101"]
         )
@@ -217,7 +217,7 @@ def test_sync_index_daily_accepts_date_range():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli,
             [
@@ -243,7 +243,7 @@ def test_sync_all_includes_index_daily():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--all"])
 
     assert result.exit_code == 0
@@ -254,7 +254,7 @@ def test_sync_idx_anns_accepts_date_range():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli,
             [
@@ -280,7 +280,7 @@ def test_sync_fut_basic_calls_pipeline():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--table", "fut_basic"])
 
     assert result.exit_code == 0
@@ -291,7 +291,7 @@ def test_sync_fut_daily_accepts_date_range():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli,
             [
@@ -318,7 +318,7 @@ def test_sync_fut_basic_rejects_date_range():
     # fut_basic does not support date range
     pipeline = _make_mock_pipeline(supports_date_range_for=set())
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli, ["sync", "--table", "fut_basic", "--start-date", "20240101"]
         )
@@ -331,7 +331,7 @@ def test_sync_all_includes_futures_tables():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--all"])
 
     assert result.exit_code == 0
@@ -342,7 +342,7 @@ def test_sync_stock_includes_idx_anns():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--stock"])
 
     assert result.exit_code == 0
@@ -354,7 +354,7 @@ def test_sync_ft_limit_accepts_date_range():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli,
             [
@@ -380,7 +380,7 @@ def test_sync_fut_weekly_accepts_date_range():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli,
             [
@@ -406,7 +406,7 @@ def test_sync_fut_weekly_detail_accepts_date_range():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli,
             [
@@ -432,7 +432,7 @@ def test_sync_all_includes_futures_batch2_tables():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--all"])
 
     assert result.exit_code == 0
@@ -443,7 +443,7 @@ def test_sync_opt_basic_calls_pipeline():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--table", "opt_basic"])
 
     assert result.exit_code == 0
@@ -454,7 +454,7 @@ def test_sync_opt_daily_accepts_date_range():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli,
             ["sync", "--table", "opt_daily", "--start-date", "20240101", "--end-date", "20240131"],
@@ -473,7 +473,7 @@ def test_sync_opt_basic_rejects_date_range():
     # opt_basic does not support date range
     pipeline = _make_mock_pipeline(supports_date_range_for=set())
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli, ["sync", "--table", "opt_basic", "--start-date", "20240101"]
         )
@@ -486,7 +486,7 @@ def test_sync_all_includes_options_tables():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--all"])
 
     assert result.exit_code == 0
@@ -497,7 +497,7 @@ def test_sync_etf_basic_calls_pipeline():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--table", "etf_basic"])
 
     assert result.exit_code == 0
@@ -508,7 +508,7 @@ def test_sync_fund_daily_calls_pipeline():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--table", "fund_daily"])
 
     assert result.exit_code == 0
@@ -519,7 +519,7 @@ def test_sync_fund_daily_accepts_date_range():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli,
             [
@@ -545,7 +545,7 @@ def test_sync_fund_adj_calls_pipeline():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--table", "fund_adj"])
 
     assert result.exit_code == 0
@@ -556,7 +556,7 @@ def test_sync_fund_adj_accepts_date_range():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli,
             [
@@ -582,7 +582,7 @@ def test_sync_etf_share_size_calls_pipeline():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--table", "etf_share_size"])
 
     assert result.exit_code == 0
@@ -593,7 +593,7 @@ def test_sync_etf_share_size_accepts_date_range():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli,
             [
@@ -619,7 +619,7 @@ def test_sync_etf_sh_cons_calls_pipeline():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--table", "etf_sh_cons"])
 
     assert result.exit_code == 0
@@ -630,7 +630,7 @@ def test_sync_etf_sh_cons_accepts_date_range():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli,
             [
@@ -656,7 +656,7 @@ def test_sync_etf_calls_etf_tables():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--etf"])
 
     assert result.exit_code == 0
@@ -674,7 +674,7 @@ def test_sync_etf_index_calls_pipeline():
     runner = CliRunner()
     pipeline = _make_mock_pipeline()
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--table", "etf_index"])
 
     assert result.exit_code == 0
@@ -685,7 +685,7 @@ def test_sync_etf_basic_rejects_date_range():
     runner = CliRunner()
     pipeline = _make_mock_pipeline(supports_date_range_for=set())
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli, ["sync", "--table", "etf_basic", "--start-date", "20240101"]
         )
@@ -698,7 +698,7 @@ def test_sync_etf_index_rejects_date_range():
     runner = CliRunner()
     pipeline = _make_mock_pipeline(supports_date_range_for=set())
 
-    with patch("micro.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli, ["sync", "--table", "etf_index", "--start-date", "20240101"]
         )

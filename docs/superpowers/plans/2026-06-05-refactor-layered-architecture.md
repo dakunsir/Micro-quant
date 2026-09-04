@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Refactor zer0share from two God classes (pipeline.py / api.py ~1000 lines each) into a layered architecture where sync/ and query/ packages organize logic by domain, and pipeline.py / api.py become thin facades.
+**Goal:** Refactor microshare from two God classes (pipeline.py / api.py ~1000 lines each) into a layered architecture where sync/ and query/ packages organize logic by domain, and pipeline.py / api.py become thin facades.
 
 **Architecture:** Data flows through four layers — schema (column definitions) → fetcher (Tushare I/O) → storage (Parquet I/O) → sync/ (fetch+store orchestration) and query/ (read+filter). pipeline.py and api.py are entry-point facades only. Each sync domain function takes a `SyncContext` dataclass; each query domain function takes a `QueryContext` dataclass. No class inheritance.
 
@@ -13,42 +13,42 @@
 ## File Map
 
 **Created:**
-- `zer0share/schema.py` — all `*_COLS` column definitions (moved from fetcher.py)
-- `zer0share/sync/__init__.py` — `SyncContext` dataclass
-- `zer0share/sync/_helpers.py` — constants, `sync_daily_partitioned`, trading-day helpers, date/time utilities
-- `zer0share/sync/calendar.py` — `sync_trade_cal`
-- `zer0share/sync/equities.py` — `sync_basic`, `sync_daily_kline`, `sync_adj_factor`, `sync_daily_basic`, `sync_stock_st`, `sync_suspend_d`, `sync_stk_limit`, `sync_index_weight`, `sync_index_daily`
-- `zer0share/sync/industry.py` — `sync_industry`, `sync_ci_member`
-- `zer0share/sync/futures.py` — all `sync_fut_*` and `sync_ft_limit`
-- `zer0share/sync/options.py` — `sync_opt_basic`, `sync_opt_daily`
-- `zer0share/query/__init__.py` — `QueryContext` dataclass
-- `zer0share/query/_helpers.py` — `query_daily_partitioned`, `parse_date`, `parse_fields`, `parse_is_open`, `format_date_columns`
-- `zer0share/query/calendar.py` — `trade_cal`
-- `zer0share/query/equities.py` — `stock_basic`, `daily`, `adj_factor`, `daily_basic`, `stock_st`, `suspend_d`, `stk_limit`, `index_weight`, `index_daily`, `pro_bar`
-- `zer0share/query/industry.py` — `index_classify`, `index_member_all`, `ci_index_member`
-- `zer0share/query/futures.py` — all `fut_*` and `ft_limit` query functions
-- `zer0share/query/options.py` — `opt_basic`, `opt_daily`
+- `microshare/schema.py` — all `*_COLS` column definitions (moved from fetcher.py)
+- `microshare/sync/__init__.py` — `SyncContext` dataclass
+- `microshare/sync/_helpers.py` — constants, `sync_daily_partitioned`, trading-day helpers, date/time utilities
+- `microshare/sync/calendar.py` — `sync_trade_cal`
+- `microshare/sync/equities.py` — `sync_basic`, `sync_daily_kline`, `sync_adj_factor`, `sync_daily_basic`, `sync_stock_st`, `sync_suspend_d`, `sync_stk_limit`, `sync_index_weight`, `sync_index_daily`
+- `microshare/sync/industry.py` — `sync_industry`, `sync_ci_member`
+- `microshare/sync/futures.py` — all `sync_fut_*` and `sync_ft_limit`
+- `microshare/sync/options.py` — `sync_opt_basic`, `sync_opt_daily`
+- `microshare/query/__init__.py` — `QueryContext` dataclass
+- `microshare/query/_helpers.py` — `query_daily_partitioned`, `parse_date`, `parse_fields`, `parse_is_open`, `format_date_columns`
+- `microshare/query/calendar.py` — `trade_cal`
+- `microshare/query/equities.py` — `stock_basic`, `daily`, `adj_factor`, `daily_basic`, `stock_st`, `suspend_d`, `stk_limit`, `index_weight`, `index_daily`, `pro_bar`
+- `microshare/query/industry.py` — `index_classify`, `index_member_all`, `ci_index_member`
+- `microshare/query/futures.py` — all `fut_*` and `ft_limit` query functions
+- `microshare/query/options.py` — `opt_basic`, `opt_daily`
 
 **Replaced (complete rewrite):**
-- `zer0share/pipeline.py` — thin Pipeline facade, delegates all methods to sync/*
-- `zer0share/api.py` — thin LocalPro facade, delegates all methods to query/*
+- `microshare/pipeline.py` — thin Pipeline facade, delegates all methods to sync/*
+- `microshare/api.py` — thin LocalPro facade, delegates all methods to query/*
 
 **Modified:**
-- `zer0share/fetcher.py` — remove `*_COLS` definitions, import from schema
+- `microshare/fetcher.py` — remove `*_COLS` definitions, import from schema
 - `tests/test_pipeline.py` — update imports and patch paths
 - `tests/test_api.py` — update imports (if any reference fetcher.*_COLS)
 
 **Unchanged:**
-- `zer0share/storage.py`, `zer0share/config.py`, `zer0share/notifier.py`, `zer0share/logging.py`, `zer0share/universe.py`, `zer0share/fetcher.py` (except column definitions), `zer0share/cli.py`, `zer0share/scheduler.py`, all other test files.
+- `microshare/storage.py`, `microshare/config.py`, `microshare/notifier.py`, `microshare/logging.py`, `microshare/universe.py`, `microshare/fetcher.py` (except column definitions), `microshare/cli.py`, `microshare/scheduler.py`, all other test files.
 
 ---
 
 ## Task 1: Create schema.py and update imports
 
 **Files:**
-- Create: `zer0share/schema.py`
-- Modify: `zer0share/fetcher.py`
-- Modify: `zer0share/api.py`
+- Create: `microshare/schema.py`
+- Modify: `microshare/fetcher.py`
+- Modify: `microshare/api.py`
 
 - [ ] **Step 1: Verify baseline**
 
@@ -60,7 +60,7 @@ Expected: `258 passed`
 
 - [ ] **Step 2: Create schema.py**
 
-Create `zer0share/schema.py` with all column definitions extracted from `fetcher.py`. Check `fetcher.py` for every `*_COLS` list and the `INDEX_DAILY_CODES` list (which is NOT a column definition and stays in fetcher.py — only move the `*_COLS` lists and nothing else):
+Create `microshare/schema.py` with all column definitions extracted from `fetcher.py`. Check `fetcher.py` for every `*_COLS` list and the `INDEX_DAILY_CODES` list (which is NOT a column definition and stays in fetcher.py — only move the `*_COLS` lists and nothing else):
 
 ```python
 BASIC_COLS = [
@@ -160,10 +160,10 @@ FUT_WEEKLY_DETAIL_COLS = [
 
 - [ ] **Step 3: Update fetcher.py**
 
-Open `zer0share/fetcher.py`. Replace all `*_COLS = [...]` definitions with a single import at the top. Keep `INDEX_DAILY_CODES`, `FUTURES_EXCHANGES`, `OPTIONS_EXCHANGES` as they are (not column definitions):
+Open `microshare/fetcher.py`. Replace all `*_COLS = [...]` definitions with a single import at the top. Keep `INDEX_DAILY_CODES`, `FUTURES_EXCHANGES`, `OPTIONS_EXCHANGES` as they are (not column definitions):
 
 ```python
-from zer0share.schema import (
+from microshare.schema import (
     BASIC_COLS, DAILY_COLS, TRADE_CAL_COLS, ADJ_FACTOR_COLS, DAILY_BASIC_COLS,
     STOCK_ST_COLS, SUSPEND_D_COLS, STK_LIMIT_COLS, INDEX_WEIGHT_COLS,
     INDEX_DAILY_COLS, SW_CLASSIFY_COLS, SW_MEMBER_COLS, CI_MEMBER_COLS,
@@ -176,10 +176,10 @@ from zer0share.schema import (
 
 - [ ] **Step 4: Update api.py imports**
 
-In `zer0share/api.py`, find the large `from zer0share.fetcher import ...` block at the top and replace it with an import from schema instead. The import currently pulls in all `*_COLS` names from fetcher; redirect them to schema:
+In `microshare/api.py`, find the large `from microshare.fetcher import ...` block at the top and replace it with an import from schema instead. The import currently pulls in all `*_COLS` names from fetcher; redirect them to schema:
 
 ```python
-from zer0share.schema import (
+from microshare.schema import (
     ADJ_FACTOR_COLS, BASIC_COLS, CI_MEMBER_COLS, DAILY_BASIC_COLS, DAILY_COLS,
     INDEX_DAILY_COLS, INDEX_WEIGHT_COLS, STOCK_ST_COLS, STK_LIMIT_COLS,
     SUSPEND_D_COLS, SW_CLASSIFY_COLS, SW_MEMBER_COLS, TRADE_CAL_COLS,
@@ -201,7 +201,7 @@ Expected: `258 passed`
 - [ ] **Step 6: Commit**
 
 ```bash
-git add zer0share/schema.py zer0share/fetcher.py zer0share/api.py
+git add microshare/schema.py microshare/fetcher.py microshare/api.py
 git commit -m "refactor: extract column definitions to schema.py"
 ```
 
@@ -210,18 +210,18 @@ git commit -m "refactor: extract column definitions to schema.py"
 ## Task 2: Create sync/ skeleton
 
 **Files:**
-- Create: `zer0share/sync/__init__.py`
-- Create: `zer0share/sync/_helpers.py`
+- Create: `microshare/sync/__init__.py`
+- Create: `microshare/sync/_helpers.py`
 
 - [ ] **Step 1: Create sync/__init__.py**
 
 ```python
 from dataclasses import dataclass
 
-from zer0share.config import Config
-from zer0share.fetcher import TushareFetcher
-from zer0share.notifier import Notifier
-from zer0share.storage import MetaStore
+from microshare.config import Config
+from microshare.fetcher import TushareFetcher
+from microshare.notifier import Notifier
+from microshare.storage import MetaStore
 
 
 @dataclass
@@ -234,7 +234,7 @@ class SyncContext:
 
 - [ ] **Step 2: Create sync/_helpers.py**
 
-This file contains all constants, utility functions, and the core `sync_daily_partitioned` engine, extracted from `pipeline.py`. Patch targets for tests: `zer0share.sync._helpers.date`, `zer0share.sync._helpers.time`, `zer0share.sync._helpers.FIRST_DATE`.
+This file contains all constants, utility functions, and the core `sync_daily_partitioned` engine, extracted from `pipeline.py`. Patch targets for tests: `microshare.sync._helpers.date`, `microshare.sync._helpers.time`, `microshare.sync._helpers.FIRST_DATE`.
 
 ```python
 import time
@@ -244,8 +244,8 @@ from typing import Callable
 
 from loguru import logger
 
-from zer0share.storage import daily_partition_exists, write_daily_partition
-from zer0share.sync import SyncContext
+from microshare.storage import daily_partition_exists, write_daily_partition
+from microshare.sync import SyncContext
 
 
 FIRST_DATE = date(2016, 1, 1)
@@ -322,7 +322,7 @@ def index_weight_meta_key(index_code: str) -> str:
 
 
 def ensure_trade_cal_loaded(ctx: SyncContext) -> None:
-    from zer0share.sync import calendar as cal_module
+    from microshare.sync import calendar as cal_module
     if ctx.meta.get_last_date("trade_cal") is None:
         cal_module.sync_trade_cal(ctx)
 
@@ -432,7 +432,7 @@ Expected: `258 passed`
 - [ ] **Step 4: Commit**
 
 ```bash
-git add zer0share/sync/
+git add microshare/sync/
 git commit -m "refactor: add sync/ package skeleton with SyncContext and helpers"
 ```
 
@@ -441,11 +441,11 @@ git commit -m "refactor: add sync/ package skeleton with SyncContext and helpers
 ## Task 3: Create sync/ domain modules
 
 **Files:**
-- Create: `zer0share/sync/calendar.py`
-- Create: `zer0share/sync/equities.py`
-- Create: `zer0share/sync/industry.py`
-- Create: `zer0share/sync/futures.py`
-- Create: `zer0share/sync/options.py`
+- Create: `microshare/sync/calendar.py`
+- Create: `microshare/sync/equities.py`
+- Create: `microshare/sync/industry.py`
+- Create: `microshare/sync/futures.py`
+- Create: `microshare/sync/options.py`
 
 These modules contain sync logic moved from `pipeline.py`. The transformation rule for every method: replace `self._cfg` → `ctx.cfg`, `self._fetcher` → `ctx.fetcher`, `self._notifier` → `ctx.notifier`, `self._meta` → `ctx.meta`. Remove `self` parameter, add `ctx: SyncContext` as first parameter.
 
@@ -456,9 +456,9 @@ import pandas as pd
 from datetime import date, timedelta
 from loguru import logger
 
-from zer0share.storage import read_trade_cal, write_trade_cal
-from zer0share.sync import SyncContext
-from zer0share.sync._helpers import (
+from microshare.storage import read_trade_cal, write_trade_cal
+from microshare.sync import SyncContext
+from microshare.sync._helpers import (
     ALL_EXCHANGES, TRADE_CAL_FIRST_DATE, parse_tushare_date,
 )
 
@@ -523,18 +523,18 @@ from loguru import logger
 
 import pandas as pd
 
-from zer0share.storage import (
+from microshare.storage import (
     daily_partition_exists, write_basic, write_adj_factor, write_daily_kline,
     write_daily_partition, write_index_weight, index_weight_partition_exists,
     adj_factor_partition_exists, daily_kline_partition_exists,
 )
-from zer0share.sync import SyncContext
-from zer0share.sync._helpers import (
+from microshare.sync import SyncContext
+from microshare.sync._helpers import (
     FIRST_DATE, INDEX_CODES, index_weight_meta_key, log_daily_progress,
     month_ranges, parse_tushare_date, should_log_progress, skip_if_not_trading,
     sync_daily_partitioned,
 )
-from zer0share.fetcher import INDEX_DAILY_CODES
+from microshare.fetcher import INDEX_DAILY_CODES
 
 
 def sync_basic(ctx: SyncContext) -> None:
@@ -716,9 +716,9 @@ def sync_index_daily(ctx: SyncContext, start_date: date | None = None, end_date:
 from datetime import date
 from loguru import logger
 
-from zer0share.storage import write_sw_classify, write_sw_member, write_ci_member
-from zer0share.sync import SyncContext
-from zer0share.sync._helpers import skip_if_not_trading
+from microshare.storage import write_sw_classify, write_sw_member, write_ci_member
+from microshare.sync import SyncContext
+from microshare.sync._helpers import skip_if_not_trading
 
 
 def sync_industry(ctx: SyncContext) -> None:
@@ -765,13 +765,13 @@ from loguru import logger
 
 import pandas as pd
 
-from zer0share.storage import daily_partition_exists, write_daily_partition
-from zer0share.sync import SyncContext
-from zer0share.sync._helpers import (
+from microshare.storage import daily_partition_exists, write_daily_partition
+from microshare.sync import SyncContext
+from microshare.sync._helpers import (
     FIRST_DATE, parse_tushare_date, skip_if_not_trading, sync_daily_partitioned,
     week_ranges,
 )
-from zer0share.fetcher import FUTURES_EXCHANGES
+from microshare.fetcher import FUTURES_EXCHANGES
 
 
 def sync_fut_basic(ctx: SyncContext) -> None:
@@ -974,10 +974,10 @@ from loguru import logger
 
 import pandas as pd
 
-from zer0share.storage import write_opt_basic, write_daily_partition
-from zer0share.sync import SyncContext
-from zer0share.sync._helpers import skip_if_not_trading, sync_daily_partitioned
-from zer0share.fetcher import OPTIONS_EXCHANGES
+from microshare.storage import write_opt_basic, write_daily_partition
+from microshare.sync import SyncContext
+from microshare.sync._helpers import skip_if_not_trading, sync_daily_partitioned
+from microshare.fetcher import OPTIONS_EXCHANGES
 
 
 def sync_opt_basic(ctx: SyncContext) -> None:
@@ -1020,7 +1020,7 @@ Expected: `258 passed`
 - [ ] **Step 7: Commit**
 
 ```bash
-git add zer0share/sync/
+git add microshare/sync/
 git commit -m "refactor: add sync/ domain modules (calendar, equities, industry, futures, options)"
 ```
 
@@ -1029,23 +1029,23 @@ git commit -m "refactor: add sync/ domain modules (calendar, equities, industry,
 ## Task 4: Replace pipeline.py with thin facade + update test_pipeline.py
 
 **Files:**
-- Modify: `zer0share/pipeline.py` (complete rewrite)
+- Modify: `microshare/pipeline.py` (complete rewrite)
 - Modify: `tests/test_pipeline.py` (update imports and patch paths)
 
 - [ ] **Step 1: Rewrite pipeline.py**
 
-Replace the entire contents of `zer0share/pipeline.py` with the following thin facade:
+Replace the entire contents of `microshare/pipeline.py` with the following thin facade:
 
 ```python
 from datetime import date
 
-from zer0share.config import Config
-from zer0share.fetcher import TushareFetcher
-from zer0share.notifier import Notifier
-from zer0share.storage import MetaStore
-from zer0share.sync import SyncContext
-from zer0share.sync import calendar, equities, industry, futures, options
-from zer0share.sync._helpers import EXCHANGES, ALL_EXCHANGES
+from microshare.config import Config
+from microshare.fetcher import TushareFetcher
+from microshare.notifier import Notifier
+from microshare.storage import MetaStore
+from microshare.sync import SyncContext
+from microshare.sync import calendar, equities, industry, futures, options
+from microshare.sync._helpers import EXCHANGES, ALL_EXCHANGES
 
 
 class Pipeline:
@@ -1162,33 +1162,33 @@ Apply these changes to `tests/test_pipeline.py`:
 
 **Imports block (lines 7-11) — replace with:**
 ```python
-from zer0share.pipeline import Pipeline
-from zer0share.sync._helpers import EXCHANGES, ALL_EXCHANGES as NEW_ALL_EXCHANGES
-from zer0share.storage import read_sw_classify, read_sw_member, read_ci_member, write_basic, write_trade_cal
-from zer0share.fetcher import INDEX_DAILY_CODES, FUTURES_EXCHANGES, OPTIONS_EXCHANGES
-from zer0share.storage import daily_partition_exists
+from microshare.pipeline import Pipeline
+from microshare.sync._helpers import EXCHANGES, ALL_EXCHANGES as NEW_ALL_EXCHANGES
+from microshare.storage import read_sw_classify, read_sw_member, read_ci_member, write_basic, write_trade_cal
+from microshare.fetcher import INDEX_DAILY_CODES, FUTURES_EXCHANGES, OPTIONS_EXCHANGES
+from microshare.storage import daily_partition_exists
 ```
 
 **Patch path mapping** — apply the following sed-style replacements throughout the file:
 
 | Old patch target | New patch target |
 |---|---|
-| `zer0share.pipeline.Pipeline._skip_if_not_trading` (in tests for `sync_basic` / failure) | `zer0share.sync.equities.skip_if_not_trading` |
-| `zer0share.pipeline.Pipeline._skip_if_not_trading` (in tests for `sync_industry` / `sync_ci_member`) | `zer0share.sync.industry.skip_if_not_trading` |
-| `zer0share.pipeline.Pipeline._skip_if_not_trading` (in tests for `sync_fut_basic`) | `zer0share.sync.futures.skip_if_not_trading` |
-| `zer0share.pipeline.Pipeline._skip_if_not_trading` (in tests for `sync_opt_basic`) | `zer0share.sync.options.skip_if_not_trading` |
-| `zer0share.pipeline.date` (in tests for `sync_daily_kline`, `sync_adj_factor`, `sync_daily_basic`, `sync_stock_st`, `sync_suspend_d`, `sync_stk_limit`, `sync_fut_daily`, `sync_fut_weekly_detail`, and other `_sync_daily_partitioned`-based methods) | `zer0share.sync._helpers.date` |
-| `zer0share.pipeline.date` (in tests for `sync_basic`, `sync_industry`, `sync_ci_member`) | `zer0share.sync.industry.date` or `zer0share.sync.equities.date` respectively (note: `sync_basic` tests don't patch date; only `sync_industry`/`sync_ci_member` do → use `zer0share.sync.industry.date`) |
-| `zer0share.pipeline.date` (in tests for `sync_index_weight`, `sync_index_daily`) | `zer0share.sync.equities.date` |
-| `zer0share.pipeline.date` (in tests for `sync_fut_basic`, `sync_fut_index_daily`) | `zer0share.sync.futures.date` |
-| `zer0share.pipeline.date` (in tests for `sync_opt_basic`) | `zer0share.sync.options.date` |
-| `zer0share.pipeline.time.sleep` (in tests for `_sync_daily_partitioned`-based methods: `sync_daily_kline`, `sync_fut_daily`, etc.) | `zer0share.sync._helpers.time.sleep` |
-| `zer0share.pipeline.time.sleep` (in tests for `sync_index_daily`, `sync_index_weight`) | `zer0share.sync.equities.time.sleep` |
-| `zer0share.pipeline.time.sleep` (in tests for `sync_fut_basic`, `sync_fut_index_daily`, `sync_fut_weekly_detail`) | `zer0share.sync.futures.time.sleep` |
-| `zer0share.pipeline.time.sleep` (in tests for `sync_opt_basic`) | `zer0share.sync.options.time.sleep` |
-| `zer0share.pipeline.INDEX_CODES` | `zer0share.sync.equities.INDEX_CODES` |
-| `zer0share.pipeline.FIRST_DATE` | `zer0share.sync._helpers.FIRST_DATE` |
-| `zer0share.pipeline.logger.info` (in `sync_index_daily` tests) | `zer0share.sync.equities.logger.info` |
+| `microshare.pipeline.Pipeline._skip_if_not_trading` (in tests for `sync_basic` / failure) | `microshare.sync.equities.skip_if_not_trading` |
+| `microshare.pipeline.Pipeline._skip_if_not_trading` (in tests for `sync_industry` / `sync_ci_member`) | `microshare.sync.industry.skip_if_not_trading` |
+| `microshare.pipeline.Pipeline._skip_if_not_trading` (in tests for `sync_fut_basic`) | `microshare.sync.futures.skip_if_not_trading` |
+| `microshare.pipeline.Pipeline._skip_if_not_trading` (in tests for `sync_opt_basic`) | `microshare.sync.options.skip_if_not_trading` |
+| `microshare.pipeline.date` (in tests for `sync_daily_kline`, `sync_adj_factor`, `sync_daily_basic`, `sync_stock_st`, `sync_suspend_d`, `sync_stk_limit`, `sync_fut_daily`, `sync_fut_weekly_detail`, and other `_sync_daily_partitioned`-based methods) | `microshare.sync._helpers.date` |
+| `microshare.pipeline.date` (in tests for `sync_basic`, `sync_industry`, `sync_ci_member`) | `microshare.sync.industry.date` or `microshare.sync.equities.date` respectively (note: `sync_basic` tests don't patch date; only `sync_industry`/`sync_ci_member` do → use `microshare.sync.industry.date`) |
+| `microshare.pipeline.date` (in tests for `sync_index_weight`, `sync_index_daily`) | `microshare.sync.equities.date` |
+| `microshare.pipeline.date` (in tests for `sync_fut_basic`, `sync_fut_index_daily`) | `microshare.sync.futures.date` |
+| `microshare.pipeline.date` (in tests for `sync_opt_basic`) | `microshare.sync.options.date` |
+| `microshare.pipeline.time.sleep` (in tests for `_sync_daily_partitioned`-based methods: `sync_daily_kline`, `sync_fut_daily`, etc.) | `microshare.sync._helpers.time.sleep` |
+| `microshare.pipeline.time.sleep` (in tests for `sync_index_daily`, `sync_index_weight`) | `microshare.sync.equities.time.sleep` |
+| `microshare.pipeline.time.sleep` (in tests for `sync_fut_basic`, `sync_fut_index_daily`, `sync_fut_weekly_detail`) | `microshare.sync.futures.time.sleep` |
+| `microshare.pipeline.time.sleep` (in tests for `sync_opt_basic`) | `microshare.sync.options.time.sleep` |
+| `microshare.pipeline.INDEX_CODES` | `microshare.sync.equities.INDEX_CODES` |
+| `microshare.pipeline.FIRST_DATE` | `microshare.sync._helpers.FIRST_DATE` |
+| `microshare.pipeline.logger.info` (in `sync_index_daily` tests) | `microshare.sync.equities.logger.info` |
 
 To identify which tests belong to which domain, use the test function name. Run `grep -n "patch" tests/test_pipeline.py` and read the surrounding test function name to determine which domain module's patch path to use.
 
@@ -1211,7 +1211,7 @@ Expected: `258 passed`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add zer0share/pipeline.py tests/test_pipeline.py
+git add microshare/pipeline.py tests/test_pipeline.py
 git commit -m "refactor: replace pipeline.py with thin facade, update test patch paths"
 ```
 
@@ -1220,8 +1220,8 @@ git commit -m "refactor: replace pipeline.py with thin facade, update test patch
 ## Task 5: Create query/ skeleton
 
 **Files:**
-- Create: `zer0share/query/__init__.py`
-- Create: `zer0share/query/_helpers.py`
+- Create: `microshare/query/__init__.py`
+- Create: `microshare/query/_helpers.py`
 
 - [ ] **Step 1: Create query/__init__.py**
 
@@ -1244,7 +1244,7 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
-from zer0share.query import QueryContext
+from microshare.query import QueryContext
 
 
 def parse_fields(fields, default_columns: list[str]) -> list[str]:
@@ -1368,7 +1368,7 @@ Expected: `258 passed`
 - [ ] **Step 4: Commit**
 
 ```bash
-git add zer0share/query/
+git add microshare/query/
 git commit -m "refactor: add query/ package skeleton with QueryContext and helpers"
 ```
 
@@ -1377,11 +1377,11 @@ git commit -m "refactor: add query/ package skeleton with QueryContext and helpe
 ## Task 6: Create query/ domain modules
 
 **Files:**
-- Create: `zer0share/query/calendar.py`
-- Create: `zer0share/query/equities.py`
-- Create: `zer0share/query/industry.py`
-- Create: `zer0share/query/futures.py`
-- Create: `zer0share/query/options.py`
+- Create: `microshare/query/calendar.py`
+- Create: `microshare/query/equities.py`
+- Create: `microshare/query/industry.py`
+- Create: `microshare/query/futures.py`
+- Create: `microshare/query/options.py`
 
 - [ ] **Step 1: Create query/calendar.py**
 
@@ -1389,9 +1389,9 @@ git commit -m "refactor: add query/ package skeleton with QueryContext and helpe
 import duckdb
 import pandas as pd
 
-from zer0share.query import QueryContext
-from zer0share.query._helpers import parse_date, parse_fields, parse_is_open
-from zer0share.schema import TRADE_CAL_COLS
+from microshare.query import QueryContext
+from microshare.query._helpers import parse_date, parse_fields, parse_is_open
+from microshare.schema import TRADE_CAL_COLS
 
 
 def trade_cal(
@@ -1448,11 +1448,11 @@ import pandas as pd
 from pathlib import Path
 from datetime import timedelta
 
-from zer0share.query import QueryContext
-from zer0share.query._helpers import (
+from microshare.query import QueryContext
+from microshare.query._helpers import (
     format_date_columns, parse_date, parse_fields, query_daily_partitioned,
 )
-from zer0share.schema import (
+from microshare.schema import (
     BASIC_COLS, DAILY_COLS, ADJ_FACTOR_COLS, DAILY_BASIC_COLS,
     STOCK_ST_COLS, SUSPEND_D_COLS, STK_LIMIT_COLS,
     INDEX_WEIGHT_COLS, INDEX_DAILY_COLS,
@@ -1722,9 +1722,9 @@ def pro_bar(ctx: QueryContext, ts_code: str, start_date=None, end_date=None,
 import duckdb
 import pandas as pd
 
-from zer0share.query import QueryContext
-from zer0share.query._helpers import parse_fields
-from zer0share.schema import SW_CLASSIFY_COLS, SW_MEMBER_COLS, CI_MEMBER_COLS
+from microshare.query import QueryContext
+from microshare.query._helpers import parse_fields
+from microshare.schema import SW_CLASSIFY_COLS, SW_MEMBER_COLS, CI_MEMBER_COLS
 
 
 def index_classify(ctx: QueryContext, level=None, src=None, fields=None,
@@ -1819,9 +1819,9 @@ def ci_index_member(ctx: QueryContext, l1_code=None, ts_code=None, is_new=None, 
 import duckdb
 import pandas as pd
 
-from zer0share.query import QueryContext
-from zer0share.query._helpers import parse_fields, query_daily_partitioned
-from zer0share.schema import (
+from microshare.query import QueryContext
+from microshare.query._helpers import parse_fields, query_daily_partitioned
+from microshare.schema import (
     FUT_BASIC_COLS, FUT_DAILY_COLS, FUT_HOLDING_COLS, FUT_WSR_COLS,
     FUT_SETTLE_COLS, FUT_MAPPING_COLS, FT_LIMIT_COLS, FUT_WEEKLY_COLS,
     FUT_MONTHLY_COLS, FUT_INDEX_DAILY_COLS, FUT_WEEKLY_DETAIL_COLS,
@@ -2020,9 +2020,9 @@ def fut_weekly_detail(ctx: QueryContext, exchange=None, prd=None,
 import duckdb
 import pandas as pd
 
-from zer0share.query import QueryContext
-from zer0share.query._helpers import parse_fields, query_daily_partitioned
-from zer0share.schema import OPT_BASIC_COLS, OPT_DAILY_COLS
+from microshare.query import QueryContext
+from microshare.query._helpers import parse_fields, query_daily_partitioned
+from microshare.schema import OPT_BASIC_COLS, OPT_DAILY_COLS
 
 
 def opt_basic(ctx: QueryContext, ts_code=None, exchange=None, opt_code=None,
@@ -2091,7 +2091,7 @@ Expected: `258 passed`
 - [ ] **Step 7: Commit**
 
 ```bash
-git add zer0share/query/
+git add microshare/query/
 git commit -m "refactor: add query/ domain modules (calendar, equities, industry, futures, options)"
 ```
 
@@ -2100,18 +2100,18 @@ git commit -m "refactor: add query/ domain modules (calendar, equities, industry
 ## Task 7: Replace api.py with thin facade
 
 **Files:**
-- Modify: `zer0share/api.py` (complete rewrite)
+- Modify: `microshare/api.py` (complete rewrite)
 
 - [ ] **Step 1: Rewrite api.py**
 
-Replace the entire contents of `zer0share/api.py` with:
+Replace the entire contents of `microshare/api.py` with:
 
 ```python
 from pathlib import Path
 
-from zer0share.config import load_config
-from zer0share.query import QueryContext
-from zer0share.query import calendar, equities, industry, futures, options
+from microshare.config import load_config
+from microshare.query import QueryContext
+from microshare.query import calendar, equities, industry, futures, options
 
 
 class LocalPro:
@@ -2258,12 +2258,12 @@ uv run pytest --tb=short -q
 
 Expected: `258 passed`
 
-If `test_api.py` fails because it imports `*_COLS` from `zer0share.fetcher` directly, update those imports to `from zer0share.schema import ...`.
+If `test_api.py` fails because it imports `*_COLS` from `microshare.fetcher` directly, update those imports to `from microshare.schema import ...`.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add zer0share/api.py
+git add microshare/api.py
 git commit -m "refactor: replace api.py with thin facade delegating to query/*"
 ```
 
@@ -2281,7 +2281,7 @@ git commit -m "refactor: replace api.py with thin facade delegating to query/*"
 - ✅ `api.py` thin facade — Task 7
 - ✅ test_pipeline.py patch paths updated — Task 4
 - ✅ `sync_daily_kline` / `sync_adj_factor` deduplication — Task 3 (both delegate to `sync_daily_partitioned`)
-- ✅ `cli.py` / `scheduler.py` — unchanged (both only import `Pipeline` which stays at `zer0share.pipeline`)
+- ✅ `cli.py` / `scheduler.py` — unchanged (both only import `Pipeline` which stays at `microshare.pipeline`)
 
 **Placeholder scan:** None found.
 

@@ -14,11 +14,11 @@
 
 | File | Responsibility |
 |------|---------------|
-| `zer0share/fetcher.py` | Add column defs + 3 fetch methods for SW classify, SW member, CI member |
-| `zer0share/storage.py` | Add 6 read/write functions for industry parquet files |
-| `zer0share/pipeline.py` | Add `sync_industry()` and `sync_ci_member()` methods |
-| `zer0share/cli.py` | Add `"industry"` and `"ci_member"` to SYNC_TABLES + sync branches |
-| `zer0share/api.py` | Add 3 query methods + dispatch registration |
+| `microshare/fetcher.py` | Add column defs + 3 fetch methods for SW classify, SW member, CI member |
+| `microshare/storage.py` | Add 6 read/write functions for industry parquet files |
+| `microshare/pipeline.py` | Add `sync_industry()` and `sync_ci_member()` methods |
+| `microshare/cli.py` | Add `"industry"` and `"ci_member"` to SYNC_TABLES + sync branches |
+| `microshare/api.py` | Add 3 query methods + dispatch registration |
 | `tests/test_storage.py` | Test new read/write functions |
 | `tests/test_fetcher.py` | Test new fetch methods |
 | `tests/test_pipeline.py` | Test new sync methods |
@@ -30,7 +30,7 @@
 ### Task 1: Storage Layer
 
 **Files:**
-- Modify: `zer0share/storage.py`
+- Modify: `microshare/storage.py`
 - Test: `tests/test_storage.py`
 
 - [ ] **Step 1: Write failing tests for industry storage functions**
@@ -38,7 +38,7 @@
 Add to `tests/test_storage.py`:
 
 ```python
-from zer0share.storage import (
+from microshare.storage import (
     write_sw_classify,
     read_sw_classify,
     write_sw_member,
@@ -233,12 +233,12 @@ def test_read_ci_member_returns_empty_if_not_exists(tmp_path):
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd /data/zer0share && python -m pytest tests/test_storage.py -k "sw_classify or sw_member or ci_member" -v`
+Run: `cd /data/microshare && python -m pytest tests/test_storage.py -k "sw_classify or sw_member or ci_member" -v`
 Expected: FAIL with ImportError (functions not defined)
 
 - [ ] **Step 3: Implement storage functions**
 
-Add to `zer0share/storage.py` after the existing `read_trade_cal` function:
+Add to `microshare/storage.py` after the existing `read_trade_cal` function:
 
 ```python
 def write_sw_classify(data_dir: Path, df: pd.DataFrame) -> None:
@@ -285,13 +285,13 @@ def read_ci_member(data_dir: Path) -> pd.DataFrame:
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd /data/zer0share && python -m pytest tests/test_storage.py -k "sw_classify or sw_member or ci_member" -v`
+Run: `cd /data/microshare && python -m pytest tests/test_storage.py -k "sw_classify or sw_member or ci_member" -v`
 Expected: All 9 tests PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add zer0share/storage.py tests/test_storage.py
+git add microshare/storage.py tests/test_storage.py
 git commit -m "feat: add industry storage read/write functions"
 ```
 
@@ -300,7 +300,7 @@ git commit -m "feat: add industry storage read/write functions"
 ### Task 2: Fetcher Layer
 
 **Files:**
-- Modify: `zer0share/fetcher.py`
+- Modify: `microshare/fetcher.py`
 - Test: `tests/test_fetcher.py`
 
 - [ ] **Step 1: Write failing tests for fetch methods**
@@ -387,7 +387,7 @@ def test_fetch_sw_member_iterates_l1_codes(mock_pro):
     mock_pro.index_member_all.side_effect = member_dfs
     fetcher = TushareFetcher("fake_token")
 
-    with patch("zer0share.fetcher.time.sleep"):
+    with patch("microshare.fetcher.time.sleep"):
         df = fetcher.fetch_sw_member()
 
     assert list(df.columns) == SW_MEMBER_COLS
@@ -408,7 +408,7 @@ def test_fetch_sw_member_converts_dates(mock_pro):
     })
     fetcher = TushareFetcher("fake_token")
 
-    with patch("zer0share.fetcher.time.sleep"):
+    with patch("microshare.fetcher.time.sleep"):
         df = fetcher.fetch_sw_member()
 
     assert df.iloc[0]["in_date"] == date(2021, 12, 13)
@@ -440,7 +440,7 @@ def test_fetch_ci_member_iterates_l1_codes(mock_pro):
     mock_pro.ci_index_member.side_effect = [initial_df] + member_dfs
     fetcher = TushareFetcher("fake_token")
 
-    with patch("zer0share.fetcher.time.sleep"):
+    with patch("microshare.fetcher.time.sleep"):
         df = fetcher.fetch_ci_member()
 
     assert list(df.columns) == CI_MEMBER_COLS
@@ -465,7 +465,7 @@ def test_fetch_ci_member_converts_dates(mock_pro):
     ]
     fetcher = TushareFetcher("fake_token")
 
-    with patch("zer0share.fetcher.time.sleep"):
+    with patch("microshare.fetcher.time.sleep"):
         df = fetcher.fetch_ci_member()
 
     assert df.iloc[0]["in_date"] == date(2020, 1, 1)
@@ -474,12 +474,12 @@ def test_fetch_ci_member_converts_dates(mock_pro):
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd /data/zer0share && python -m pytest tests/test_fetcher.py -k "sw_classify or sw_member or ci_member" -v`
+Run: `cd /data/microshare && python -m pytest tests/test_fetcher.py -k "sw_classify or sw_member or ci_member" -v`
 Expected: FAIL with AttributeError
 
 - [ ] **Step 3: Implement fetcher methods**
 
-Add column definitions to `zer0share/fetcher.py` after the existing `INDEX_WEIGHT_COLS`:
+Add column definitions to `microshare/fetcher.py` after the existing `INDEX_WEIGHT_COLS`:
 
 ```python
 SW_CLASSIFY_COLS = [
@@ -574,13 +574,13 @@ def _format_industry_dates(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd /data/zer0share && python -m pytest tests/test_fetcher.py -k "sw_classify or sw_member or ci_member" -v`
+Run: `cd /data/microshare && python -m pytest tests/test_fetcher.py -k "sw_classify or sw_member or ci_member" -v`
 Expected: All 5 tests PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add zer0share/fetcher.py tests/test_fetcher.py
+git add microshare/fetcher.py tests/test_fetcher.py
 git commit -m "feat: add SW and CITIC industry fetch methods"
 ```
 
@@ -589,7 +589,7 @@ git commit -m "feat: add SW and CITIC industry fetch methods"
 ### Task 3: Pipeline Layer
 
 **Files:**
-- Modify: `zer0share/pipeline.py`
+- Modify: `microshare/pipeline.py`
 - Test: `tests/test_pipeline.py`
 
 - [ ] **Step 1: Write failing tests for pipeline sync methods**
@@ -597,7 +597,7 @@ git commit -m "feat: add SW and CITIC industry fetch methods"
 Add to `tests/test_pipeline.py`:
 
 ```python
-from zer0share.storage import read_sw_classify, read_sw_member, read_ci_member
+from microshare.storage import read_sw_classify, read_sw_member, read_ci_member
 
 
 def test_sync_industry_writes_sw_classify_and_member(pipeline, cfg):
@@ -620,7 +620,7 @@ def test_sync_industry_writes_sw_classify_and_member(pipeline, cfg):
     pipeline._fetcher.fetch_sw_classify.return_value = classify_df
     pipeline._fetcher.fetch_sw_member.return_value = member_df
 
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("microshare.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 5, 18)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_industry()
@@ -650,7 +650,7 @@ def test_sync_ci_member_writes_parquet(pipeline, cfg):
     })
     pipeline._fetcher.fetch_ci_member.return_value = member_df
 
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("microshare.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 5, 18)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_ci_member()
@@ -670,15 +670,15 @@ def test_sync_ci_member_failure_sends_alert_and_raises(pipeline):
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd /data/zer0share && python -m pytest tests/test_pipeline.py -k "sync_industry or sync_ci_member" -v`
+Run: `cd /data/microshare && python -m pytest tests/test_pipeline.py -k "sync_industry or sync_ci_member" -v`
 Expected: FAIL with AttributeError
 
 - [ ] **Step 3: Implement pipeline methods**
 
-Add imports to `zer0share/pipeline.py` at the top, updating the existing import from storage:
+Add imports to `microshare/pipeline.py` at the top, updating the existing import from storage:
 
 ```python
-from zer0share.storage import (
+from microshare.storage import (
     MetaStore,
     adj_factor_partition_exists,
     daily_partition_exists,
@@ -733,13 +733,13 @@ def sync_ci_member(self) -> None:
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd /data/zer0share && python -m pytest tests/test_pipeline.py -k "sync_industry or sync_ci_member" -v`
+Run: `cd /data/microshare && python -m pytest tests/test_pipeline.py -k "sync_industry or sync_ci_member" -v`
 Expected: All 4 tests PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add zer0share/pipeline.py tests/test_pipeline.py
+git add microshare/pipeline.py tests/test_pipeline.py
 git commit -m "feat: add industry and ci_member sync methods to pipeline"
 ```
 
@@ -748,7 +748,7 @@ git commit -m "feat: add industry and ci_member sync methods to pipeline"
 ### Task 4: CLI Layer
 
 **Files:**
-- Modify: `zer0share/cli.py`
+- Modify: `microshare/cli.py`
 - Test: `tests/test_cli.py`
 
 - [ ] **Step 1: Write failing tests for CLI**
@@ -762,7 +762,7 @@ def test_sync_industry_calls_pipeline():
     pipeline.__enter__.return_value = pipeline
     pipeline.__exit__.return_value = False
 
-    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--table", "industry"])
 
     assert result.exit_code == 0
@@ -775,7 +775,7 @@ def test_sync_ci_member_calls_pipeline():
     pipeline.__enter__.return_value = pipeline
     pipeline.__exit__.return_value = False
 
-    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--table", "ci_member"])
 
     assert result.exit_code == 0
@@ -788,7 +788,7 @@ def test_sync_all_includes_industry_and_ci_member():
     pipeline.__enter__.return_value = pipeline
     pipeline.__exit__.return_value = False
 
-    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--all"])
 
     assert result.exit_code == 0
@@ -802,7 +802,7 @@ def test_sync_industry_rejects_date_range():
     pipeline.__enter__.return_value = pipeline
     pipeline.__exit__.return_value = False
 
-    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli, ["sync", "--table", "industry", "--start-date", "2024-01-01"]
         )
@@ -813,12 +813,12 @@ def test_sync_industry_rejects_date_range():
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd /data/zer0share && python -m pytest tests/test_cli.py -k "industry or ci_member" -v`
+Run: `cd /data/microshare && python -m pytest tests/test_cli.py -k "industry or ci_member" -v`
 Expected: FAIL (table choices not in SYNC_TABLES)
 
 - [ ] **Step 3: Implement CLI changes**
 
-In `zer0share/cli.py`, update `SYNC_TABLES`:
+In `microshare/cli.py`, update `SYNC_TABLES`:
 
 ```python
 SYNC_TABLES = [
@@ -847,18 +847,18 @@ if sync_all or table == "ci_member":
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd /data/zer0share && python -m pytest tests/test_cli.py -k "industry or ci_member" -v`
+Run: `cd /data/microshare && python -m pytest tests/test_cli.py -k "industry or ci_member" -v`
 Expected: All 4 tests PASS
 
 - [ ] **Step 5: Run full CLI test suite to verify no regressions**
 
-Run: `cd /data/zer0share && python -m pytest tests/test_cli.py -v`
+Run: `cd /data/microshare && python -m pytest tests/test_cli.py -v`
 Expected: All tests PASS
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add zer0share/cli.py tests/test_cli.py
+git add microshare/cli.py tests/test_cli.py
 git commit -m "feat: add industry and ci_member to CLI sync options"
 ```
 
@@ -867,7 +867,7 @@ git commit -m "feat: add industry and ci_member to CLI sync options"
 ### Task 5: LocalPro API Layer
 
 **Files:**
-- Modify: `zer0share/api.py`
+- Modify: `microshare/api.py`
 - Test: `tests/test_api.py`
 
 - [ ] **Step 1: Write failing tests for API query methods**
@@ -875,7 +875,7 @@ git commit -m "feat: add industry and ci_member to CLI sync options"
 Add to `tests/test_api.py`:
 
 ```python
-from zer0share.storage import write_sw_classify, write_sw_member, write_ci_member
+from microshare.storage import write_sw_classify, write_sw_member, write_ci_member
 
 
 def test_index_classify_filters_by_level(tmp_path):
@@ -1142,15 +1142,15 @@ def test_ci_index_member_raises_file_not_found_with_sync_hint(tmp_path):
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd /data/zer0share && python -m pytest tests/test_api.py -k "index_classify or index_member_all or ci_index_member" -v`
+Run: `cd /data/microshare && python -m pytest tests/test_api.py -k "index_classify or index_member_all or ci_index_member" -v`
 Expected: FAIL with AttributeError
 
 - [ ] **Step 3: Implement API methods**
 
-Add column imports to `zer0share/api.py` by updating the import from fetcher:
+Add column imports to `microshare/api.py` by updating the import from fetcher:
 
 ```python
-from zer0share.fetcher import (
+from microshare.fetcher import (
     ADJ_FACTOR_COLS,
     BASIC_COLS,
     CI_MEMBER_COLS,
@@ -1294,18 +1294,18 @@ dispatch = {
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd /data/zer0share && python -m pytest tests/test_api.py -k "index_classify or index_member_all or ci_index_member" -v`
+Run: `cd /data/microshare && python -m pytest tests/test_api.py -k "index_classify or index_member_all or ci_index_member" -v`
 Expected: All 17 tests PASS
 
 - [ ] **Step 5: Run full API test suite to verify no regressions**
 
-Run: `cd /data/zer0share && python -m pytest tests/test_api.py -v`
+Run: `cd /data/microshare && python -m pytest tests/test_api.py -v`
 Expected: All tests PASS
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add zer0share/api.py tests/test_api.py
+git add microshare/api.py tests/test_api.py
 git commit -m "feat: add industry query methods to LocalPro API"
 ```
 
@@ -1317,15 +1317,15 @@ git commit -m "feat: add industry query methods to LocalPro API"
 
 - [ ] **Step 1: Run full test suite**
 
-Run: `cd /data/zer0share && python -m pytest tests/ -v`
+Run: `cd /data/microshare && python -m pytest tests/ -v`
 Expected: All tests PASS
 
 - [ ] **Step 2: Verify CLI help shows new table options**
 
-Run: `cd /data/zer0share && python main.py sync --help`
+Run: `cd /data/microshare && python main.py sync --help`
 Expected: `--table` choices include `industry` and `ci_member`
 
 - [ ] **Step 3: Verify status command includes new tables**
 
-Run: `cd /data/zer0share && python main.py status`
+Run: `cd /data/microshare && python main.py status`
 Expected: Output includes `sw_classify`, `sw_member`, `ci_member` rows showing "从未同步"

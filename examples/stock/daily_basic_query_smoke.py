@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from micro import pro_api
+from microshare import pro_api
 
 
 FIELDS = (
@@ -22,8 +22,14 @@ def _print_frame(title, df, rows: int = 5) -> None:
     print(df.head(rows).to_string(index=False))
 
 
-def _pick_sample(pro, ts_code: str):
-    sample = pro.daily_basic(ts_code=ts_code, limit=1, fields=FIELDS)
+def _pick_sample(pro, ts_code: str, start_date: str, end_date: str):
+    sample = pro.daily_basic(
+        ts_code=ts_code,
+        start_date=start_date,
+        end_date=end_date,
+        limit=1,
+        fields=FIELDS,
+    )
     if sample.empty:
         raise ValueError(
             f"no daily_basic data found for ts_code={ts_code}; "
@@ -35,7 +41,12 @@ def _pick_sample(pro, ts_code: str):
 def run_smoke(ts_code: str, start_date: str, end_date: str,
               offset: int, limit: int) -> None:
     pro = pro_api()
-    sample = _pick_sample(pro, ts_code=ts_code)
+    sample = _pick_sample(
+        pro,
+        ts_code=ts_code,
+        start_date=start_date,
+        end_date=end_date,
+    )
     trade_date = sample["trade_date"]
 
     print("Sample values")
@@ -45,7 +56,13 @@ def run_smoke(ts_code: str, start_date: str, end_date: str,
 
     _print_frame(
         "filter_by_ts_code",
-        pro.daily_basic(ts_code=ts_code, limit=limit, fields=FIELDS),
+        pro.daily_basic(
+            ts_code=ts_code,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit,
+            fields=FIELDS,
+        ),
     )
     _print_frame(
         "filter_by_trade_date",
@@ -65,11 +82,17 @@ def run_smoke(ts_code: str, start_date: str, end_date: str,
     )
     _print_frame(
         "limit_only",
-        pro.daily_basic(limit=limit, fields=FIELDS),
+        pro.daily_basic(start_date=start_date, end_date=end_date, limit=limit, fields=FIELDS),
     )
     _print_frame(
         "offset_and_limit",
-        pro.daily_basic(offset=offset, limit=limit, fields=FIELDS),
+        pro.daily_basic(
+            start_date=start_date,
+            end_date=end_date,
+            offset=offset,
+            limit=limit,
+            fields=FIELDS,
+        ),
     )
     _print_frame(
         "no_fields_filter",

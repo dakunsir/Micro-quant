@@ -15,10 +15,10 @@
 
 当前仓库的同步链路以 Tushare 为唯一上游：
 
-- `zer0share/fetcher.py` 封装 Tushare Pro API。
-- `zer0share/sync/*.py` 注册同步作业。
-- `zer0share/storage.py` 负责 Parquet 分区写入和 DuckDB meta。
-- `zer0share/api.py` 暴露 `pro_api()`，本地查询接口刻意模拟 Tushare Pro。
+- `microshare/fetcher.py` 封装 Tushare Pro API。
+- `microshare/sync/*.py` 注册同步作业。
+- `microshare/storage.py` 负责 Parquet 分区写入和 DuckDB meta。
+- `microshare/api.py` 暴露 `pro_api()`，本地查询接口刻意模拟 Tushare Pro。
 
 RiceQuant RQData 的分钟行情接口是 `rqdatac.get_price(..., frequency="1m")`。官方文档说明该接口支持周线、日线、分钟线和 tick 数据；大量分钟或 tick 数据建议按单只合约长区间拉取；返回的 bar 数据字段包含 `open`、`close`、`high`、`low`、`limit_up`、`limit_down`、`total_turnover`、`volume`、`num_trades`、`prev_close` 等。RQData 需要安装 `rqdatac` 并在首次调用 API 前执行 `rqdatac.init()`。
 
@@ -44,7 +44,7 @@ RiceQuant 初始化需要兼容两种认证形态：
 新增和调整后的结构：
 
 ```text
-zer0share/
+microshare/
 ├── sources/
 │   ├── __init__.py
 │   ├── tushare.py          # 从 fetcher.py 迁入 TushareFetcher
@@ -63,10 +63,10 @@ zer0share/
 └── rq_api.py               # 新增 rq_api()
 ```
 
-`zer0share/fetcher.py` 可作为兼容 shim 保留一段时间：
+`microshare/fetcher.py` 可作为兼容 shim 保留一段时间：
 
 ```python
-from zer0share.sources.tushare import TushareFetcher
+from microshare.sources.tushare import TushareFetcher
 ```
 
 这样现有测试和外部导入不会在第一期被迫迁移。
@@ -264,7 +264,7 @@ RiceQuant 文档建议大量分钟数据按单只合约拉取。同步作业采�
 新增入口：
 
 ```python
-from zer0share import rq_api
+from microshare import rq_api
 
 rq = rq_api()
 basic = rq.all_instruments(type="CS", market="cn")
@@ -280,7 +280,7 @@ df = rq.get_price(
 
 ### RQLocal
 
-新增 `zer0share/rq_api.py`：
+新增 `microshare/rq_api.py`：
 
 ```python
 class RQLocal:
@@ -337,7 +337,7 @@ class RQLocal:
 
 ### Query Repository
 
-新增 `zer0share/query/ricequant.py`，内部使用现有 `BaseParquetRepository` / `DailyPartitionRepository` 模式，但 spec 独立：
+新增 `microshare/query/ricequant.py`，内部使用现有 `BaseParquetRepository` / `DailyPartitionRepository` 模式，但 spec 独立：
 
 ```python
 RICEQUANT_STOCK_MINUTE_SPEC = DailyTableSpec(
@@ -366,7 +366,7 @@ RICEQUANT_STOCK_MINUTE_SPEC = DailyTableSpec(
 最终对外边界：
 
 ```python
-from zer0share import pro_api, rq_api
+from microshare import pro_api, rq_api
 
 pro = pro_api()
 pro.daily(...)
@@ -409,7 +409,7 @@ rq.get_price(..., frequency="1m")
 
 ```bash
 uv run python main.py sync --table ricequant_stock_minute --start-date 20240102 --end-date 20240102
-uv run python -c "from zer0share import rq_api; print(rq_api().get_price('000001.XSHE', start_date='20240102', end_date='20240102', frequency='1m').head())"
+uv run python -c "from microshare import rq_api; print(rq_api().get_price('000001.XSHE', start_date='20240102', end_date='20240102', frequency='1m').head())"
 ```
 
 ## 文档更新
@@ -418,7 +418,7 @@ uv run python -c "from zer0share import rq_api; print(rq_api().get_price('000001
 
 - `README.md`：新增 RiceQuant 数据源配置、license key/用户名密码认证、同步命令、本地查询示例。
 - `docs/SYNC_GUIDE.md`：新增 `ricequant_stock_minute` 调度说明和账号前置条件。
-- `skills/zer0share-data/references/api.md`：补充 `rq_api()` 的本地查询入口说明。
+- `skills/microshare-data/references/api.md`：补充 `rq_api()` 的本地查询入口说明。
 - `config/settings.example.toml`：新增 `[ricequant]` 示例配置。
 
 ## 非目标

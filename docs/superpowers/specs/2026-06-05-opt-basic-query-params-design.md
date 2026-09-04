@@ -16,7 +16,7 @@
 
 ### 1. API 参数扩展
 
-**文件**：`zer0share/api.py`
+**文件**：`microshare/api.py`
 
 `LocalProAPI.opt_basic()` 新增参数：
 
@@ -77,5 +77,5 @@ OFFSET ?
 
 | 文件 | 改动 |
 |------|------|
-| `zer0share/api.py` | `opt_basic()` 新增 `name`、`list_date`、`offset`、`limit` 参数与 SQL 处理 |
+| `microshare/api.py` | `opt_basic()` 新增 `name`、`list_date`、`offset`、`limit` 参数与 SQL 处理 |
 | `tests/test_api.py` | 增加本地 `opt_basic` 查询参数测试 |

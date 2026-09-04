@@ -21,7 +21,7 @@
 ## 项目结构
 
 ```
-zer0share/
+microshare/
 ├── config/
 │   └── settings.toml        # token、路径、企业微信配置
 ├── data/

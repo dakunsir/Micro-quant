@@ -13,29 +13,29 @@
 ## 文件结构
 
 **新建：**
-- `zer0share/trading_calendar.py` — TradingCalendar 类
-- `zer0share/catalog.py` — 所有 TableSpec 常量
-- `zer0share/sync/_jobs.py` — SyncJob ABC + DailySyncJob + SnapshotSyncJob
+- `microshare/trading_calendar.py` — TradingCalendar 类
+- `microshare/catalog.py` — 所有 TableSpec 常量
+- `microshare/sync/_jobs.py` — SyncJob ABC + DailySyncJob + SnapshotSyncJob
 
 **修改：**
-- `zer0share/dateutil.py` — 新增 `date_str()` / `parse_date()`
-- `zer0share/storage.py` — 新增 Store 类，精简 MetaStore，删除遗留函数
-- `zer0share/sync/__init__.py` — SyncContext → SyncRuntime
-- `zer0share/sync/_helpers.py` — 清空（只留常量兼容导入）
-- `zer0share/sync/calendar.py` — build_jobs() + TradeCalSyncJob
-- `zer0share/sync/equities.py` — build_jobs() + IndexWeightSyncJob + IndexDailySyncJob
-- `zer0share/sync/industry.py` — build_jobs()
-- `zer0share/sync/futures.py` — build_jobs() + FutIndexDailySyncJob + FutWeeklyDetailSyncJob
-- `zer0share/sync/options.py` — build_jobs()
-- `zer0share/pipeline.py` — Registry
-- `zer0share/config.py` — schedule: dict[str, str]
-- `zer0share/scheduler.py` — 纯遍历
-- `zer0share/cli.py` — 消除 if-elif 链
-- `zer0share/query/equities.py` — 从 catalog 导入 spec
-- `zer0share/query/futures.py` — 从 catalog 导入 spec
-- `zer0share/query/options.py` — 从 catalog 导入 spec
-- `zer0share/query/industry.py` — 从 catalog 导入 spec
-- `zer0share/query/calendar.py` — 从 catalog 导入 spec
+- `microshare/dateutil.py` — 新增 `date_str()` / `parse_date()`
+- `microshare/storage.py` — 新增 Store 类，精简 MetaStore，删除遗留函数
+- `microshare/sync/__init__.py` — SyncContext → SyncRuntime
+- `microshare/sync/_helpers.py` — 清空（只留常量兼容导入）
+- `microshare/sync/calendar.py` — build_jobs() + TradeCalSyncJob
+- `microshare/sync/equities.py` — build_jobs() + IndexWeightSyncJob + IndexDailySyncJob
+- `microshare/sync/industry.py` — build_jobs()
+- `microshare/sync/futures.py` — build_jobs() + FutIndexDailySyncJob + FutWeeklyDetailSyncJob
+- `microshare/sync/options.py` — build_jobs()
+- `microshare/pipeline.py` — Registry
+- `microshare/config.py` — schedule: dict[str, str]
+- `microshare/scheduler.py` — 纯遍历
+- `microshare/cli.py` — 消除 if-elif 链
+- `microshare/query/equities.py` — 从 catalog 导入 spec
+- `microshare/query/futures.py` — 从 catalog 导入 spec
+- `microshare/query/options.py` — 从 catalog 导入 spec
+- `microshare/query/industry.py` — 从 catalog 导入 spec
+- `microshare/query/calendar.py` — 从 catalog 导入 spec
 - `config/settings.toml` + `config/settings.example.toml` — scheduler 格式
 - `tests/test_storage.py` — 更新 import，用 Store 类
 - `tests/test_pipeline.py` — 全面重写 patch 策略和调用方式
@@ -45,7 +45,7 @@
 ## Task 1：扩充 dateutil.py
 
 **Files:**
-- Modify: `zer0share/dateutil.py`
+- Modify: `microshare/dateutil.py`
 - Test: `tests/test_dateutil.py`
 
 - [ ] **Step 1: 写失败测试**
@@ -53,7 +53,7 @@
 ```python
 # tests/test_dateutil.py 新增
 from datetime import date
-from zer0share.dateutil import date_str, parse_date
+from microshare.dateutil import date_str, parse_date
 
 def test_date_str_with_string():
     assert date_str("20240102") == "20240102"
@@ -73,14 +73,14 @@ def test_parse_date_invalid_raises():
 - [ ] **Step 2: 运行确认失败**
 
 ```bash
-cd /data/projects/zer0share && uv run pytest tests/test_dateutil.py::test_date_str_with_string tests/test_dateutil.py::test_parse_date_valid -v
+cd /data/projects/microshare && uv run pytest tests/test_dateutil.py::test_date_str_with_string tests/test_dateutil.py::test_parse_date_valid -v
 ```
 
 Expected: `FAILED` with `ImportError: cannot import name 'date_str'`
 
 - [ ] **Step 3: 实现**
 
-在 `zer0share/dateutil.py` 末尾追加：
+在 `microshare/dateutil.py` 末尾追加：
 
 ```python
 def date_str(value) -> str:
@@ -107,7 +107,7 @@ Expected: all PASS
 - [ ] **Step 5: 提交**
 
 ```bash
-git add zer0share/dateutil.py tests/test_dateutil.py
+git add microshare/dateutil.py tests/test_dateutil.py
 git commit -m "feat: add public date_str and parse_date to dateutil"
 ```
 
@@ -116,9 +116,9 @@ git commit -m "feat: add public date_str and parse_date to dateutil"
 ## Task 2：创建 TradingCalendar
 
 **Files:**
-- Create: `zer0share/trading_calendar.py`
+- Create: `microshare/trading_calendar.py`
 - Create: `tests/test_trading_calendar.py`
-- Modify: `zer0share/storage.py` (MetaStore 暴露 `_conn`)
+- Modify: `microshare/storage.py` (MetaStore 暴露 `_conn`)
 
 - [ ] **Step 1: 写失败测试**
 
@@ -126,8 +126,8 @@ git commit -m "feat: add public date_str and parse_date to dateutil"
 # tests/test_trading_calendar.py
 import pandas as pd
 import pytest
-from zer0share.storage import MetaStore, write_trade_cal
-from zer0share.trading_calendar import TradingCalendar
+from microshare.storage import MetaStore, write_trade_cal
+from microshare.trading_calendar import TradingCalendar
 
 
 @pytest.fixture
@@ -188,8 +188,8 @@ def test_skip_if_not_trading_on_open_day(cal):
 def test_ensure_loaded_triggers_sync_when_missing(tmp_path):
     import pandas as pd
     from unittest.mock import MagicMock
-    from zer0share.sync import SyncRuntime
-    from zer0share.notifier import Notifier
+    from microshare.sync import SyncRuntime
+    from microshare.notifier import Notifier
 
     meta = MetaStore(tmp_path / "meta.duckdb")
     cal = TradingCalendar(meta)
@@ -217,7 +217,7 @@ Expected: `FAILED` with `ModuleNotFoundError`
 
 - [ ] **Step 3: 实现 TradingCalendar**
 
-创建 `zer0share/trading_calendar.py`：
+创建 `microshare/trading_calendar.py`：
 
 ```python
 from __future__ import annotations
@@ -227,11 +227,11 @@ from typing import TYPE_CHECKING, Callable
 
 from loguru import logger
 
-import zer0share.dateutil as dateutil
-from zer0share.storage import MetaStore, write_trade_cal, read_trade_cal
+import microshare.dateutil as dateutil
+from microshare.storage import MetaStore, write_trade_cal, read_trade_cal
 
 if TYPE_CHECKING:
-    from zer0share.sync import SyncRuntime
+    from microshare.sync import SyncRuntime
 
 
 class TradingCalendar:
@@ -260,7 +260,7 @@ class TradingCalendar:
 
     def ensure_loaded(self, rt: SyncRuntime) -> None:
         if self._meta.get_last_date("trade_cal") is None:
-            from zer0share.sync.calendar import TradeCalSyncJob
+            from microshare.sync.calendar import TradeCalSyncJob
             job = TradeCalSyncJob()
             job.run(rt)
 ```
@@ -268,14 +268,14 @@ class TradingCalendar:
 - [ ] **Step 4: 更新 sync/__init__.py，新增 SyncRuntime**
 
 ```python
-# zer0share/sync/__init__.py
+# microshare/sync/__init__.py
 from dataclasses import dataclass
 
-from zer0share.notifier import Notifier
-from zer0share.storage import MetaStore
+from microshare.notifier import Notifier
+from microshare.storage import MetaStore
 
 if False:  # TYPE_CHECKING
-    from zer0share.trading_calendar import TradingCalendar
+    from microshare.trading_calendar import TradingCalendar
 
 
 @dataclass
@@ -300,7 +300,7 @@ Expected: 大部分 PASS（`ensure_loaded` 测试可能因 TradeCalSyncJob 未�
 - [ ] **Step 6: 提交**
 
 ```bash
-git add zer0share/trading_calendar.py zer0share/sync/__init__.py tests/test_trading_calendar.py
+git add microshare/trading_calendar.py microshare/sync/__init__.py tests/test_trading_calendar.py
 git commit -m "feat: add TradingCalendar and SyncRuntime"
 ```
 
@@ -309,14 +309,14 @@ git commit -m "feat: add TradingCalendar and SyncRuntime"
 ## Task 3：创建 catalog.py
 
 **Files:**
-- Create: `zer0share/catalog.py`
+- Create: `microshare/catalog.py`
 
 - [ ] **Step 1: 创建 catalog.py**
 
 ```python
-# zer0share/catalog.py
-from zer0share.query.repository import DailyTableSpec, TableSpec
-from zer0share.schema import (
+# microshare/catalog.py
+from microshare.query.repository import DailyTableSpec, TableSpec
+from microshare.schema import (
     ADJ_FACTOR_COLS, BASIC_COLS, CI_MEMBER_COLS, DAILY_BASIC_COLS,
     DAILY_COLS, FT_LIMIT_COLS, FUT_BASIC_COLS, FUT_DAILY_COLS,
     FUT_HOLDING_COLS, FUT_INDEX_DAILY_COLS, FUT_MAPPING_COLS,
@@ -484,7 +484,7 @@ OPT_DAILY_SPEC = DailyTableSpec(
 - [ ] **Step 2: 验证 catalog 可以导入**
 
 ```bash
-uv run python -c "from zer0share.catalog import DAILY_KLINE_SPEC, FUT_DAILY_SPEC, OPT_DAILY_SPEC; print('OK')"
+uv run python -c "from microshare.catalog import DAILY_KLINE_SPEC, FUT_DAILY_SPEC, OPT_DAILY_SPEC; print('OK')"
 ```
 
 Expected: `OK`
@@ -492,7 +492,7 @@ Expected: `OK`
 - [ ] **Step 3: 提交**
 
 ```bash
-git add zer0share/catalog.py
+git add microshare/catalog.py
 git commit -m "feat: add catalog.py with all TableSpec constants"
 ```
 
@@ -501,14 +501,14 @@ git commit -m "feat: add catalog.py with all TableSpec constants"
 ## Task 4：重构 storage.py — 新增 Store 类
 
 **Files:**
-- Modify: `zer0share/storage.py`
+- Modify: `microshare/storage.py`
 - Modify: `tests/test_storage.py`
 
 - [ ] **Step 1: 写 Store 类测试**
 
 ```python
 # tests/test_storage.py 新增（追加到文件末尾）
-from zer0share.storage import DailyPartitionStore, SnapshotStore, IndexWeightStore
+from microshare.storage import DailyPartitionStore, SnapshotStore, IndexWeightStore
 
 
 def test_daily_partition_store_write_and_exists(tmp_path):
@@ -568,7 +568,7 @@ Expected: `FAILED` with `ImportError`
 - [ ] **Step 3: 在 storage.py 末尾追加三个 Store 类**
 
 ```python
-# zer0share/storage.py 末尾追加
+# microshare/storage.py 末尾追加
 
 class DailyPartitionStore:
     def __init__(self, table_dir: Path):
@@ -632,7 +632,7 @@ Expected: all PASS（旧测试 + 新 Store 测试）
 - [ ] **Step 5: 提交**
 
 ```bash
-git add zer0share/storage.py tests/test_storage.py
+git add microshare/storage.py tests/test_storage.py
 git commit -m "feat: add DailyPartitionStore, SnapshotStore, IndexWeightStore to storage"
 ```
 
@@ -641,7 +641,7 @@ git commit -m "feat: add DailyPartitionStore, SnapshotStore, IndexWeightStore to
 ## Task 5：创建 sync/_jobs.py
 
 **Files:**
-- Create: `zer0share/sync/_jobs.py`
+- Create: `microshare/sync/_jobs.py`
 - Create: `tests/test_jobs.py`
 
 - [ ] **Step 1: 写失败测试**
@@ -652,11 +652,11 @@ import time
 from unittest.mock import MagicMock, call, patch
 import pandas as pd
 import pytest
-from zer0share.storage import MetaStore, DailyPartitionStore, SnapshotStore, write_trade_cal
-from zer0share.trading_calendar import TradingCalendar
-from zer0share.sync import SyncRuntime
-from zer0share.sync._jobs import DailySyncJob, SnapshotSyncJob
-from zer0share.catalog import DAILY_KLINE_SPEC, BASIC_SPEC
+from microshare.storage import MetaStore, DailyPartitionStore, SnapshotStore, write_trade_cal
+from microshare.trading_calendar import TradingCalendar
+from microshare.sync import SyncRuntime
+from microshare.sync._jobs import DailySyncJob, SnapshotSyncJob
+from microshare.catalog import DAILY_KLINE_SPEC, BASIC_SPEC
 
 
 def _make_runtime(tmp_path, today: str = "20240102"):
@@ -681,7 +681,7 @@ def test_daily_sync_job_writes_partition(tmp_path):
     job = DailySyncJob(spec=DAILY_KLINE_SPEC, fetch=fetch, store=store)
     meta.update_last_date("daily_kline", "20240101")
 
-    with patch("zer0share.sync._jobs.time.sleep"):
+    with patch("microshare.sync._jobs.time.sleep"):
         job.run(rt)
 
     assert store.exists("20240102")
@@ -697,7 +697,7 @@ def test_daily_sync_job_skips_existing_partition(tmp_path):
     job = DailySyncJob(spec=DAILY_KLINE_SPEC, fetch=fetch, store=store)
     meta.update_last_date("daily_kline", "20240101")
 
-    with patch("zer0share.sync._jobs.time.sleep"):
+    with patch("microshare.sync._jobs.time.sleep"):
         job.run(rt)
 
     fetch.assert_not_called()
@@ -724,7 +724,7 @@ def test_daily_sync_job_raises_on_fetch_error(tmp_path):
     job = DailySyncJob(spec=DAILY_KLINE_SPEC, fetch=fetch, store=store)
     meta.update_last_date("daily_kline", "20240101")
 
-    with patch("zer0share.sync._jobs.time.sleep"), pytest.raises(RuntimeError):
+    with patch("microshare.sync._jobs.time.sleep"), pytest.raises(RuntimeError):
         job.run(rt)
 
     rt.notifier.send.assert_called_once()
@@ -766,7 +766,7 @@ Expected: `FAILED` with `ImportError: cannot import name 'DailySyncJob'`
 
 - [ ] **Step 3: 实现 _jobs.py**
 
-创建 `zer0share/sync/_jobs.py`：
+创建 `microshare/sync/_jobs.py`：
 
 ```python
 import time
@@ -778,10 +778,10 @@ from typing import Callable
 import pandas as pd
 from loguru import logger
 
-import zer0share.dateutil as dateutil
-from zer0share.query.repository import DailyTableSpec, TableSpec
-from zer0share.storage import DailyPartitionStore, MetaStore, SnapshotStore
-from zer0share.sync import SyncRuntime
+import microshare.dateutil as dateutil
+from microshare.query.repository import DailyTableSpec, TableSpec
+from microshare.storage import DailyPartitionStore, MetaStore, SnapshotStore
+from microshare.sync import SyncRuntime
 
 FIRST_DATE = "20160101"
 PROGRESS_INTERVAL = 50
@@ -943,7 +943,7 @@ Expected: all PASS
 - [ ] **Step 5: 提交**
 
 ```bash
-git add zer0share/sync/_jobs.py tests/test_jobs.py
+git add microshare/sync/_jobs.py tests/test_jobs.py
 git commit -m "feat: add SyncJob, DailySyncJob, SnapshotSyncJob to sync/_jobs.py"
 ```
 
@@ -952,27 +952,27 @@ git commit -m "feat: add SyncJob, DailySyncJob, SnapshotSyncJob to sync/_jobs.py
 ## Task 6：迁移 sync 域模块
 
 **Files:**
-- Modify: `zer0share/sync/equities.py`
-- Modify: `zer0share/sync/futures.py`
-- Modify: `zer0share/sync/options.py`
-- Modify: `zer0share/sync/calendar.py`
-- Modify: `zer0share/sync/industry.py`
-- Modify: `zer0share/sync/_helpers.py`
+- Modify: `microshare/sync/equities.py`
+- Modify: `microshare/sync/futures.py`
+- Modify: `microshare/sync/options.py`
+- Modify: `microshare/sync/calendar.py`
+- Modify: `microshare/sync/industry.py`
+- Modify: `microshare/sync/_helpers.py`
 
 - [ ] **Step 1: 迁移 sync/calendar.py**
 
 ```python
-# zer0share/sync/calendar.py
+# microshare/sync/calendar.py
 import time
 from pathlib import Path
 
 import pandas as pd
 from loguru import logger
 
-import zer0share.dateutil as dateutil
-from zer0share.storage import read_trade_cal, write_trade_cal
-from zer0share.sync import SyncRuntime
-from zer0share.sync._jobs import SyncJob
+import microshare.dateutil as dateutil
+from microshare.storage import read_trade_cal, write_trade_cal
+from microshare.sync import SyncRuntime
+from microshare.sync._jobs import SyncJob
 
 ALL_EXCHANGES = ["SSE", "SZSE", "CFFEX", "DCE", "SHFE", "CZCE", "INE", "GFEX"]
 TRADE_CAL_FIRST_DATE = "19900101"
@@ -1040,13 +1040,13 @@ Note: `TradeCalSyncJob` needs `data_dir` because it reads/writes Parquet files. 
 - [ ] **Step 2: 迁移 sync/industry.py**
 
 ```python
-# zer0share/sync/industry.py
+# microshare/sync/industry.py
 from loguru import logger
 
-from zer0share.storage import SnapshotStore
-from zer0share.sync import SyncRuntime
-from zer0share.sync._jobs import SnapshotSyncJob, SyncJob
-from zer0share.catalog import SW_CLASSIFY_SPEC, SW_MEMBER_SPEC, CI_MEMBER_SPEC
+from microshare.storage import SnapshotStore
+from microshare.sync import SyncRuntime
+from microshare.sync._jobs import SnapshotSyncJob, SyncJob
+from microshare.catalog import SW_CLASSIFY_SPEC, SW_MEMBER_SPEC, CI_MEMBER_SPEC
 
 
 class IndustrySyncJob(SyncJob):
@@ -1100,22 +1100,22 @@ def build_jobs(cfg, fetcher) -> list[SyncJob]:
 - [ ] **Step 3: 迁移 sync/equities.py**
 
 ```python
-# zer0share/sync/equities.py
+# microshare/sync/equities.py
 import time
 from pathlib import Path
 
 import pandas as pd
 from loguru import logger
 
-import zer0share.dateutil as dateutil
-from zer0share.fetcher import INDEX_DAILY_CODES
-from zer0share.storage import (
+import microshare.dateutil as dateutil
+from microshare.fetcher import INDEX_DAILY_CODES
+from microshare.storage import (
     DailyPartitionStore, IndexWeightStore, SnapshotStore,
     daily_partition_exists, write_daily_partition,
 )
-from zer0share.sync import SyncRuntime
-from zer0share.sync._jobs import DailySyncJob, SnapshotSyncJob, SyncJob, FIRST_DATE
-from zer0share.catalog import (
+from microshare.sync import SyncRuntime
+from microshare.sync._jobs import DailySyncJob, SnapshotSyncJob, SyncJob, FIRST_DATE
+from microshare.catalog import (
     ADJ_FACTOR_SPEC, BASIC_SPEC, DAILY_BASIC_SPEC, DAILY_KLINE_SPEC,
     INDEX_DAILY_SPEC, STK_LIMIT_SPEC, STOCK_ST_SPEC, SUSPEND_D_SPEC,
 )
@@ -1320,18 +1320,18 @@ def build_jobs(cfg, fetcher) -> list[SyncJob]:
 - [ ] **Step 4: 迁移 sync/futures.py**
 
 ```python
-# zer0share/sync/futures.py
+# microshare/sync/futures.py
 import time
 
 import pandas as pd
 from loguru import logger
 
-import zer0share.dateutil as dateutil
-from zer0share.fetcher import FUTURES_EXCHANGES
-from zer0share.storage import DailyPartitionStore, SnapshotStore
-from zer0share.sync import SyncRuntime
-from zer0share.sync._jobs import DailySyncJob, SnapshotSyncJob, SyncJob, FIRST_DATE
-from zer0share.catalog import (
+import microshare.dateutil as dateutil
+from microshare.fetcher import FUTURES_EXCHANGES
+from microshare.storage import DailyPartitionStore, SnapshotStore
+from microshare.sync import SyncRuntime
+from microshare.sync._jobs import DailySyncJob, SnapshotSyncJob, SyncJob, FIRST_DATE
+from microshare.catalog import (
     FT_LIMIT_SPEC, FUT_BASIC_SPEC, FUT_DAILY_SPEC, FUT_HOLDING_SPEC,
     FUT_INDEX_DAILY_SPEC, FUT_MAPPING_SPEC, FUT_MONTHLY_SPEC,
     FUT_SETTLE_SPEC, FUT_WEEKLY_DETAIL_SPEC, FUT_WEEKLY_SPEC, FUT_WSR_SPEC,
@@ -1543,17 +1543,17 @@ def build_jobs(cfg, fetcher) -> list[SyncJob]:
 - [ ] **Step 5: 迁移 sync/options.py**
 
 ```python
-# zer0share/sync/options.py
+# microshare/sync/options.py
 import time
 
 import pandas as pd
 from loguru import logger
 
-from zer0share.fetcher import OPTIONS_EXCHANGES
-from zer0share.storage import DailyPartitionStore, SnapshotStore
-from zer0share.sync import SyncRuntime
-from zer0share.sync._jobs import DailySyncJob, SyncJob
-from zer0share.catalog import OPT_BASIC_SPEC, OPT_DAILY_SPEC
+from microshare.fetcher import OPTIONS_EXCHANGES
+from microshare.storage import DailyPartitionStore, SnapshotStore
+from microshare.sync import SyncRuntime
+from microshare.sync._jobs import DailySyncJob, SyncJob
+from microshare.catalog import OPT_BASIC_SPEC, OPT_DAILY_SPEC
 
 
 class OptBasicSyncJob(SyncJob):
@@ -1602,7 +1602,7 @@ def build_jobs(cfg, fetcher) -> list[SyncJob]:
 - [ ] **Step 6: 清空 sync/_helpers.py（只留兼容常量）**
 
 ```python
-# zer0share/sync/_helpers.py
+# microshare/sync/_helpers.py
 # 向后兼容导出，Task 8 后删除此文件
 FIRST_DATE = "20160101"
 TRADE_CAL_FIRST_DATE = "19900101"
@@ -1623,7 +1623,7 @@ def ensure_trade_cal_loaded(ctx) -> None:
 - [ ] **Step 7: 提交**
 
 ```bash
-git add zer0share/sync/ zer0share/trading_calendar.py
+git add microshare/sync/ microshare/trading_calendar.py
 git commit -m "feat: migrate sync domain modules to build_jobs() + OOP job classes"
 ```
 
@@ -1632,22 +1632,22 @@ git commit -m "feat: migrate sync domain modules to build_jobs() + OOP job class
 ## Task 7：重构 Pipeline 为 Registry，更新测试
 
 **Files:**
-- Modify: `zer0share/pipeline.py`
+- Modify: `microshare/pipeline.py`
 - Modify: `tests/test_pipeline.py`
 
 - [ ] **Step 1: 重写 pipeline.py**
 
 ```python
-# zer0share/pipeline.py
+# microshare/pipeline.py
 from pathlib import Path
 
-from zer0share.config import Config
-from zer0share.fetcher import TushareFetcher
-from zer0share.notifier import Notifier
-from zer0share.storage import MetaStore
-from zer0share.sync import SyncRuntime
-from zer0share.sync._jobs import SyncJob
-from zer0share.trading_calendar import TradingCalendar
+from microshare.config import Config
+from microshare.fetcher import TushareFetcher
+from microshare.notifier import Notifier
+from microshare.storage import MetaStore
+from microshare.sync import SyncRuntime
+from microshare.sync._jobs import SyncJob
+from microshare.trading_calendar import TradingCalendar
 
 
 class Pipeline:
@@ -1659,7 +1659,7 @@ class Pipeline:
         self._build_registry(cfg, fetcher)
 
     def _build_registry(self, cfg: Config, fetcher: TushareFetcher) -> None:
-        from zer0share.sync import calendar, equities, industry, futures, options
+        from microshare.sync import calendar, equities, industry, futures, options
         for module in [calendar, equities, industry, futures, options]:
             for job in module.build_jobs(cfg, fetcher):
                 self._registry[job.table_name] = job
@@ -1690,7 +1690,7 @@ class Pipeline:
 
 - [ ] **Step 2: 更新 tests/test_pipeline.py**
 
-测试文件需要大幅更新：`pipeline.sync_xxx()` → `pipeline.run("xxx")`，`patch("zer0share.sync._helpers.date")` → 直接构造 `TradingCalendar(meta, today_fn=lambda: "...")`，`pipeline._meta` → `pipeline._runtime.meta`。
+测试文件需要大幅更新：`pipeline.sync_xxx()` → `pipeline.run("xxx")`，`patch("microshare.sync._helpers.date")` → 直接构造 `TradingCalendar(meta, today_fn=lambda: "...")`，`pipeline._meta` → `pipeline._runtime.meta`。
 
 关键 fixture 变化：
 
@@ -1699,9 +1699,9 @@ class Pipeline:
 from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
-from zer0share.pipeline import Pipeline
-from zer0share.storage import MetaStore, write_trade_cal, write_basic
-from zer0share.trading_calendar import TradingCalendar
+from microshare.pipeline import Pipeline
+from microshare.storage import MetaStore, write_trade_cal, write_basic
+from microshare.trading_calendar import TradingCalendar
 
 
 @pytest.fixture
@@ -1736,7 +1736,7 @@ def _setup_trade_cal(pipeline, cfg, trade_date: str = "20240102", is_open: bool 
 
 Replace every `pipeline.sync_basic()` → `pipeline.run("basic")`, every `pipeline.sync_daily_kline(...)` → `pipeline.run("daily_kline", ...)`, etc.
 
-Replace every `patch("zer0share.sync._helpers.date")` block with `_set_today(pipeline, "20240102")`.
+Replace every `patch("microshare.sync._helpers.date")` block with `_set_today(pipeline, "20240102")`.
 
 Replace `pipeline._meta` → `pipeline._runtime.meta`, `pipeline._fetcher` → access via registry job's fetch (or keep as `pipeline._registry["daily_kline"].fetch`). For tests that check `pipeline._fetcher.fetch_basic.assert_called_once()`, get the mock from the registry:
 
@@ -1773,7 +1773,7 @@ Expected: all PASS (or only previously-broken tests fail)
 - [ ] **Step 4: 提交**
 
 ```bash
-git add zer0share/pipeline.py tests/test_pipeline.py
+git add microshare/pipeline.py tests/test_pipeline.py
 git commit -m "refactor: Pipeline to Registry, update tests"
 ```
 
@@ -1782,9 +1782,9 @@ git commit -m "refactor: Pipeline to Registry, update tests"
 ## Task 8：简化 Config + Scheduler + CLI
 
 **Files:**
-- Modify: `zer0share/config.py`
-- Modify: `zer0share/scheduler.py`
-- Modify: `zer0share/cli.py`
+- Modify: `microshare/config.py`
+- Modify: `microshare/scheduler.py`
+- Modify: `microshare/cli.py`
 - Modify: `config/settings.toml`
 - Modify: `config/settings.example.toml`
 - Modify: `tests/test_config.py`
@@ -1794,7 +1794,7 @@ git commit -m "refactor: Pipeline to Registry, update tests"
 - [ ] **Step 1: 更新 config.py**
 
 ```python
-# zer0share/config.py
+# microshare/config.py
 from dataclasses import dataclass
 from pathlib import Path
 import tomllib
@@ -1871,18 +1871,18 @@ opt_daily    = "20:00"
 - [ ] **Step 3: 更新 scheduler.py**
 
 ```python
-# zer0share/scheduler.py
+# microshare/scheduler.py
 from pathlib import Path
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 from loguru import logger
 
-from zer0share.config import load_config
-from zer0share.fetcher import TushareFetcher
-from zer0share.logging import init_logger
-from zer0share.notifier import Notifier
-from zer0share.pipeline import Pipeline
+from microshare.config import load_config
+from microshare.fetcher import TushareFetcher
+from microshare.logging import init_logger
+from microshare.notifier import Notifier
+from microshare.pipeline import Pipeline
 
 
 def start_scheduler(config_path: str = "config/settings.toml") -> None:
@@ -1959,7 +1959,7 @@ Expected: all PASS
 - [ ] **Step 6: 提交**
 
 ```bash
-git add zer0share/config.py zer0share/scheduler.py zer0share/cli.py \
+git add microshare/config.py microshare/scheduler.py microshare/cli.py \
         config/settings.toml config/settings.example.toml
 git commit -m "refactor: simplify Config/Scheduler/CLI — schedule as HH:MM dict"
 ```
@@ -1969,21 +1969,21 @@ git commit -m "refactor: simplify Config/Scheduler/CLI — schedule as HH:MM dic
 ## Task 9：更新 query 模块从 catalog 导入 spec，删除遗留代码
 
 **Files:**
-- Modify: `zer0share/query/equities.py`
-- Modify: `zer0share/query/futures.py`
-- Modify: `zer0share/query/options.py`
-- Modify: `zer0share/query/industry.py`
-- Modify: `zer0share/query/calendar.py`
-- Modify: `zer0share/storage.py` (删除遗留函数)
+- Modify: `microshare/query/equities.py`
+- Modify: `microshare/query/futures.py`
+- Modify: `microshare/query/options.py`
+- Modify: `microshare/query/industry.py`
+- Modify: `microshare/query/calendar.py`
+- Modify: `microshare/storage.py` (删除遗留函数)
 - Modify: `tests/test_storage.py` (删除遗留函数测试)
 
 - [ ] **Step 1: 更新 query/equities.py — 从 catalog 导入 spec**
 
-将每个函数内联的 `DailyTableSpec(...)` / `TableSpec(...)` 替换为从 `zer0share.catalog` 导入的常量。示例：
+将每个函数内联的 `DailyTableSpec(...)` / `TableSpec(...)` 替换为从 `microshare.catalog` 导入的常量。示例：
 
 ```python
 # query/equities.py
-from zer0share.catalog import (
+from microshare.catalog import (
     BASIC_SPEC, DAILY_KLINE_SPEC, ADJ_FACTOR_SPEC, DAILY_BASIC_SPEC,
     STOCK_ST_SPEC, SUSPEND_D_SPEC, STK_LIMIT_SPEC, INDEX_DAILY_SPEC,
     INDEX_WEIGHT_SPEC,
@@ -2019,7 +2019,7 @@ Expected: all PASS
 
 - [ ] **Step 3: 删除 storage.py 遗留函数**
 
-从 `zer0share/storage.py` 中删除：
+从 `microshare/storage.py` 中删除：
 - `write_daily_kline`
 - `daily_kline_partition_exists`
 - `read_daily_kline`
@@ -2033,7 +2033,7 @@ Expected: all PASS
 ```python
 # 替换 test_write_and_read_daily_kline
 def test_daily_kline_store_write_and_read(tmp_path):
-    from zer0share.storage import DailyPartitionStore
+    from microshare.storage import DailyPartitionStore
     store = DailyPartitionStore(tmp_path / "daily_kline")
     df = pd.DataFrame({
         "ts_code": ["000001.SZ", "000002.SZ"],
@@ -2061,7 +2061,7 @@ Expected: all PASS
 - [ ] **Step 6: 提交**
 
 ```bash
-git add zer0share/query/ zer0share/storage.py tests/test_storage.py
+git add microshare/query/ microshare/storage.py tests/test_storage.py
 git commit -m "refactor: query modules use catalog specs, remove legacy storage functions"
 ```
 
@@ -2070,14 +2070,14 @@ git commit -m "refactor: query modules use catalog specs, remove legacy storage 
 ## Task 10：删除兼容层，最终清理
 
 **Files:**
-- Delete or gut: `zer0share/sync/_helpers.py`
-- Modify: `zer0share/sync/__init__.py` (remove SyncContext alias)
+- Delete or gut: `microshare/sync/_helpers.py`
+- Modify: `microshare/sync/__init__.py` (remove SyncContext alias)
 - Run: full test suite
 
 - [ ] **Step 1: 检查 _helpers.py 还有哪些引用**
 
 ```bash
-grep -r "_helpers" /data/projects/zer0share/zer0share/ /data/projects/zer0share/tests/ --include="*.py"
+grep -r "_helpers" /data/projects/microshare/microshare/ /data/projects/microshare/tests/ --include="*.py"
 ```
 
 - [ ] **Step 2: 将 _helpers.py 中的常量迁移到 sync/_jobs.py 或 sync/calendar.py**
@@ -2087,14 +2087,14 @@ grep -r "_helpers" /data/projects/zer0share/zer0share/ /data/projects/zer0share/
 - [ ] **Step 3: 删除 sync/__init__.py 中的 SyncContext 别名**
 
 ```python
-# zer0share/sync/__init__.py — 最终版
+# microshare/sync/__init__.py — 最终版
 from dataclasses import dataclass
 
-from zer0share.notifier import Notifier
-from zer0share.storage import MetaStore
+from microshare.notifier import Notifier
+from microshare.storage import MetaStore
 
 if False:
-    from zer0share.trading_calendar import TradingCalendar
+    from microshare.trading_calendar import TradingCalendar
 
 
 @dataclass

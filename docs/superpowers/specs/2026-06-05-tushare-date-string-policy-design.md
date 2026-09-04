@@ -8,12 +8,12 @@ Tushare API 所有日期参数和返回字段均使用 `YYYYMMDD` 字符串。�
 
 ## 设计规则
 
-> **`YYYYMMDD` 字符串是整个代码库唯一合法的日期表示。`date` 对象只允许存在于两个地方：`zer0share/dateutil.py` 内部函数，以及 `MetaStore` SQL 查询边界内部。**
+> **`YYYYMMDD` 字符串是整个代码库唯一合法的日期表示。`date` 对象只允许存在于两个地方：`microshare/dateutil.py` 内部函数，以及 `MetaStore` SQL 查询边界内部。**
 
 验证命令：
 
 ```bash
-grep -rn "from datetime import date" zer0share/
+grep -rn "from datetime import date" microshare/
 # 只应出现在 dateutil.py 和 storage.py
 ```
 
@@ -44,7 +44,7 @@ DuckDB  DATE 列保持不变
 
 ## 各模块改动
 
-### 新增：`zer0share/dateutil.py`
+### 新增：`microshare/dateutil.py`
 
 整个代码库唯一可以 `from datetime import date` 的工具模块（`storage.py` 除外）。
 
@@ -71,7 +71,7 @@ def week_ranges(start: str, end: str) -> list[tuple[str, str]]:
     ...
 ```
 
-### `zer0share/cli.py`
+### `microshare/cli.py`
 
 - 移除 `click.DateTime`，改用字符串 option + `validate_date` 回调
 - `validate_date` 用 `datetime.strptime(value, "%Y%m%d")` 校验格式，通过则直接返回字符串
@@ -91,7 +91,7 @@ def validate_date(ctx, param, value):
 @click.option("--end-date",   callback=validate_date, default=None)
 ```
 
-### `zer0share/storage.py`（MetaStore）
+### `microshare/storage.py`（MetaStore）
 
 MetaStore 公开 API 全换 `str`，DuckDB `DATE` 列不变，在方法内部做转换。
 
@@ -115,12 +115,12 @@ def is_trading_day(self, exchange: str, cal_date: str) -> bool:
     ...
 ```
 
-### `zer0share/storage.py`（storage 函数）
+### `microshare/storage.py`（storage 函数）
 
 - 所有 `trade_date: date` 参数改为 `trade_date: str`
 - 路径拼接：`f"date={trade_date.strftime('%Y%m%d')}"` → `f"date={trade_date}"`
 
-### `zer0share/sync/_helpers.py`
+### `microshare/sync/_helpers.py`
 
 - `FIRST_DATE = "20160101"`，`TRADE_CAL_FIRST_DATE = "19900101"`
 - `date.today()` → `dateutil.today()`
@@ -131,7 +131,7 @@ def is_trading_day(self, exchange: str, cal_date: str) -> bool:
 - `log_daily_progress` 和 `sync_daily_partitioned` 中 `trade_date: date` → `str`
 - `sync_daily_partitioned` 里已有的 `trade_date.strftime("%Y%m%d")` 调用删除
 
-### `zer0share/sync/equities.py` / `futures.py` / `calendar.py` / `industry.py`
+### `microshare/sync/equities.py` / `futures.py` / `calendar.py` / `industry.py`
 
 - 所有 `sync_*` 函数签名：`start_date: str | None`，`end_date: str | None`
 - `date.today()` → `dateutil.today()`
@@ -152,10 +152,10 @@ def is_trading_day(self, exchange: str, cal_date: str) -> bool:
 
 ```bash
 # 只应出现在 dateutil.py 和 storage.py
-grep -rn "from datetime import date" zer0share/
+grep -rn "from datetime import date" microshare/
 
 # sync 层不应有任何日期转换
-grep -rn "\.strftime\|timedelta\|date\.today\|parse_tushare_date" zer0share/sync/
+grep -rn "\.strftime\|timedelta\|date\.today\|parse_tushare_date" microshare/sync/
 ```
 
 **单元测试**

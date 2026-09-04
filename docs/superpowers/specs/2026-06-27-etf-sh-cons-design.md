@@ -2,7 +2,7 @@
 
 ## Goal
 
-Add the Tushare `etf_sh_cons` interface to zer0share for Shanghai Stock Exchange ETF daily portfolio constituents. The feature should support local daily synchronization, Parquet storage, and Tushare-like local querying through `zer0share.api.LocalPro`.
+Add the Tushare `etf_sh_cons` interface to microshare for Shanghai Stock Exchange ETF daily portfolio constituents. The feature should support local daily synchronization, Parquet storage, and Tushare-like local querying through `microshare.api.LocalPro`.
 
 The scope is intentionally limited to the Shanghai interface `etf_sh_cons`. Shenzhen ETF constituent support is out of scope until a concrete interface and requirements are provided.
 
@@ -31,8 +31,8 @@ data/etf/etf_sh_cons/date=YYYYMMDD/data.parquet
 
 Catalog shape:
 
-- Add `ETF_SH_CONS_COLS` in `zer0share/schema.py`.
-- Add `ETF_SH_CONS_SPEC` as a `DailyTableSpec` in `zer0share/catalog.py`.
+- Add `ETF_SH_CONS_COLS` in `microshare/schema.py`.
+- Add `ETF_SH_CONS_SPEC` as a `DailyTableSpec` in `microshare/catalog.py`.
 - Use `path_parts=("etf", "etf_sh_cons")`.
 - Use `parquet_pattern="date=*/data.parquet"`.
 - Use `sync_table="etf_sh_cons"`.
@@ -61,13 +61,13 @@ Stop when Tushare returns `None`, an empty frame, or fewer than 3000 rows. Conca
 
 Wire the table into ETF sync jobs:
 
-- Import `ETF_SH_CONS_SPEC` in `zer0share/sync/etf.py`.
+- Import `ETF_SH_CONS_SPEC` in `microshare/sync/etf.py`.
 - Add a `DailySyncJob` with `table_name=ETF_SH_CONS_SPEC.name`.
 - Store data with `DailyPartitionStore(etf_dir / "etf_sh_cons")`.
 
 Wire the CLI:
 
-- Add `"etf_sh_cons"` to `ETF_TABLES` in `zer0share/cli.py`.
+- Add `"etf_sh_cons"` to `ETF_TABLES` in `microshare/cli.py`.
 - This enables `sync --table etf_sh_cons`, `sync --etf`, and `sync --all`.
 - Date range support should work through the existing daily job path:
 
@@ -103,9 +103,9 @@ Filtering behavior:
 
 Implementation wiring:
 
-- Import `ETF_SH_CONS_SPEC` in `zer0share/query/etf.py`.
+- Import `ETF_SH_CONS_SPEC` in `microshare/query/etf.py`.
 - Add `etf_sh_cons(...)` that delegates to `DailyPartitionRepository`.
-- Add `LocalPro.etf_sh_cons(...)` in `zer0share/api.py`, with `_check_dates(kwargs)`.
+- Add `LocalPro.etf_sh_cons(...)` in `microshare/api.py`, with `_check_dates(kwargs)`.
 - Add `"etf_sh_cons": self.etf_sh_cons` to `LocalPro.query(...)`.
 
 ## Error Handling

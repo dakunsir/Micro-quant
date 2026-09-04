@@ -1,8 +1,8 @@
-# zer0share Data Quality Check Design
+# microshare Data Quality Check Design
 
 ## Goal
 
-Add a simple data quality check capability for zer0share. The first version checks local Parquet data only. It does not call Tushare, does not require network access, and does not consume Tushare credits.
+Add a simple data quality check capability for microshare. The first version checks local Parquet data only. It does not call Tushare, does not require network access, and does not consume Tushare credits.
 
 The feature supports two usage scenarios:
 
@@ -23,7 +23,7 @@ Other tables such as basics, limits, holdings, industry data, ETF constituents, 
 
 ## Architecture
 
-Add a standalone `zer0share/quality/` module. Quality checks should not be scattered across scripts, and they should not be embedded into individual sync jobs.
+Add a standalone `microshare/quality/` module. Quality checks should not be scattered across scripts, and they should not be embedded into individual sync jobs.
 
 Core concepts:
 

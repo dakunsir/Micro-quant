@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from micro.config import load_config
+from microshare.config import load_config
 
 
 VALID_TOML = """

@@ -1,6 +1,6 @@
 import pytest
 
-from micro.quality.targets import QUALITY_TARGETS, get_targets, select_targets
+from microshare.quality.targets import QUALITY_TARGETS, get_targets, select_targets
 
 
 def test_quality_targets_cover_first_version_scope():

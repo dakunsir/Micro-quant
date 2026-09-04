@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from micro import pro_api
+from microshare import pro_api
 
 
 FIELDS = "ts_code,symbol,exchange,name,fut_code,multiplier,list_date,delist_date,last_ddate"

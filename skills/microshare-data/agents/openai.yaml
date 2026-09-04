@@ -1,0 +1,6 @@
+interface:
+  display_name: "Microshare Data"
+  short_description: "本地 Tushare-like 金融数据查询"
+  default_prompt: "Use $microshare-data to query local Microshare market data and summarize the result."
+policy:
+  allow_implicit_invocation: true

@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from micro import pro_api
+from microshare import pro_api
 
 
 FIELDS = "ts_code,trade_date,adj_factor"
@@ -18,8 +18,14 @@ def _print_frame(title, df, rows: int = 5) -> None:
     print(df.head(rows).to_string(index=False))
 
 
-def _pick_sample(pro, ts_code: str):
-    sample = pro.adj_factor(ts_code=ts_code, limit=1, fields=FIELDS)
+def _pick_sample(pro, ts_code: str, start_date: str, end_date: str):
+    sample = pro.adj_factor(
+        ts_code=ts_code,
+        start_date=start_date,
+        end_date=end_date,
+        limit=1,
+        fields=FIELDS,
+    )
     if sample.empty:
         raise ValueError(
             f"no adj_factor data found for ts_code={ts_code}; "
@@ -31,7 +37,12 @@ def _pick_sample(pro, ts_code: str):
 def run_smoke(ts_code: str, start_date: str, end_date: str,
               offset: int, limit: int) -> None:
     pro = pro_api()
-    sample = _pick_sample(pro, ts_code=ts_code)
+    sample = _pick_sample(
+        pro,
+        ts_code=ts_code,
+        start_date=start_date,
+        end_date=end_date,
+    )
     trade_date = sample["trade_date"]
 
     print("Sample values")
@@ -41,7 +52,13 @@ def run_smoke(ts_code: str, start_date: str, end_date: str,
 
     _print_frame(
         "filter_by_ts_code",
-        pro.adj_factor(ts_code=ts_code, limit=limit, fields=FIELDS),
+        pro.adj_factor(
+            ts_code=ts_code,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit,
+            fields=FIELDS,
+        ),
     )
     _print_frame(
         "filter_by_trade_date",
@@ -61,11 +78,17 @@ def run_smoke(ts_code: str, start_date: str, end_date: str,
     )
     _print_frame(
         "limit_only",
-        pro.adj_factor(limit=limit, fields=FIELDS),
+        pro.adj_factor(start_date=start_date, end_date=end_date, limit=limit, fields=FIELDS),
     )
     _print_frame(
         "offset_and_limit",
-        pro.adj_factor(offset=offset, limit=limit, fields=FIELDS),
+        pro.adj_factor(
+            start_date=start_date,
+            end_date=end_date,
+            offset=offset,
+            limit=limit,
+            fields=FIELDS,
+        ),
     )
     _print_frame(
         "no_fields_filter",
@@ -85,7 +108,12 @@ def run_smoke(ts_code: str, start_date: str, end_date: str,
     )
 
     # 复权因子变动检查：找出因子值不为1的历史记录（发生过分红/送股）
-    history = pro.adj_factor(ts_code=ts_code, fields=FIELDS)
+    history = pro.adj_factor(
+        ts_code=ts_code,
+        start_date=start_date,
+        end_date=end_date,
+        fields=FIELDS,
+    )
     changed = history[history["adj_factor"] != 1.0]
     print(f"\n## adj_factor 变动记录 ({ts_code})")
     print(f"总记录: {len(history)}  因子≠1的天数: {len(changed)}")

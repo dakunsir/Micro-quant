@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add 6 core futures data types (fut_basic, fut_daily, fut_holding, fut_wsr, fut_settle, fut_mapping) to zer0share, fully integrated across all layers.
+**Goal:** Add 6 core futures data types (fut_basic, fut_daily, fut_holding, fut_wsr, fut_settle, fut_mapping) to microshare, fully integrated across all layers.
 
 **Architecture:** Direct extension of existing modules (fetcher, pipeline, api, scheduler, cli). Futures data stored in `data/futures/` subdirectory using the same date-partitioned parquet pattern. Reuse existing generic storage functions (`write_daily_partition`, `daily_partition_exists`, `read_daily_partition`) by passing the futures subdirectory as base path. Extend `_sync_daily_partitioned` and `_query_daily_partitioned` with `data_dir` override parameters.
 
@@ -13,7 +13,7 @@
 ### Task 1: Fetcher — Constants and Fetch Methods
 
 **Files:**
-- Modify: `zer0share/fetcher.py` (add after `INDEX_DAILY_COLS` block, around line 89)
+- Modify: `microshare/fetcher.py` (add after `INDEX_DAILY_COLS` block, around line 89)
 - Modify: `tests/test_fetcher.py` (add at end of file)
 
 - [ ] **Step 1: Add futures column constants and FUTURES_EXCHANGES to fetcher.py**
@@ -125,7 +125,7 @@ Add at the end of `tests/test_fetcher.py`:
 ```python
 # --- Futures tests ---
 
-from zer0share.fetcher import (
+from microshare.fetcher import (
     FUT_BASIC_COLS, FUT_DAILY_COLS, FUT_HOLDING_COLS,
     FUT_WSR_COLS, FUT_SETTLE_COLS, FUT_MAPPING_COLS,
     FUTURES_EXCHANGES,
@@ -349,18 +349,18 @@ def test_fetch_fut_mapping_returns_correct_columns(mock_pro):
 
 - [ ] **Step 5: Run tests to verify**
 
-Run: `cd /data/projects/zer0share && python -m pytest tests/test_fetcher.py -v -k "futures or fut_" 2>&1 | tail -30`
+Run: `cd /data/projects/microshare && python -m pytest tests/test_fetcher.py -v -k "futures or fut_" 2>&1 | tail -30`
 Expected: All new tests PASS
 
 - [ ] **Step 6: Run full test suite to ensure no regressions**
 
-Run: `cd /data/projects/zer0share && python -m pytest tests/test_fetcher.py -v 2>&1 | tail -40`
+Run: `cd /data/projects/microshare && python -m pytest tests/test_fetcher.py -v 2>&1 | tail -40`
 Expected: All tests PASS (existing + new)
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add zer0share/fetcher.py tests/test_fetcher.py
+git add microshare/fetcher.py tests/test_fetcher.py
 git commit -m "feat: add futures fetcher constants and 6 fetch methods"
 ```
 
@@ -369,14 +369,14 @@ git commit -m "feat: add futures fetcher constants and 6 fetch methods"
 ### Task 2: Pipeline — Sync Methods for Futures Data
 
 **Files:**
-- Modify: `zer0share/pipeline.py`
+- Modify: `microshare/pipeline.py`
 - Modify: `tests/test_pipeline.py`
 
 **Key insight:** The existing `_sync_daily_partitioned` method uses `self._cfg.data_dir` directly. We add a `data_dir` override parameter so futures sync methods can pass `self._cfg.data_dir / "futures"`. The generic `write_daily_partition`, `daily_partition_exists`, `read_daily_partition` from `storage.py` work as-is with the futures subdirectory.
 
 - [ ] **Step 1: Add data_dir parameter to `_sync_daily_partitioned`**
 
-In `zer0share/pipeline.py`, change the `_sync_daily_partitioned` method signature (around line 551) to accept a `data_dir` override:
+In `microshare/pipeline.py`, change the `_sync_daily_partitioned` method signature (around line 551) to accept a `data_dir` override:
 
 Replace:
 ```python
@@ -575,7 +575,7 @@ Also add `Path` to the import at the top of `pipeline.py` — add `from pathlib 
 Add to the imports in `pipeline.py` (line 8):
 
 ```python
-from zer0share.fetcher import TushareFetcher, INDEX_DAILY_CODES, FUTURES_EXCHANGES
+from microshare.fetcher import TushareFetcher, INDEX_DAILY_CODES, FUTURES_EXCHANGES
 ```
 
 - [ ] **Step 3: Add `sync_fut_basic` method to Pipeline class**
@@ -685,7 +685,7 @@ Add at the end of `tests/test_pipeline.py`:
 ```python
 # --- Futures pipeline tests ---
 
-from zer0share.fetcher import FUTURES_EXCHANGES
+from microshare.fetcher import FUTURES_EXCHANGES
 
 
 def test_sync_fut_basic_writes_to_futures_subdir(pipeline, cfg):
@@ -711,8 +711,8 @@ def test_sync_fut_basic_writes_to_futures_subdir(pipeline, cfg):
 
     pipeline._fetcher.fetch_fut_basic.side_effect = fut_basic_side_effect
 
-    with patch("zer0share.pipeline.time.sleep"), \
-         patch("zer0share.pipeline.date") as mock_date:
+    with patch("microshare.pipeline.time.sleep"), \
+         patch("microshare.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_fut_basic()
@@ -724,8 +724,8 @@ def test_sync_fut_basic_writes_to_futures_subdir(pipeline, cfg):
 def test_sync_fut_basic_calls_all_exchanges_and_types(pipeline, cfg):
     pipeline._fetcher.fetch_fut_basic.return_value = pd.DataFrame()
 
-    with patch("zer0share.pipeline.time.sleep"), \
-         patch("zer0share.pipeline.date") as mock_date:
+    with patch("microshare.pipeline.time.sleep"), \
+         patch("microshare.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_fut_basic()
@@ -781,8 +781,8 @@ def test_sync_fut_daily_writes_to_futures_subdir(pipeline, cfg):
     pipeline._fetcher.fetch_fut_daily.return_value = fut_df
     pipeline._meta.update_last_date("fut_daily", date(2024, 1, 1))
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("microshare.pipeline.date") as mock_date, \
+         patch("microshare.pipeline.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_fut_daily()
@@ -796,14 +796,14 @@ def test_sync_fut_daily_skips_existing_partitions(pipeline, cfg):
     pipeline._meta.update_last_date("fut_daily", date(2024, 1, 1))
 
     # Pre-create the partition
-    from zer0share.storage import write_daily_partition
+    from microshare.storage import write_daily_partition
     write_daily_partition(
         cfg.data_dir / "futures", "fut_daily", date(2024, 1, 2),
         pd.DataFrame({"ts_code": ["CU2401.SHF"], "trade_date": [date(2024, 1, 2)]}),
     )
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("microshare.pipeline.date") as mock_date, \
+         patch("microshare.pipeline.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_fut_daily()
@@ -819,18 +819,18 @@ def test_sync_fut_daily_up_to_date(pipeline, cfg):
 
 - [ ] **Step 6: Run tests to verify**
 
-Run: `cd /data/projects/zer0share && python -m pytest tests/test_pipeline.py -v -k "fut_" 2>&1 | tail -30`
+Run: `cd /data/projects/microshare && python -m pytest tests/test_pipeline.py -v -k "fut_" 2>&1 | tail -30`
 Expected: All new tests PASS
 
 - [ ] **Step 7: Run full test suite to ensure no regressions**
 
-Run: `cd /data/projects/zer0share && python -m pytest tests/test_pipeline.py -v 2>&1 | tail -40`
+Run: `cd /data/projects/microshare && python -m pytest tests/test_pipeline.py -v 2>&1 | tail -40`
 Expected: All tests PASS
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add zer0share/pipeline.py tests/test_pipeline.py
+git add microshare/pipeline.py tests/test_pipeline.py
 git commit -m "feat: add futures pipeline sync methods with data_dir override"
 ```
 
@@ -839,17 +839,17 @@ git commit -m "feat: add futures pipeline sync methods with data_dir override"
 ### Task 3: API — Futures Query Methods
 
 **Files:**
-- Modify: `zer0share/api.py`
+- Modify: `microshare/api.py`
 - Modify: `tests/test_api.py`
 
 **Key insight:** Extend `_query_daily_partitioned` with `data_dir_override` and `order_by` parameters. For `fut_basic`, write a custom query method since it has no `trade_date` column and needs to scan the latest partition. For other futures tables, reuse `_query_daily_partitioned` with the futures data_dir override and `extra_filters` for `symbol`/`exchange`.
 
 - [ ] **Step 1: Add futures column imports to api.py**
 
-Add to the imports in `zer0share/api.py` (after line 21):
+Add to the imports in `microshare/api.py` (after line 21):
 
 ```python
-from zer0share.fetcher import (
+from microshare.fetcher import (
     ADJ_FACTOR_COLS,
     BASIC_COLS,
     CI_MEMBER_COLS,
@@ -1155,8 +1155,8 @@ Add at the end of `tests/test_api.py`:
 ```python
 # --- Futures API tests ---
 
-from zer0share.storage import write_daily_partition
-from zer0share.fetcher import (
+from microshare.storage import write_daily_partition
+from microshare.fetcher import (
     FUT_BASIC_COLS, FUT_DAILY_COLS, FUT_HOLDING_COLS,
     FUT_WSR_COLS, FUT_SETTLE_COLS, FUT_MAPPING_COLS,
 )
@@ -1320,18 +1320,18 @@ def test_query_dispatch_supports_futures(tmp_path):
 
 - [ ] **Step 6: Run tests to verify**
 
-Run: `cd /data/projects/zer0share && python -m pytest tests/test_api.py -v -k "fut_" 2>&1 | tail -30`
+Run: `cd /data/projects/microshare && python -m pytest tests/test_api.py -v -k "fut_" 2>&1 | tail -30`
 Expected: All new tests PASS
 
 - [ ] **Step 7: Run full test suite to ensure no regressions**
 
-Run: `cd /data/projects/zer0share && python -m pytest tests/test_api.py -v 2>&1 | tail -40`
+Run: `cd /data/projects/microshare && python -m pytest tests/test_api.py -v 2>&1 | tail -40`
 Expected: All tests PASS
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add zer0share/api.py tests/test_api.py
+git add microshare/api.py tests/test_api.py
 git commit -m "feat: add futures query methods to LocalPro API"
 ```
 
@@ -1340,15 +1340,15 @@ git commit -m "feat: add futures query methods to LocalPro API"
 ### Task 4: Config + Scheduler
 
 **Files:**
-- Modify: `zer0share/config.py`
-- Modify: `zer0share/scheduler.py`
+- Modify: `microshare/config.py`
+- Modify: `microshare/scheduler.py`
 - Modify: `config/settings.toml`
 - Modify: `tests/test_config.py`
 - Modify: `tests/test_scheduler.py`
 
 - [ ] **Step 1: Add scheduler config fields for futures**
 
-In `zer0share/config.py`, add futures scheduler fields to the `Config` dataclass (after `scheduler_adj_factor_minute`):
+In `microshare/config.py`, add futures scheduler fields to the `Config` dataclass (after `scheduler_adj_factor_minute`):
 
 ```python
     scheduler_futures_hour: int
@@ -1373,7 +1373,7 @@ futures_start_minute = 0
 
 - [ ] **Step 3: Register 6 futures jobs in scheduler.py**
 
-In `zer0share/scheduler.py`, add after the existing job registrations (before the `logger.info` call). Add import for `FUTURES_EXCHANGES` is not needed here. Add 6 new `scheduler.add_job` calls:
+In `microshare/scheduler.py`, add after the existing job registrations (before the `logger.info` call). Add import for `FUTURES_EXCHANGES` is not needed here. Add 6 new `scheduler.add_job` calls:
 
 ```python
         futures_tables = [
@@ -1418,13 +1418,13 @@ In `tests/test_scheduler.py`, read the file to understand the test pattern. Add 
 
 - [ ] **Step 6: Run tests**
 
-Run: `cd /data/projects/zer0share && python -m pytest tests/test_config.py tests/test_scheduler.py -v 2>&1 | tail -30`
+Run: `cd /data/projects/microshare && python -m pytest tests/test_config.py tests/test_scheduler.py -v 2>&1 | tail -30`
 Expected: All tests PASS
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add zer0share/config.py zer0share/scheduler.py config/settings.toml tests/test_config.py tests/test_scheduler.py
+git add microshare/config.py microshare/scheduler.py config/settings.toml tests/test_config.py tests/test_scheduler.py
 git commit -m "feat: add futures scheduler config and register 6 daily jobs"
 ```
 
@@ -1433,12 +1433,12 @@ git commit -m "feat: add futures scheduler config and register 6 daily jobs"
 ### Task 5: CLI — Add Futures to Sync Command
 
 **Files:**
-- Modify: `zer0share/cli.py`
+- Modify: `microshare/cli.py`
 - Modify: `tests/test_cli.py`
 
 - [ ] **Step 1: Add futures tables to SYNC_TABLES and range_tables**
 
-In `zer0share/cli.py`, extend `SYNC_TABLES` (line 29) to include:
+In `microshare/cli.py`, extend `SYNC_TABLES` (line 29) to include:
 
 ```python
 SYNC_TABLES = [
@@ -1519,12 +1519,12 @@ Add after the existing `ci_member` dispatch block (around line 133), before the 
 
 - [ ] **Step 3: Run CLI tests**
 
-Run: `cd /data/projects/zer0share && python -m pytest tests/test_cli.py -v 2>&1 | tail -30`
+Run: `cd /data/projects/microshare && python -m pytest tests/test_cli.py -v 2>&1 | tail -30`
 Expected: All tests PASS
 
 - [ ] **Step 4: Run full test suite**
 
-Run: `cd /data/projects/zer0share && python -m pytest -v 2>&1 | tail -50`
+Run: `cd /data/projects/microshare && python -m pytest -v 2>&1 | tail -50`
 Expected: All tests PASS across all test files
 
 - [ ] **Step 5: Manual smoke test**
@@ -1532,7 +1532,7 @@ Expected: All tests PASS across all test files
 Verify the CLI recognizes futures tables:
 
 ```bash
-cd /data/projects/zer0share && python -m zer0share.cli sync --help
+cd /data/projects/microshare && python -m microshare.cli sync --help
 ```
 
 Expected: `--table` option should list `fut_basic`, `fut_daily`, `fut_holding`, `fut_wsr`, `fut_settle`, `fut_mapping` among the choices.
@@ -1540,6 +1540,6 @@ Expected: `--table` option should list `fut_basic`, `fut_daily`, `fut_holding`, 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add zer0share/cli.py tests/test_cli.py
+git add microshare/cli.py tests/test_cli.py
 git commit -m "feat: add futures tables to CLI sync command"
 ```

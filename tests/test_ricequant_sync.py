@@ -3,9 +3,9 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from micro.pipeline import Pipeline
-from micro.sources import DataSources
-from micro.storage import DailyPartitionStore, SnapshotStore, write_trade_cal
+from microshare.pipeline import Pipeline
+from microshare.sources import DataSources
+from microshare.storage import DailyPartitionStore, SnapshotStore, write_trade_cal
 
 
 @pytest.fixture
@@ -117,7 +117,7 @@ def test_ricequant_stock_minute_sync_writes_daily_partition(cfg):
     pipeline = Pipeline(cfg, DataSources(tushare=MagicMock(), ricequant=ricequant), MagicMock())
     _setup_calendar(pipeline, cfg)
 
-    with patch("micro.sync.ricequant.time.sleep"):
+    with patch("microshare.sync.ricequant.time.sleep"):
         pipeline.run("ricequant_stock_minute", start_date="20240102", end_date="20240102")
 
     result = DailyPartitionStore(cfg.data_dir / "ricequant" / "stock_minute").read("20240102")
@@ -140,7 +140,7 @@ def test_ricequant_stock_minute_partial_failures_write_successes(cfg):
     pipeline = Pipeline(cfg, DataSources(tushare=MagicMock(), ricequant=ricequant), notifier)
     _setup_calendar(pipeline, cfg)
 
-    with patch("micro.sync.ricequant.time.sleep"):
+    with patch("microshare.sync.ricequant.time.sleep"):
         pipeline.run("ricequant_stock_minute", start_date="20240102", end_date="20240102")
 
     result = DailyPartitionStore(cfg.data_dir / "ricequant" / "stock_minute").read("20240102")
@@ -156,7 +156,7 @@ def test_ricequant_stock_minute_all_failures_do_not_advance_meta(cfg):
     pipeline = Pipeline(cfg, DataSources(tushare=MagicMock(), ricequant=ricequant), MagicMock())
     _setup_calendar(pipeline, cfg)
 
-    with patch("micro.sync.ricequant.time.sleep"):
+    with patch("microshare.sync.ricequant.time.sleep"):
         with pytest.raises(RuntimeError, match="all RiceQuant stock minute fetches failed"):
             pipeline.run("ricequant_stock_minute", start_date="20240102", end_date="20240102")
 

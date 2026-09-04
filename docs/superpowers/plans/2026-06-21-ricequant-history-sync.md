@@ -12,14 +12,14 @@
 
 ## Implementation Update: Notification Channels
 
-The notification design was revised after the initial plan: `zer0share.notifier` now exposes explicit `WeComNotifier`, `FeishuNotifier`, `CompositeNotifier`, and `NullNotifier` implementations. Enterprise WeChat uses the existing text webhook payload, while Feishu uses the `zer0factor`-style interactive card payload. Config supports `[notifier.wecom]` and `[notifier.feishu]`, with legacy `[notifier].wecom_webhook_url` still mapped to the WeCom channel.
+The notification design was revised after the initial plan: `microshare.notifier` now exposes explicit `WeComNotifier`, `FeishuNotifier`, `CompositeNotifier`, and `NullNotifier` implementations. Enterprise WeChat uses the existing text webhook payload, while Feishu uses the `Microfactor`-style interactive card payload. Config supports `[notifier.wecom]` and `[notifier.feishu]`, with legacy `[notifier].wecom_webhook_url` still mapped to the WeCom channel.
 
 ## File Map
 
-- Modify `zer0share/notifier.py`: keep `send(message)` and add `notify_start`, `notify_progress`, `notify_stage_done`, `notify_error`; change log wording from 企业微信 to webhook/飞书-compatible.
-- Modify `zer0share/config.py`: support both old `[notifier].wecom_webhook_url` and new `[notifier].webhook_url`, keeping backward compatibility.
+- Modify `microshare/notifier.py`: keep `send(message)` and add `notify_start`, `notify_progress`, `notify_stage_done`, `notify_error`; change log wording from 企业微信 to webhook/飞书-compatible.
+- Modify `microshare/config.py`: support both old `[notifier].wecom_webhook_url` and new `[notifier].webhook_url`, keeping backward compatibility.
 - Modify `config/settings.example.toml`: document the Feishu-compatible webhook URL and existing compatibility key.
-- Create `zer0share/ricequant_history.py`: chunk planning, quota byte parsing, manifest store, parquet validation, day/month orchestration, logging.
+- Create `microshare/ricequant_history.py`: chunk planning, quota byte parsing, manifest store, parquet validation, day/month orchestration, logging.
 - Create `scripts/sync_ricequant_history.py`: command-line entrypoint for long-running historical sync.
 - Create `tests/test_ricequant_history.py`: tests for chunking, byte parsing, manifest, resume, quota stop, and logging callbacks.
 - Modify `tests/test_notifier.py`: tests for structured notification methods and payload compatibility.
@@ -28,7 +28,7 @@ The notification design was revised after the initial plan: `zer0share.notifier`
 ## Task 1: Notifier Structured Methods And Feishu-Compatible Wording
 
 **Files:**
-- Modify: `zer0share/notifier.py`
+- Modify: `microshare/notifier.py`
 - Test: `tests/test_notifier.py`
 
 - [ ] **Step 1: Write failing tests**
@@ -43,7 +43,7 @@ def test_notify_start_posts_stage_details():
     with patch("httpx.post", return_value=mock_response) as mock_post:
         n.notify_start("ricequant_history", {"range": "20160101~20160131"})
     content = mock_post.call_args[1]["json"]["text"]["content"]
-    assert "[zer0share · ricequant_history]" in content
+    assert "[microshare · ricequant_history]" in content
     assert "开始" in content
     assert "range: 20160101~20160131" in content
 
@@ -66,7 +66,7 @@ def test_notify_stage_done_posts_summary_and_elapsed():
     with patch("httpx.post", return_value=mock_response) as mock_post:
         n.notify_stage_done("2026-05", {"行数": "22,475,520", "流量": "651 MiB"}, 257.4)
     content = mock_post.call_args[1]["json"]["text"]["content"]
-    assert "[zer0share · 2026-05]" in content
+    assert "[microshare · 2026-05]" in content
     assert "完成" in content
     assert "行数: 22,475,520" in content
     assert "耗时: 257.4s" in content
@@ -84,7 +84,7 @@ Expected: fail with `AttributeError` for missing `notify_start`.
 
 - [ ] **Step 3: Implement notifier methods**
 
-Add private `_post_text(text)` and `_prefix(stage)` helpers. Keep `send()` delegating to `_post_text(f"[zer0share] {message}")`.
+Add private `_post_text(text)` and `_prefix(stage)` helpers. Keep `send()` delegating to `_post_text(f"[microshare] {message}")`.
 
 - [ ] **Step 4: Run notifier tests and commit**
 
@@ -99,14 +99,14 @@ Expected: all notifier tests pass.
 Commit:
 
 ```bash
-git add zer0share/notifier.py tests/test_notifier.py
+git add microshare/notifier.py tests/test_notifier.py
 git commit -m "feat: add structured webhook notifications"
 ```
 
 ## Task 2: Notifier Config Compatibility
 
 **Files:**
-- Modify: `zer0share/config.py`
+- Modify: `microshare/config.py`
 - Modify: `config/settings.example.toml`
 - Test: `tests/test_config.py`
 
@@ -168,14 +168,14 @@ PYTHONDONTWRITEBYTECODE=1 uv run pytest -p no:cacheprovider tests/test_config.py
 Commit:
 
 ```bash
-git add zer0share/config.py config/settings.example.toml tests/test_config.py
+git add microshare/config.py config/settings.example.toml tests/test_config.py
 git commit -m "feat: accept generic webhook notifier config"
 ```
 
 ## Task 3: RiceQuant History Manifest And Utilities
 
 **Files:**
-- Create: `zer0share/ricequant_history.py`
+- Create: `microshare/ricequant_history.py`
 - Test: `tests/test_ricequant_history.py`
 
 - [ ] **Step 1: Write failing utility and manifest tests**
@@ -244,14 +244,14 @@ PYTHONDONTWRITEBYTECODE=1 uv run pytest -p no:cacheprovider tests/test_ricequant
 Commit:
 
 ```bash
-git add zer0share/ricequant_history.py tests/test_ricequant_history.py
+git add microshare/ricequant_history.py tests/test_ricequant_history.py
 git commit -m "feat: add ricequant history manifest"
 ```
 
 ## Task 4: Day-Level History Runner With Logs
 
 **Files:**
-- Modify: `zer0share/ricequant_history.py`
+- Modify: `microshare/ricequant_history.py`
 - Test: `tests/test_ricequant_history.py`
 
 - [ ] **Step 1: Write failing runner tests**
@@ -309,7 +309,7 @@ PYTHONDONTWRITEBYTECODE=1 uv run pytest -p no:cacheprovider tests/test_ricequant
 Commit:
 
 ```bash
-git add zer0share/ricequant_history.py tests/test_ricequant_history.py
+git add microshare/ricequant_history.py tests/test_ricequant_history.py
 git commit -m "feat: add ricequant history runner"
 ```
 

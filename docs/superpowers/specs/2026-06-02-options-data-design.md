@@ -5,7 +5,7 @@
 
 ## 背景
 
-zer0share 已完成期货数据批次 1 和批次 2 的接入。本文档描述在同等模式下接入 Tushare Pro 期权数据的设计，涵盖 `opt_basic`（期权合约基础信息）和 `opt_daily`（期权日线行情）两张表。
+microshare 已完成期货数据批次 1 和批次 2 的接入。本文档描述在同等模式下接入 Tushare Pro 期权数据的设计，涵盖 `opt_basic`（期权合约基础信息）和 `opt_daily`（期权日线行情）两张表。
 
 所需积分：`opt_basic` ≥ 5000，`opt_daily` ≥ 2000。
 
@@ -132,9 +132,9 @@ uv run python main.py sync --all
 
 | 文件 | 变更内容 |
 |------|---------|
-| `zer0share/fetcher.py` | 新增 `OPTIONS_EXCHANGES`、`OPT_BASIC_COLS`、`OPT_DAILY_COLS`、`fetch_opt_basic`、`fetch_opt_daily` |
-| `zer0share/pipeline.py` | 新增 `sync_opt_basic`、`sync_opt_daily` |
-| `zer0share/api.py` | 新增 `opt_basic`、`opt_daily`，注册进 `query()` |
-| `zer0share/scheduler.py` | 新增 `options_tables` block |
-| `zer0share/cli.py` | 更新 `SYNC_TABLES`、`range_tables`、`sync` 命令 |
+| `microshare/fetcher.py` | 新增 `OPTIONS_EXCHANGES`、`OPT_BASIC_COLS`、`OPT_DAILY_COLS`、`fetch_opt_basic`、`fetch_opt_daily` |
+| `microshare/pipeline.py` | 新增 `sync_opt_basic`、`sync_opt_daily` |
+| `microshare/api.py` | 新增 `opt_basic`、`opt_daily`，注册进 `query()` |
+| `microshare/scheduler.py` | 新增 `options_tables` block |
+| `microshare/cli.py` | 更新 `SYNC_TABLES`、`range_tables`、`sync` 命令 |
 | `tests/` | 新增对应单元测试 |

@@ -12,25 +12,25 @@
 
 ## File Structure
 
-- Create `zer0share/sources/__init__.py`: `DataSources` container and source exports.
-- Create `zer0share/sources/tushare.py`: moved Tushare fetcher implementation.
-- Modify `zer0share/fetcher.py`: compatibility shim that re-exports Tushare names.
-- Create `zer0share/sources/ricequant.py`: optional `rqdatac` adapter for RiceQuant basic information and minute bars.
-- Modify `zer0share/config.py`: add `RiceQuantConfig` and optional `[ricequant]` parsing.
+- Create `microshare/sources/__init__.py`: `DataSources` container and source exports.
+- Create `microshare/sources/tushare.py`: moved Tushare fetcher implementation.
+- Modify `microshare/fetcher.py`: compatibility shim that re-exports Tushare names.
+- Create `microshare/sources/ricequant.py`: optional `rqdatac` adapter for RiceQuant basic information and minute bars.
+- Modify `microshare/config.py`: add `RiceQuantConfig` and optional `[ricequant]` parsing.
 - Modify `config/settings.example.toml`: add disabled RiceQuant example and `ricequant_stock_minute` schedule.
 - Modify `pyproject.toml`: add `rqdatac` dependency only if the private environment should install it through `uv`; otherwise keep optional import only. Prefer adding it on this private branch.
-- Modify `zer0share/pipeline.py`, `zer0share/cli.py`, `zer0share/scheduler.py`: construct and pass `DataSources`.
-- Create `zer0share/sync/ricequant.py`: `RiceQuantBasicSyncJob` and `RiceQuantStockMinuteSyncJob`.
-- Create `zer0share/query/ricequant.py`: local RiceQuant Parquet query helpers.
-- Create `zer0share/rq_api.py`: public local RiceQuant API.
-- Modify `zer0share/__init__.py`: export `rq_api` and `RQLocal`.
-- Modify docs: `README.md`, `docs/SYNC_GUIDE.md`, `skills/zer0share-data/references/api.md`.
+- Modify `microshare/pipeline.py`, `microshare/cli.py`, `microshare/scheduler.py`: construct and pass `DataSources`.
+- Create `microshare/sync/ricequant.py`: `RiceQuantBasicSyncJob` and `RiceQuantStockMinuteSyncJob`.
+- Create `microshare/query/ricequant.py`: local RiceQuant Parquet query helpers.
+- Create `microshare/rq_api.py`: public local RiceQuant API.
+- Modify `microshare/__init__.py`: export `rq_api` and `RQLocal`.
+- Modify docs: `README.md`, `docs/SYNC_GUIDE.md`, `skills/microshare-data/references/api.md`.
 - Add tests: `tests/test_ricequant_fetcher.py`, `tests/test_ricequant_sync.py`, `tests/test_rq_api.py`; extend `tests/test_config.py`, `tests/test_pipeline.py`, `tests/test_cli.py`, `tests/test_scheduler.py`, `tests/test_api.py`.
 
 ## Task 1: Config And Dependency
 
 **Files:**
-- Modify: `zer0share/config.py`
+- Modify: `microshare/config.py`
 - Modify: `config/settings.example.toml`
 - Modify: `pyproject.toml`
 - Test: `tests/test_config.py`
@@ -175,7 +175,7 @@ Expected: the new tests fail because `Config` has no `ricequant` attribute.
 
 - [ ] **Step 3: Implement config parsing**
 
-Modify `zer0share/config.py`:
+Modify `microshare/config.py`:
 
 ```python
 @dataclass(frozen=True)
@@ -285,17 +285,17 @@ Expected: all config tests pass.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add zer0share/config.py config/settings.example.toml pyproject.toml tests/test_config.py
+git add microshare/config.py config/settings.example.toml pyproject.toml tests/test_config.py
 git commit -m "feat: add ricequant config"
 ```
 
 ## Task 2: Source Adapters
 
 **Files:**
-- Create: `zer0share/sources/__init__.py`
-- Create: `zer0share/sources/tushare.py`
-- Create: `zer0share/sources/ricequant.py`
-- Modify: `zer0share/fetcher.py`
+- Create: `microshare/sources/__init__.py`
+- Create: `microshare/sources/tushare.py`
+- Create: `microshare/sources/ricequant.py`
+- Modify: `microshare/fetcher.py`
 - Test: `tests/test_fetcher.py`
 - Test: `tests/test_ricequant_fetcher.py`
 
@@ -310,7 +310,7 @@ import types
 import pandas as pd
 import pytest
 
-from zer0share.sources.ricequant import (
+from microshare.sources.ricequant import (
     RiceQuantFetcher,
 )
 
@@ -478,16 +478,16 @@ Run:
 PYTHONDONTWRITEBYTECODE=1 uv run pytest -p no:cacheprovider tests/test_ricequant_fetcher.py tests/test_fetcher.py -q
 ```
 
-Expected: import failure for `zer0share.sources.ricequant`.
+Expected: import failure for `microshare.sources.ricequant`.
 
 - [ ] **Step 3: Move Tushare fetcher behind sources shim**
 
-Create `zer0share/sources/tushare.py` by moving the full current contents of `zer0share/fetcher.py` into it.
+Create `microshare/sources/tushare.py` by moving the full current contents of `microshare/fetcher.py` into it.
 
-Replace `zer0share/fetcher.py` with:
+Replace `microshare/fetcher.py` with:
 
 ```python
-from zer0share.sources.tushare import (
+from microshare.sources.tushare import (
     CI_MEMBER_COLS,
     FUTURES_EXCHANGES,
     FUT_INDEX_CODES,
@@ -508,11 +508,11 @@ __all__ = [
 ]
 ```
 
-If tests import other constants from `zer0share.fetcher`, add them to this shim explicitly.
+If tests import other constants from `microshare.fetcher`, add them to this shim explicitly.
 
 - [ ] **Step 4: Add RiceQuant source module**
 
-Create `zer0share/sources/ricequant.py`:
+Create `microshare/sources/ricequant.py`:
 
 ```python
 from __future__ import annotations
@@ -585,13 +585,13 @@ class RiceQuantFetcher:
         return df.reset_index(drop=True)
 ```
 
-Create `zer0share/sources/__init__.py`:
+Create `microshare/sources/__init__.py`:
 
 ```python
 from dataclasses import dataclass
 
-from zer0share.sources.ricequant import RiceQuantFetcher
-from zer0share.sources.tushare import TushareFetcher
+from microshare.sources.ricequant import RiceQuantFetcher
+from microshare.sources.tushare import TushareFetcher
 
 
 @dataclass(frozen=True)
@@ -616,16 +616,16 @@ Expected: RiceQuant fetcher tests and existing Tushare fetcher tests pass.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add zer0share/sources zer0share/fetcher.py tests/test_ricequant_fetcher.py tests/test_fetcher.py
+git add microshare/sources microshare/fetcher.py tests/test_ricequant_fetcher.py tests/test_fetcher.py
 git commit -m "feat: add ricequant source adapter"
 ```
 
 ## Task 3: Pipeline Source Wiring
 
 **Files:**
-- Modify: `zer0share/pipeline.py`
-- Modify: `zer0share/cli.py`
-- Modify: `zer0share/scheduler.py`
+- Modify: `microshare/pipeline.py`
+- Modify: `microshare/cli.py`
+- Modify: `microshare/scheduler.py`
 - Test: `tests/test_pipeline.py`
 - Test: `tests/test_cli.py`
 - Test: `tests/test_scheduler.py`
@@ -635,7 +635,7 @@ git commit -m "feat: add ricequant source adapter"
 In `tests/test_pipeline.py`, change the `pipeline` fixture to pass `DataSources(tushare=fetcher)` after importing `DataSources`:
 
 ```python
-from zer0share.sources import DataSources
+from microshare.sources import DataSources
 ```
 
 ```python
@@ -665,10 +665,10 @@ Expected: `Pipeline` fails because it still expects a fetcher, not `DataSources`
 
 - [ ] **Step 3: Update Pipeline**
 
-Modify `zer0share/pipeline.py`:
+Modify `microshare/pipeline.py`:
 
 ```python
-from zer0share.sources import DataSources
+from microshare.sources import DataSources
 ```
 
 Change constructor:
@@ -683,7 +683,7 @@ class Pipeline:
         self._build_registry(cfg, sources)
 
     def _build_registry(self, cfg: Config, sources: DataSources) -> None:
-        from zer0share.sync import calendar, stock, index, industry, futures, options, ricequant
+        from microshare.sync import calendar, stock, index, industry, futures, options, ricequant
         for module in [calendar, stock, index, industry, futures, options]:
             for job in module.build_jobs(cfg, sources.tushare):
                 self._registry[job.table_name] = job
@@ -691,10 +691,10 @@ class Pipeline:
             self._registry[job.table_name] = job
 ```
 
-Create temporary `zer0share/sync/ricequant.py` so imports pass before Task 4:
+Create temporary `microshare/sync/ricequant.py` so imports pass before Task 4:
 
 ```python
-from zer0share.sources import DataSources
+from microshare.sources import DataSources
 
 
 def build_jobs(cfg, sources: DataSources):
@@ -703,10 +703,10 @@ def build_jobs(cfg, sources: DataSources):
 
 - [ ] **Step 4: Update CLI and scheduler construction**
 
-Modify `zer0share/cli.py` imports:
+Modify `microshare/cli.py` imports:
 
 ```python
-from zer0share.sources import DataSources, RiceQuantFetcher, TushareFetcher
+from microshare.sources import DataSources, RiceQuantFetcher, TushareFetcher
 ```
 
 Replace `_make_pipeline` body:
@@ -731,10 +731,10 @@ def _make_pipeline(config_path: str = "config/settings.toml") -> Pipeline:
     return Pipeline(cfg, sources, notifier)
 ```
 
-Modify `zer0share/scheduler.py` imports:
+Modify `microshare/scheduler.py` imports:
 
 ```python
-from zer0share.sources import DataSources, RiceQuantFetcher, TushareFetcher
+from microshare.sources import DataSources, RiceQuantFetcher, TushareFetcher
 ```
 
 Replace the fetcher construction in `start_scheduler` with:
@@ -771,15 +771,15 @@ Expected: tests pass with no RiceQuant jobs registered yet.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add zer0share/pipeline.py zer0share/cli.py zer0share/scheduler.py zer0share/sync/ricequant.py tests/test_pipeline.py tests/test_cli.py tests/test_scheduler.py
+git add microshare/pipeline.py microshare/cli.py microshare/scheduler.py microshare/sync/ricequant.py tests/test_pipeline.py tests/test_cli.py tests/test_scheduler.py
 git commit -m "refactor: wire pipeline through data sources"
 ```
 
 ## Task 4: RiceQuant Minute Sync Job
 
 **Files:**
-- Modify: `zer0share/sync/ricequant.py`
-- Modify: `zer0share/cli.py`
+- Modify: `microshare/sync/ricequant.py`
+- Modify: `microshare/cli.py`
 - Test: `tests/test_ricequant_sync.py`
 - Test: `tests/test_pipeline.py`
 
@@ -793,9 +793,9 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from zer0share.pipeline import Pipeline
-from zer0share.sources import DataSources
-from zer0share.storage import DailyPartitionStore, SnapshotStore, write_trade_cal
+from microshare.pipeline import Pipeline
+from microshare.sources import DataSources
+from microshare.storage import DailyPartitionStore, SnapshotStore, write_trade_cal
 
 
 @pytest.fixture
@@ -907,7 +907,7 @@ def test_ricequant_stock_minute_sync_writes_daily_partition(cfg):
     pipeline = Pipeline(cfg, DataSources(tushare=MagicMock(), ricequant=ricequant), MagicMock())
     _setup_calendar(pipeline, cfg)
 
-    with patch("zer0share.sync.ricequant.time.sleep"):
+    with patch("microshare.sync.ricequant.time.sleep"):
         pipeline.run("ricequant_stock_minute", start_date="20240102", end_date="20240102")
 
     result = DailyPartitionStore(cfg.data_dir / "ricequant" / "stock_minute").read("20240102")
@@ -928,7 +928,7 @@ def test_ricequant_stock_minute_partial_failures_write_successes(cfg):
     pipeline = Pipeline(cfg, DataSources(tushare=MagicMock(), ricequant=ricequant), notifier)
     _setup_calendar(pipeline, cfg)
 
-    with patch("zer0share.sync.ricequant.time.sleep"):
+    with patch("microshare.sync.ricequant.time.sleep"):
         pipeline.run("ricequant_stock_minute", start_date="20240102", end_date="20240102")
 
     result = DailyPartitionStore(cfg.data_dir / "ricequant" / "stock_minute").read("20240102")
@@ -944,7 +944,7 @@ def test_ricequant_stock_minute_all_failures_do_not_advance_meta(cfg):
     pipeline = Pipeline(cfg, DataSources(tushare=MagicMock(), ricequant=ricequant), MagicMock())
     _setup_calendar(pipeline, cfg)
 
-    with patch("zer0share.sync.ricequant.time.sleep"):
+    with patch("microshare.sync.ricequant.time.sleep"):
         with pytest.raises(RuntimeError, match="all RiceQuant stock minute fetches failed"):
             pipeline.run("ricequant_stock_minute", start_date="20240102", end_date="20240102")
 
@@ -963,7 +963,7 @@ Expected: tests fail because `ricequant_stock_minute` is not implemented.
 
 - [ ] **Step 3: Implement sync job**
 
-Replace `zer0share/sync/ricequant.py` with:
+Replace `microshare/sync/ricequant.py` with:
 
 ```python
 import time
@@ -971,10 +971,10 @@ import time
 import pandas as pd
 from loguru import logger
 
-import zer0share.dateutil as dateutil
-from zer0share.sources import DataSources
-from zer0share.storage import DailyPartitionStore, SnapshotStore
-from zer0share.sync._jobs import SyncJob, _format_duration
+import microshare.dateutil as dateutil
+from microshare.sources import DataSources
+from microshare.storage import DailyPartitionStore, SnapshotStore
+from microshare.sync._jobs import SyncJob, _format_duration
 
 
 BASIC_TABLE_NAME = "ricequant_basic"
@@ -1092,7 +1092,7 @@ def build_jobs(cfg, sources: DataSources):
 
 - [ ] **Step 4: Add CLI table group**
 
-Modify `zer0share/cli.py`:
+Modify `microshare/cli.py`:
 
 ```python
 RICEQUANT_TABLES = [
@@ -1139,16 +1139,16 @@ Expected: sync tests pass, and existing pipeline/CLI tests pass after updating e
 - [ ] **Step 6: Commit**
 
 ```bash
-git add zer0share/sync/ricequant.py zer0share/cli.py tests/test_ricequant_sync.py tests/test_pipeline.py tests/test_cli.py
+git add microshare/sync/ricequant.py microshare/cli.py tests/test_ricequant_sync.py tests/test_pipeline.py tests/test_cli.py
 git commit -m "feat: sync ricequant stock minute data"
 ```
 
 ## Task 5: Local rq_api Query Layer
 
 **Files:**
-- Create: `zer0share/query/ricequant.py`
-- Create: `zer0share/rq_api.py`
-- Modify: `zer0share/__init__.py`
+- Create: `microshare/query/ricequant.py`
+- Create: `microshare/rq_api.py`
+- Modify: `microshare/__init__.py`
 - Test: `tests/test_rq_api.py`
 - Test: `tests/test_api.py`
 
@@ -1160,9 +1160,9 @@ Create `tests/test_rq_api.py`:
 import pandas as pd
 import pytest
 
-from zer0share import rq_api
-from zer0share.rq_api import RQLocal
-from zer0share.storage import DailyPartitionStore
+from microshare import rq_api
+from microshare.rq_api import RQLocal
+from microshare.storage import DailyPartitionStore
 
 
 def _write_minute(data_dir, trade_date="20240102"):
@@ -1183,7 +1183,7 @@ def _write_minute(data_dir, trade_date="20240102"):
 
 
 def _write_basic(data_dir):
-    from zer0share.storage import SnapshotStore
+    from microshare.storage import SnapshotStore
 
     SnapshotStore(data_dir / "ricequant" / "basic" / "data.parquet").write(
         pd.DataFrame(
@@ -1311,11 +1311,11 @@ Run:
 PYTHONDONTWRITEBYTECODE=1 uv run pytest -p no:cacheprovider tests/test_rq_api.py tests/test_api.py::test_pro_api_query_does_not_dispatch_ricequant_table -q
 ```
 
-Expected: `zer0share.rq_api` import fails.
+Expected: `microshare.rq_api` import fails.
 
 - [ ] **Step 3: Implement RiceQuant query module**
 
-Create `zer0share/query/ricequant.py`:
+Create `microshare/query/ricequant.py`:
 
 ```python
 from pathlib import Path
@@ -1323,8 +1323,8 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
-from zer0share.query import QueryContext
-from zer0share.query.repository import SqlFilter, date_range_filters, in_filter
+from microshare.query import QueryContext
+from microshare.query.repository import SqlFilter, date_range_filters, in_filter
 
 
 TABLE_COLUMNS = [
@@ -1450,15 +1450,15 @@ def all_instruments(
 
 - [ ] **Step 4: Implement rq_api entrypoint**
 
-Create `zer0share/rq_api.py`:
+Create `microshare/rq_api.py`:
 
 ```python
 import datetime as dt
 from pathlib import Path
 
-from zer0share.config import load_config
-from zer0share.query import QueryContext
-from zer0share.query import ricequant
+from microshare.config import load_config
+from microshare.query import QueryContext
+from microshare.query import ricequant
 
 
 def _check_date(value):
@@ -1541,11 +1541,11 @@ def rq_api(config_path="config/settings.toml") -> RQLocal:
     return RQLocal(cfg.data_dir)
 ```
 
-Modify `zer0share/__init__.py`:
+Modify `microshare/__init__.py`:
 
 ```python
-from zer0share.api import LocalPro, pro_api
-from zer0share.rq_api import RQLocal, rq_api
+from microshare.api import LocalPro, pro_api
+from microshare.rq_api import RQLocal, rq_api
 
 __all__ = ["LocalPro", "RQLocal", "pro_api", "rq_api"]
 ```
@@ -1563,7 +1563,7 @@ Expected: RiceQuant query tests pass and Tushare local API tests still pass.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add zer0share/query/ricequant.py zer0share/rq_api.py zer0share/__init__.py tests/test_rq_api.py tests/test_api.py
+git add microshare/query/ricequant.py microshare/rq_api.py microshare/__init__.py tests/test_rq_api.py tests/test_api.py
 git commit -m "feat: add local ricequant query api"
 ```
 
@@ -1572,7 +1572,7 @@ git commit -m "feat: add local ricequant query api"
 **Files:**
 - Modify: `README.md`
 - Modify: `docs/SYNC_GUIDE.md`
-- Modify: `skills/zer0share-data/references/api.md`
+- Modify: `skills/microshare-data/references/api.md`
 
 - [ ] **Step 1: Update README**
 
@@ -1608,7 +1608,7 @@ uv run python main.py sync --table ricequant_stock_minute --start-date 20240102 
 本地查询：
 
 ```python
-from zer0share import rq_api
+from microshare import rq_api
 
 rq = rq_api()
 basic = rq.all_instruments(type="CS", market="cn")
@@ -1637,7 +1637,7 @@ uv run python main.py sync --table ricequant_stock_minute --start-date 20240102 
 ```
 ~~~
 
-Add to `skills/zer0share-data/references/api.md`:
+Add to `skills/microshare-data/references/api.md`:
 
 ~~~markdown
 ## RiceQuant local API
@@ -1676,7 +1676,7 @@ Expected: full suite passes. If `rqdatac` cannot be installed in the current env
 - [ ] **Step 5: Commit docs**
 
 ```bash
-git add README.md docs/SYNC_GUIDE.md skills/zer0share-data/references/api.md
+git add README.md docs/SYNC_GUIDE.md skills/microshare-data/references/api.md
 git commit -m "docs: document ricequant private data source"
 ```
 
@@ -1687,8 +1687,8 @@ Run only in an environment with valid RiceQuant credentials in `config/settings.
 ```bash
 uv run python main.py sync --table ricequant_basic
 uv run python main.py sync --table ricequant_stock_minute --start-date 20240102 --end-date 20240102
-uv run python -c "from zer0share import rq_api; print(rq_api().all_instruments(type='CS', market='cn').head())"
-uv run python -c "from zer0share import rq_api; print(rq_api().get_price('000001.XSHE', start_date='20240102', end_date='20240102', frequency='1m').head())"
+uv run python -c "from microshare import rq_api; print(rq_api().all_instruments(type='CS', market='cn').head())"
+uv run python -c "from microshare import rq_api; print(rq_api().get_price('000001.XSHE', start_date='20240102', end_date='20240102', frequency='1m').head())"
 ```
 
 Expected: first command writes `data/ricequant/basic/data.parquet`; second command writes `data/ricequant/stock_minute/date=20240102/data.parquet`; local query commands print RiceQuant basic rows and minute bars for `000001.XSHE`.

@@ -1,4 +1,4 @@
-# zer0share 重构设计：分层架构
+# microshare 重构设计：分层架构
 
 ## 背景
 
@@ -21,7 +21,7 @@ Tushare ──→ fetcher ──→ storage ──→ Parquet 文件
 ## 目标结构
 
 ```
-zer0share/
+microshare/
   schema.py      # 层 0：所有 *_COLS 列定义（从 fetcher.py 移出）
   fetcher.py     # 层 1：从 Tushare 取数据（只做 API 调用）
   storage.py     # 层 2：读写 Parquet + MetaStore（不动）
@@ -73,10 +73,10 @@ zer0share/
 ```python
 # sync/__init__.py
 from dataclasses import dataclass
-from zer0share.config import Config
-from zer0share.fetcher import TushareFetcher
-from zer0share.notifier import Notifier
-from zer0share.storage import MetaStore
+from microshare.config import Config
+from microshare.fetcher import TushareFetcher
+from microshare.notifier import Notifier
+from microshare.storage import MetaStore
 
 @dataclass
 class SyncContext:
@@ -92,9 +92,9 @@ class SyncContext:
 
 ```python
 # sync/equities.py
-from zer0share.sync import SyncContext
-from zer0share.sync._helpers import sync_daily_partitioned, skip_if_not_trading
-from zer0share import storage
+from microshare.sync import SyncContext
+from microshare.sync._helpers import sync_daily_partitioned, skip_if_not_trading
+from microshare import storage
 
 def sync_basic(ctx: SyncContext) -> None:
     if skip_if_not_trading(ctx, "SSE"):
@@ -149,9 +149,9 @@ def week_ranges(start: date, end: date) -> list[tuple[str, date]]: ...
 
 ```python
 # pipeline.py
-from zer0share.sync import SyncContext
-from zer0share.sync import equities, calendar, industry, futures, options
-from zer0share.storage import MetaStore
+from microshare.sync import SyncContext
+from microshare.sync import equities, calendar, industry, futures, options
+from microshare.storage import MetaStore
 
 class Pipeline:
     def __init__(self, cfg: Config, fetcher: TushareFetcher, notifier: Notifier):
@@ -219,8 +219,8 @@ def daily(ctx: QueryContext, ts_code=None, trade_date=None,
 
 ```python
 # api.py
-from zer0share.query import QueryContext
-from zer0share.query import equities, calendar, industry, futures, options
+from microshare.query import QueryContext
+from microshare.query import equities, calendar, industry, futures, options
 
 class LocalPro:
     def __init__(self, data_dir: str | Path):

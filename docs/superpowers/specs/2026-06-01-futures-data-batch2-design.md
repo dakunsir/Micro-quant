@@ -229,10 +229,10 @@ Sync dispatch 追加 5 个 if 块。
 
 | 文件 | 变更内容 |
 |------|---------|
-| `zer0share/fetcher.py` | 新增 5 组字段常量 + 5 个 fetch 方法 |
-| `zer0share/pipeline.py` | 新增 5 个 sync 方法（3 标准 daily + 1 全市场 + 1 按周） |
-| `zer0share/api.py` | 新增 5 个查询方法 + dispatch 更新 |
-| `zer0share/scheduler.py` | 追加 5 个定时任务到 futures_tables |
-| `zer0share/cli.py` | SYNC_TABLES + range_tables + sync dispatch |
+| `microshare/fetcher.py` | 新增 5 组字段常量 + 5 个 fetch 方法 |
+| `microshare/pipeline.py` | 新增 5 个 sync 方法（3 标准 daily + 1 全市场 + 1 按周） |
+| `microshare/api.py` | 新增 5 个查询方法 + dispatch 更新 |
+| `microshare/scheduler.py` | 追加 5 个定时任务到 futures_tables |
+| `microshare/cli.py` | SYNC_TABLES + range_tables + sync dispatch |
 
 无新增文件，无新增依赖，完全在现有模块内扩展。

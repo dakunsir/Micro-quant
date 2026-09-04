@@ -97,7 +97,7 @@ def test_get_trading_days_returns_empty_when_no_cal(tmp_path):
 **Step 2: 运行测试确认失败**
 
 ```bash
-cd D:/Project/zer0share && uv run pytest tests/test_storage.py::test_write_and_read_trade_cal -v
+cd D:/Project/microshare && uv run pytest tests/test_storage.py::test_write_and_read_trade_cal -v
 ```
 
 Expected: FAIL with "cannot import name 'write_trade_cal'"
@@ -180,7 +180,7 @@ def read_trade_cal(data_dir: Path, exchange: str) -> pd.DataFrame:
 **Step 4: 运行全量 storage 测试**
 
 ```bash
-cd D:/Project/zer0share && uv run pytest tests/test_storage.py -v
+cd D:/Project/microshare && uv run pytest tests/test_storage.py -v
 ```
 
 Expected: 全部 PASS（约 16 个测试）
@@ -188,7 +188,7 @@ Expected: 全部 PASS（约 16 个测试）
 **Step 5: Commit**
 
 ```bash
-cd D:/Project/zer0share
+cd D:/Project/microshare
 git add src/storage.py tests/test_storage.py
 git commit -m "feat: add trade_cal parquet read/write and MetaStore methods"
 ```
@@ -239,7 +239,7 @@ def test_fetch_trade_cal_converts_types(mock_pro):
 **Step 2: 运行测试确认失败**
 
 ```bash
-cd D:/Project/zer0share && uv run pytest tests/test_fetcher.py::test_fetch_trade_cal_returns_correct_columns -v
+cd D:/Project/microshare && uv run pytest tests/test_fetcher.py::test_fetch_trade_cal_returns_correct_columns -v
 ```
 
 Expected: FAIL with "TushareFetcher has no attribute fetch_trade_cal"
@@ -279,7 +279,7 @@ def fetch_trade_cal(self, exchange: str) -> pd.DataFrame:
 **Step 4: 运行全量 fetcher 测试**
 
 ```bash
-cd D:/Project/zer0share && uv run pytest tests/test_fetcher.py -v
+cd D:/Project/microshare && uv run pytest tests/test_fetcher.py -v
 ```
 
 Expected: 全部 PASS（约 7 个测试）
@@ -287,7 +287,7 @@ Expected: 全部 PASS（约 7 个测试）
 **Step 5: Commit**
 
 ```bash
-cd D:/Project/zer0share
+cd D:/Project/microshare
 git add src/fetcher.py tests/test_fetcher.py
 git commit -m "feat: add fetch_trade_cal to TushareFetcher"
 ```
@@ -391,7 +391,7 @@ def test_sync_daily_kline_raises_if_no_trade_cal(pipeline, cfg):
 **Step 2: 运行测试确认失败**
 
 ```bash
-cd D:/Project/zer0share && uv run pytest tests/test_pipeline.py::test_sync_trade_cal_writes_all_exchanges -v
+cd D:/Project/microshare && uv run pytest tests/test_pipeline.py::test_sync_trade_cal_writes_all_exchanges -v
 ```
 
 Expected: FAIL with "Pipeline has no attribute sync_trade_cal"
@@ -472,7 +472,7 @@ def sync_daily_kline(self) -> None:
 **Step 4: 运行全量 pipeline 测试**
 
 ```bash
-cd D:/Project/zer0share && uv run pytest tests/test_pipeline.py -v
+cd D:/Project/microshare && uv run pytest tests/test_pipeline.py -v
 ```
 
 Expected: 全部 PASS（约 17 个测试）
@@ -480,7 +480,7 @@ Expected: 全部 PASS（约 17 个测试）
 **Step 5: Commit**
 
 ```bash
-cd D:/Project/zer0share
+cd D:/Project/microshare
 git add src/pipeline.py tests/test_pipeline.py
 git commit -m "feat: add sync_trade_cal and refactor sync_daily_kline to use trading calendar"
 ```
@@ -538,7 +538,7 @@ def status() -> None:
 **Step 2: 验证 CLI 帮助正常**
 
 ```bash
-cd D:/Project/zer0share && uv run python main.py sync --help
+cd D:/Project/microshare && uv run python main.py sync --help
 ```
 
 Expected: 输出包含 `trade_cal` 选项
@@ -546,7 +546,7 @@ Expected: 输出包含 `trade_cal` 选项
 **Step 3: 运行全量测试确认无回归**
 
 ```bash
-cd D:/Project/zer0share && uv run pytest tests/ -v
+cd D:/Project/microshare && uv run pytest tests/ -v
 ```
 
 Expected: 全部 PASS
@@ -554,7 +554,7 @@ Expected: 全部 PASS
 **Step 4: Commit**
 
 ```bash
-cd D:/Project/zer0share
+cd D:/Project/microshare
 git add src/cli.py
 git commit -m "feat: add trade_cal to CLI sync and status commands"
 ```

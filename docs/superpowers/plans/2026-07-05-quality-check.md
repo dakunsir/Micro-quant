@@ -2,26 +2,26 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build local Parquet quality checks for zer0share market data and adjustment factor tables.
+**Goal:** Build local Parquet quality checks for microshare market data and adjustment factor tables.
 
-**Architecture:** Add a focused `zer0share/quality/` package with target definitions, result models, rules, runner, and reporting. Expose it through `main.py quality check`, then optionally call the same runner from the existing scheduler without interrupting sync progress.
+**Architecture:** Add a focused `microshare/quality/` package with target definitions, result models, rules, runner, and reporting. Expose it through `main.py quality check`, then optionally call the same runner from the existing scheduler without interrupting sync progress.
 
-**Tech Stack:** Python 3.11, click, pandas, pyarrow, pytest, existing zer0share catalog/config/scheduler/notifier modules.
+**Tech Stack:** Python 3.11, click, pandas, pyarrow, pytest, existing microshare catalog/config/scheduler/notifier modules.
 
 ---
 
 ## File Structure
 
-- Create `zer0share/quality/__init__.py`: public exports for the quality package.
-- Create `zer0share/quality/models.py`: dataclasses and enums for severity, findings, summaries, run options, and run reports.
-- Create `zer0share/quality/targets.py`: registry mapping scoped table names to catalog specs, markets, table type, and related tables.
-- Create `zer0share/quality/rules.py`: pure rule functions that inspect DataFrames and partition paths.
-- Create `zer0share/quality/runner.py`: selects targets, resolves dates/partitions, reads Parquet, applies rules, and returns a `QualityRunReport`.
-- Create `zer0share/quality/reporter.py`: writes `summary.csv`, `findings.csv`, `metadata.json`, and formats terminal summaries.
-- Modify `zer0share/cli.py`: add `quality check` command group.
-- Modify `zer0share/config.py`: add parsed `quality` config with defaults.
+- Create `microshare/quality/__init__.py`: public exports for the quality package.
+- Create `microshare/quality/models.py`: dataclasses and enums for severity, findings, summaries, run options, and run reports.
+- Create `microshare/quality/targets.py`: registry mapping scoped table names to catalog specs, markets, table type, and related tables.
+- Create `microshare/quality/rules.py`: pure rule functions that inspect DataFrames and partition paths.
+- Create `microshare/quality/runner.py`: selects targets, resolves dates/partitions, reads Parquet, applies rules, and returns a `QualityRunReport`.
+- Create `microshare/quality/reporter.py`: writes `summary.csv`, `findings.csv`, `metadata.json`, and formats terminal summaries.
+- Modify `microshare/cli.py`: add `quality check` command group.
+- Modify `microshare/config.py`: add parsed `quality` config with defaults.
 - Modify `config/settings.example.toml`: document `[quality]` defaults.
-- Modify `zer0share/scheduler.py`: run daily table-level quality checks after scheduled syncs when enabled; notify warn/fail without raising.
+- Modify `microshare/scheduler.py`: run daily table-level quality checks after scheduled syncs when enabled; notify warn/fail without raising.
 - Create `tests/test_quality_targets.py`: target registry tests.
 - Create `tests/test_quality_rules.py`: rule-level tests using small DataFrames.
 - Create `tests/test_quality_runner.py`: temporary Parquet integration tests.
@@ -34,8 +34,8 @@
 ### Task 1: Quality Result Models
 
 **Files:**
-- Create: `zer0share/quality/__init__.py`
-- Create: `zer0share/quality/models.py`
+- Create: `microshare/quality/__init__.py`
+- Create: `microshare/quality/models.py`
 - Test: `tests/test_quality_rules.py`
 
 - [ ] **Step 1: Write the failing model test**
@@ -43,7 +43,7 @@
 Add to `tests/test_quality_rules.py`:
 
 ```python
-from zer0share.quality.models import QualityFinding, Severity
+from microshare.quality.models import QualityFinding, Severity
 
 
 def test_quality_finding_serializes_sample_as_json_text():
@@ -75,11 +75,11 @@ Run:
 uv run pytest tests/test_quality_rules.py::test_quality_finding_serializes_sample_as_json_text -v
 ```
 
-Expected: FAIL with `ModuleNotFoundError: No module named 'zer0share.quality'`.
+Expected: FAIL with `ModuleNotFoundError: No module named 'microshare.quality'`.
 
 - [ ] **Step 3: Implement the models**
 
-Create `zer0share/quality/models.py`:
+Create `microshare/quality/models.py`:
 
 ```python
 from __future__ import annotations
@@ -166,10 +166,10 @@ class QualityRunReport:
         return sum(1 for finding in self.findings if finding.severity == Severity.WARN)
 ```
 
-Create `zer0share/quality/__init__.py`:
+Create `microshare/quality/__init__.py`:
 
 ```python
-from zer0share.quality.models import (
+from microshare.quality.models import (
     QualityFinding,
     QualityRunOptions,
     QualityRunReport,
@@ -199,7 +199,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add zer0share/quality/__init__.py zer0share/quality/models.py tests/test_quality_rules.py
+git add microshare/quality/__init__.py microshare/quality/models.py tests/test_quality_rules.py
 git commit -m "feat: add quality result models"
 ```
 
@@ -208,8 +208,8 @@ git commit -m "feat: add quality result models"
 ### Task 2: Quality Target Registry
 
 **Files:**
-- Create: `zer0share/quality/targets.py`
-- Modify: `zer0share/quality/__init__.py`
+- Create: `microshare/quality/targets.py`
+- Modify: `microshare/quality/__init__.py`
 - Test: `tests/test_quality_targets.py`
 
 - [ ] **Step 1: Write target registry tests**
@@ -219,7 +219,7 @@ Create `tests/test_quality_targets.py`:
 ```python
 import pytest
 
-from zer0share.quality.targets import (
+from microshare.quality.targets import (
     QUALITY_TARGETS,
     get_targets,
     select_targets,
@@ -276,18 +276,18 @@ Run:
 uv run pytest tests/test_quality_targets.py -v
 ```
 
-Expected: FAIL with `ModuleNotFoundError` for `zer0share.quality.targets`.
+Expected: FAIL with `ModuleNotFoundError` for `microshare.quality.targets`.
 
 - [ ] **Step 3: Implement target registry**
 
-Create `zer0share/quality/targets.py`:
+Create `microshare/quality/targets.py`:
 
 ```python
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from zer0share.catalog import (
+from microshare.catalog import (
     ADJ_FACTOR_SPEC,
     DAILY_KLINE_SPEC,
     FUND_ADJ_SPEC,
@@ -296,7 +296,7 @@ from zer0share.catalog import (
     INDEX_DAILY_SPEC,
     OPT_DAILY_SPEC,
 )
-from zer0share.query.repository import DailyTableSpec
+from microshare.query.repository import DailyTableSpec
 
 
 @dataclass(frozen=True)
@@ -364,17 +364,17 @@ def select_targets(
     return list(QUALITY_TARGETS.values())
 ```
 
-Modify `zer0share/quality/__init__.py`:
+Modify `microshare/quality/__init__.py`:
 
 ```python
-from zer0share.quality.models import (
+from microshare.quality.models import (
     QualityFinding,
     QualityRunOptions,
     QualityRunReport,
     Severity,
     TableSummary,
 )
-from zer0share.quality.targets import QualityTarget
+from microshare.quality.targets import QualityTarget
 
 __all__ = [
     "QualityFinding",
@@ -399,7 +399,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add zer0share/quality/__init__.py zer0share/quality/targets.py tests/test_quality_targets.py
+git add microshare/quality/__init__.py microshare/quality/targets.py tests/test_quality_targets.py
 git commit -m "feat: add quality target registry"
 ```
 
@@ -408,7 +408,7 @@ git commit -m "feat: add quality target registry"
 ### Task 3: DataFrame Rule Functions
 
 **Files:**
-- Create: `zer0share/quality/rules.py`
+- Create: `microshare/quality/rules.py`
 - Test: `tests/test_quality_rules.py`
 
 - [ ] **Step 1: Add failing rule tests**
@@ -418,7 +418,7 @@ Append to `tests/test_quality_rules.py`:
 ```python
 import pandas as pd
 
-from zer0share.quality.rules import (
+from microshare.quality.rules import (
     check_adjustment_factor_values,
     check_duplicate_key,
     check_market_data_values,
@@ -503,14 +503,14 @@ Expected: FAIL with import errors for rule functions.
 
 - [ ] **Step 3: Implement rule functions**
 
-Create `zer0share/quality/rules.py`:
+Create `microshare/quality/rules.py`:
 
 ```python
 from __future__ import annotations
 
 import pandas as pd
 
-from zer0share.quality.models import QualityFinding, Severity
+from microshare.quality.models import QualityFinding, Severity
 
 
 def _sample(df: pd.DataFrame, columns: list[str] | None = None, limit: int = 5) -> list[dict]:
@@ -679,7 +679,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add zer0share/quality/rules.py tests/test_quality_rules.py
+git add microshare/quality/rules.py tests/test_quality_rules.py
 git commit -m "feat: add quality dataframe rules"
 ```
 
@@ -688,7 +688,7 @@ git commit -m "feat: add quality dataframe rules"
 ### Task 4: Quality Runner Partition Checks
 
 **Files:**
-- Create: `zer0share/quality/runner.py`
+- Create: `microshare/quality/runner.py`
 - Test: `tests/test_quality_runner.py`
 
 - [ ] **Step 1: Write runner tests for missing and valid partitions**
@@ -702,8 +702,8 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from zer0share.quality.models import QualityRunOptions
-from zer0share.quality.runner import QualityRunner
+from microshare.quality.models import QualityRunOptions
+from microshare.quality.runner import QualityRunner
 
 
 def _write_parquet(path: Path, rows: list[dict]) -> None:
@@ -785,11 +785,11 @@ Run:
 uv run pytest tests/test_quality_runner.py -v
 ```
 
-Expected: FAIL with `ModuleNotFoundError` for `zer0share.quality.runner`.
+Expected: FAIL with `ModuleNotFoundError` for `microshare.quality.runner`.
 
 - [ ] **Step 3: Implement runner basics**
 
-Create `zer0share/quality/runner.py`:
+Create `microshare/quality/runner.py`:
 
 ```python
 from __future__ import annotations
@@ -799,20 +799,20 @@ from pathlib import Path
 
 import pandas as pd
 
-from zer0share.quality.models import (
+from microshare.quality.models import (
     QualityFinding,
     QualityRunOptions,
     QualityRunReport,
     Severity,
     TableSummary,
 )
-from zer0share.quality.rules import (
+from microshare.quality.rules import (
     check_adjustment_factor_values,
     check_duplicate_key,
     check_market_data_values,
     check_required_columns,
 )
-from zer0share.quality.targets import QualityTarget, get_targets
+from microshare.quality.targets import QualityTarget, get_targets
 
 
 def _date_range(start_date: str, end_date: str) -> list[str]:
@@ -993,7 +993,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add zer0share/quality/runner.py tests/test_quality_runner.py
+git add microshare/quality/runner.py tests/test_quality_runner.py
 git commit -m "feat: add quality runner partition checks"
 ```
 
@@ -1002,8 +1002,8 @@ git commit -m "feat: add quality runner partition checks"
 ### Task 5: Adjustment Coverage and Jump Warnings
 
 **Files:**
-- Modify: `zer0share/quality/rules.py`
-- Modify: `zer0share/quality/runner.py`
+- Modify: `microshare/quality/rules.py`
+- Modify: `microshare/quality/runner.py`
 - Test: `tests/test_quality_rules.py`
 - Test: `tests/test_quality_runner.py`
 
@@ -1012,7 +1012,7 @@ git commit -m "feat: add quality runner partition checks"
 Append to `tests/test_quality_rules.py`:
 
 ```python
-from zer0share.quality.rules import check_adjustment_factor_jumps
+from microshare.quality.rules import check_adjustment_factor_jumps
 
 
 def test_check_adjustment_factor_jumps_warns_on_large_change():
@@ -1073,7 +1073,7 @@ Expected: FAIL for missing `check_adjustment_factor_jumps` and missing coverage 
 
 - [ ] **Step 3: Implement jump and coverage checks**
 
-Append to `zer0share/quality/rules.py`:
+Append to `microshare/quality/rules.py`:
 
 ```python
 def check_adjustment_factor_jumps(
@@ -1104,10 +1104,10 @@ def check_adjustment_factor_jumps(
     ]
 ```
 
-Modify imports in `zer0share/quality/runner.py`:
+Modify imports in `microshare/quality/runner.py`:
 
 ```python
-from zer0share.quality.rules import (
+from microshare.quality.rules import (
     check_adjustment_factor_jumps,
     check_adjustment_factor_values,
     check_duplicate_key,
@@ -1182,7 +1182,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add zer0share/quality/rules.py zer0share/quality/runner.py tests/test_quality_rules.py tests/test_quality_runner.py
+git add microshare/quality/rules.py microshare/quality/runner.py tests/test_quality_rules.py tests/test_quality_runner.py
 git commit -m "feat: add adjustment quality warnings"
 ```
 
@@ -1191,7 +1191,7 @@ git commit -m "feat: add adjustment quality warnings"
 ### Task 6: Quality Reporter
 
 **Files:**
-- Create: `zer0share/quality/reporter.py`
+- Create: `microshare/quality/reporter.py`
 - Test: `tests/test_quality_reporter.py`
 
 - [ ] **Step 1: Write reporter tests**
@@ -1201,14 +1201,14 @@ Create `tests/test_quality_reporter.py`:
 ```python
 import json
 
-from zer0share.quality.models import (
+from microshare.quality.models import (
     QualityFinding,
     QualityRunOptions,
     QualityRunReport,
     Severity,
     TableSummary,
 )
-from zer0share.quality.reporter import QualityReporter, format_summary
+from microshare.quality.reporter import QualityReporter, format_summary
 
 
 def test_reporter_writes_summary_findings_and_metadata(tmp_path):
@@ -1252,11 +1252,11 @@ Run:
 uv run pytest tests/test_quality_reporter.py -v
 ```
 
-Expected: FAIL with `ModuleNotFoundError` for `zer0share.quality.reporter`.
+Expected: FAIL with `ModuleNotFoundError` for `microshare.quality.reporter`.
 
 - [ ] **Step 3: Implement reporter**
 
-Create `zer0share/quality/reporter.py`:
+Create `microshare/quality/reporter.py`:
 
 ```python
 from __future__ import annotations
@@ -1268,7 +1268,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from zer0share.quality.models import QualityRunReport
+from microshare.quality.models import QualityRunReport
 
 
 def _git_commit() -> str | None:
@@ -1342,7 +1342,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add zer0share/quality/reporter.py tests/test_quality_reporter.py
+git add microshare/quality/reporter.py tests/test_quality_reporter.py
 git commit -m "feat: add quality reports"
 ```
 
@@ -1351,7 +1351,7 @@ git commit -m "feat: add quality reports"
 ### Task 7: CLI Integration
 
 **Files:**
-- Modify: `zer0share/cli.py`
+- Modify: `microshare/cli.py`
 - Test: `tests/test_cli.py`
 
 - [ ] **Step 1: Add CLI tests**
@@ -1379,10 +1379,10 @@ def test_quality_check_runs_selected_table(tmp_path):
     fake_report.output_dir = tmp_path / "reports"
 
     with (
-        patch("zer0share.cli.load_config", return_value=cfg),
-        patch("zer0share.cli.QualityRunner") as runner_cls,
-        patch("zer0share.cli.QualityReporter") as reporter_cls,
-        patch("zer0share.cli.format_summary", return_value="quality summary"),
+        patch("microshare.cli.load_config", return_value=cfg),
+        patch("microshare.cli.QualityRunner") as runner_cls,
+        patch("microshare.cli.QualityReporter") as reporter_cls,
+        patch("microshare.cli.format_summary", return_value="quality summary"),
     ):
         runner_cls.return_value.run.return_value = fake_report
         reporter_cls.return_value.write.return_value = tmp_path / "reports"
@@ -1408,13 +1408,13 @@ Expected: FAIL because the `quality` command does not exist.
 
 - [ ] **Step 3: Implement CLI command**
 
-Modify imports near the top of `zer0share/cli.py`:
+Modify imports near the top of `microshare/cli.py`:
 
 ```python
-from zer0share.quality.models import QualityRunOptions
-from zer0share.quality.reporter import QualityReporter, format_summary
-from zer0share.quality.runner import QualityRunner
-from zer0share.quality.targets import select_targets
+from microshare.quality.models import QualityRunOptions
+from microshare.quality.reporter import QualityReporter, format_summary
+from microshare.quality.runner import QualityRunner
+from microshare.quality.targets import select_targets
 ```
 
 Add below the existing `sync` command:
@@ -1478,7 +1478,7 @@ def quality_check(
         raise click.exceptions.Exit(1)
 ```
 
-Also add `QualityRunReport` to the imports from `zer0share.quality.models`.
+Also add `QualityRunReport` to the imports from `microshare.quality.models`.
 
 - [ ] **Step 4: Run CLI tests**
 
@@ -1493,7 +1493,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add zer0share/cli.py tests/test_cli.py
+git add microshare/cli.py tests/test_cli.py
 git commit -m "feat: add quality check cli"
 ```
 
@@ -1502,9 +1502,9 @@ git commit -m "feat: add quality check cli"
 ### Task 8: Config and Scheduler Integration
 
 **Files:**
-- Modify: `zer0share/config.py`
+- Modify: `microshare/config.py`
 - Modify: `config/settings.example.toml`
-- Modify: `zer0share/scheduler.py`
+- Modify: `microshare/scheduler.py`
 - Test: `tests/test_config.py`
 - Test: `tests/test_scheduler_quality.py`
 
@@ -1548,7 +1548,7 @@ Create `tests/test_scheduler_quality.py`:
 ```python
 from unittest.mock import MagicMock, patch
 
-from zer0share.scheduler import run_scheduled_table
+from microshare.scheduler import run_scheduled_table
 
 
 def test_run_scheduled_table_runs_quality_without_raising(tmp_path):
@@ -1568,10 +1568,10 @@ def test_run_scheduled_table_runs_quality_without_raising(tmp_path):
     report.output_dir = tmp_path / "reports"
 
     with (
-        patch("zer0share.scheduler.Pipeline") as pipeline_cls,
-        patch("zer0share.scheduler.QualityRunner") as runner_cls,
-        patch("zer0share.scheduler.QualityReporter") as reporter_cls,
-        patch("zer0share.scheduler.format_summary", return_value="quality summary"),
+        patch("microshare.scheduler.Pipeline") as pipeline_cls,
+        patch("microshare.scheduler.QualityRunner") as runner_cls,
+        patch("microshare.scheduler.QualityReporter") as reporter_cls,
+        patch("microshare.scheduler.format_summary", return_value="quality summary"),
     ):
         pipeline_cls.return_value.__enter__.return_value = pipeline_cls.return_value
         pipeline_cls.return_value.__exit__.return_value = False
@@ -1596,7 +1596,7 @@ Expected: FAIL because `Config.quality` and `run_scheduled_table` do not exist.
 
 - [ ] **Step 3: Implement config parsing**
 
-Modify `zer0share/config.py`:
+Modify `microshare/config.py`:
 
 ```python
 @dataclass(frozen=True)
@@ -1632,13 +1632,13 @@ quality=_parse_quality(raw.get("quality")),
 
 - [ ] **Step 4: Implement scheduler hook**
 
-Modify `zer0share/scheduler.py` imports:
+Modify `microshare/scheduler.py` imports:
 
 ```python
-from zer0share.quality.models import QualityRunOptions, QualityRunReport
-from zer0share.quality.reporter import QualityReporter, format_summary
-from zer0share.quality.runner import QualityRunner
-from zer0share.quality.targets import QUALITY_TARGETS
+from microshare.quality.models import QualityRunOptions, QualityRunReport
+from microshare.quality.reporter import QualityReporter, format_summary
+from microshare.quality.runner import QualityRunner
+from microshare.quality.targets import QUALITY_TARGETS
 ```
 
 Add top-level helper:
@@ -1714,7 +1714,7 @@ Expected: PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add zer0share/config.py config/settings.example.toml zer0share/scheduler.py tests/test_config.py tests/test_scheduler_quality.py
+git add microshare/config.py config/settings.example.toml microshare/scheduler.py tests/test_config.py tests/test_scheduler_quality.py
 git commit -m "feat: run quality checks from scheduler"
 ```
 

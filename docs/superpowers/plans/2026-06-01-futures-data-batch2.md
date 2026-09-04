@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add 5 extended futures data types (ft_limit, fut_weekly, fut_monthly, fut_index_daily, fut_weekly_detail) to zer0share, fully integrated across all layers.
+**Goal:** Add 5 extended futures data types (ft_limit, fut_weekly, fut_monthly, fut_index_daily, fut_weekly_detail) to microshare, fully integrated across all layers.
 
 **Architecture:** Direct extension of existing modules, identical to batch 1. Three sync patterns: standard daily (ft_limit, fut_weekly, fut_monthly via `_sync_daily_partitioned`), full-market daily (fut_index_daily, like existing `sync_index_daily`), and weekly iteration (fut_weekly_detail, new pattern).
 
@@ -13,7 +13,7 @@
 ### Task 1: Fetcher — Constants and Fetch Methods
 
 **Files:**
-- Modify: `zer0share/fetcher.py`
+- Modify: `microshare/fetcher.py`
 - Modify: `tests/test_fetcher.py`
 
 - [ ] **Step 1: Add batch 2 column constants to fetcher.py**
@@ -101,7 +101,7 @@ Add after `fetch_fut_mapping` (around line 306), before `SW_VERSIONS`:
 ```python
 # --- Futures batch 2 tests ---
 
-from zer0share.fetcher import (
+from microshare.fetcher import (
     FT_LIMIT_COLS, FUT_WEEKLY_COLS, FUT_MONTHLY_COLS,
     FUT_INDEX_DAILY_COLS, FUT_WEEKLY_DETAIL_COLS,
 )
@@ -293,13 +293,13 @@ def test_fetch_fut_weekly_detail_returns_empty_when_none(mock_pro):
 
 - [ ] **Step 4: Run all fetcher tests**
 
-Run: `cd /data/projects/zer0share && python -m pytest tests/test_fetcher.py -v 2>&1 | tail -40`
+Run: `cd /data/projects/microshare && python -m pytest tests/test_fetcher.py -v 2>&1 | tail -40`
 Expected: All tests PASS (existing + new)
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add zer0share/fetcher.py tests/test_fetcher.py
+git add microshare/fetcher.py tests/test_fetcher.py
 git commit -m "feat: add futures batch 2 fetcher constants and 5 fetch methods"
 ```
 
@@ -308,7 +308,7 @@ git commit -m "feat: add futures batch 2 fetcher constants and 5 fetch methods"
 ### Task 2: Pipeline — 5 Sync Methods
 
 **Files:**
-- Modify: `zer0share/pipeline.py`
+- Modify: `microshare/pipeline.py`
 - Modify: `tests/test_pipeline.py`
 
 - [ ] **Step 1: Add 3 standard daily sync methods**
@@ -515,7 +515,7 @@ def _week_ranges(start: date, end: date) -> list[tuple[str, date]]:
 
 - [ ] **Step 5: Add import for `pd` at top of pipeline.py**
 
-`pd` is already imported. Verify it exists: `grep "import pandas" zer0share/pipeline.py`
+`pd` is already imported. Verify it exists: `grep "import pandas" microshare/pipeline.py`
 
 - [ ] **Step 6: Add pipeline tests at end of `tests/test_pipeline.py`**
 
@@ -533,8 +533,8 @@ def test_sync_ft_limit_writes_to_futures_subdir(pipeline, cfg):
     })
     pipeline._meta.update_last_date("ft_limit", date(2024, 1, 1))
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("microshare.pipeline.date") as mock_date, \
+         patch("microshare.pipeline.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_ft_limit()
@@ -554,8 +554,8 @@ def test_sync_fut_weekly_writes_to_futures_subdir(pipeline, cfg):
     })
     pipeline._meta.update_last_date("fut_weekly", date(2024, 1, 1))
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("microshare.pipeline.date") as mock_date, \
+         patch("microshare.pipeline.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_fut_weekly()
@@ -572,8 +572,8 @@ def test_sync_fut_index_daily_writes_to_futures_subdir(pipeline, cfg):
     })
     pipeline._meta.update_last_date("fut_index_daily", date(2024, 1, 1))
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("microshare.pipeline.date") as mock_date, \
+         patch("microshare.pipeline.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_fut_index_daily()
@@ -593,8 +593,8 @@ def test_sync_fut_weekly_detail_writes_to_futures_subdir(pipeline, cfg):
     })
     pipeline._meta.update_last_date("fut_weekly_detail", date(2023, 12, 31))
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("microshare.pipeline.date") as mock_date, \
+         patch("microshare.pipeline.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 7)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_fut_weekly_detail()
@@ -608,13 +608,13 @@ def test_sync_fut_weekly_detail_writes_to_futures_subdir(pipeline, cfg):
 
 - [ ] **Step 7: Run all pipeline tests**
 
-Run: `cd /data/projects/zer0share && python -m pytest tests/test_pipeline.py -v 2>&1 | tail -40`
+Run: `cd /data/projects/microshare && python -m pytest tests/test_pipeline.py -v 2>&1 | tail -40`
 Expected: All tests PASS
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add zer0share/pipeline.py tests/test_pipeline.py
+git add microshare/pipeline.py tests/test_pipeline.py
 git commit -m "feat: add futures batch 2 pipeline sync methods"
 ```
 
@@ -623,7 +623,7 @@ git commit -m "feat: add futures batch 2 pipeline sync methods"
 ### Task 3: API — 5 Query Methods
 
 **Files:**
-- Modify: `zer0share/api.py`
+- Modify: `microshare/api.py`
 - Modify: `tests/test_api.py`
 
 - [ ] **Step 1: Add batch 2 column imports to api.py**
@@ -890,13 +890,13 @@ def test_batch2_query_dispatch(tmp_path):
 
 - [ ] **Step 5: Run all API tests**
 
-Run: `cd /data/projects/zer0share && python -m pytest tests/test_api.py -v 2>&1 | tail -40`
+Run: `cd /data/projects/microshare && python -m pytest tests/test_api.py -v 2>&1 | tail -40`
 Expected: All tests PASS
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add zer0share/api.py tests/test_api.py
+git add microshare/api.py tests/test_api.py
 git commit -m "feat: add futures batch 2 query methods to LocalPro API"
 ```
 
@@ -905,12 +905,12 @@ git commit -m "feat: add futures batch 2 query methods to LocalPro API"
 ### Task 4: Scheduler — Add 5 Futures Jobs
 
 **Files:**
-- Modify: `zer0share/scheduler.py`
+- Modify: `microshare/scheduler.py`
 - Modify: `tests/test_scheduler.py`
 
 - [ ] **Step 1: Add 5 entries to `futures_tables` list**
 
-In `zer0share/scheduler.py`, append to the `futures_tables` list (after `fut_mapping` at offset 50):
+In `microshare/scheduler.py`, append to the `futures_tables` list (after `fut_mapping` at offset 50):
 
 ```python
         futures_tables = [
@@ -934,13 +934,13 @@ Update `tests/test_scheduler.py` to expect 15 total jobs (4 stock + 6 batch1 + 5
 
 - [ ] **Step 3: Run tests**
 
-Run: `cd /data/projects/zer0share && python -m pytest tests/test_scheduler.py -v 2>&1 | tail -20`
+Run: `cd /data/projects/microshare && python -m pytest tests/test_scheduler.py -v 2>&1 | tail -20`
 Expected: All tests PASS
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add zer0share/scheduler.py tests/test_scheduler.py
+git add microshare/scheduler.py tests/test_scheduler.py
 git commit -m "feat: add futures batch 2 to scheduler"
 ```
 
@@ -949,12 +949,12 @@ git commit -m "feat: add futures batch 2 to scheduler"
 ### Task 5: CLI — Add 5 Tables to Sync Command
 
 **Files:**
-- Modify: `zer0share/cli.py`
+- Modify: `microshare/cli.py`
 - Modify: `tests/test_cli.py`
 
 - [ ] **Step 1: Add 5 tables to SYNC_TABLES**
 
-Append to the list in `zer0share/cli.py`:
+Append to the list in `microshare/cli.py`:
 
 ```python
 SYNC_TABLES = [
@@ -1047,17 +1047,17 @@ Read `tests/test_cli.py` and update any table count checks. Add tests for the ne
 
 - [ ] **Step 4: Run full test suite**
 
-Run: `cd /data/projects/zer0share && python -m pytest -v 2>&1 | tail -50`
+Run: `cd /data/projects/microshare && python -m pytest -v 2>&1 | tail -50`
 Expected: ALL tests pass
 
 - [ ] **Step 5: Verify CLI**
 
-Run: `cd /data/projects/zer0share && python main.py sync --help 2>&1`
+Run: `cd /data/projects/microshare && python main.py sync --help 2>&1`
 Expected: `--table` option includes all 23 tables
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add zer0share/cli.py tests/test_cli.py
+git add microshare/cli.py tests/test_cli.py
 git commit -m "feat: add futures batch 2 tables to CLI sync command"
 ```

@@ -13,16 +13,16 @@ from unittest.mock import MagicMock, call, patch
 import pandas as pd
 import pytest
 
-from micro.pipeline import Pipeline
-from micro.sources import DataSources
-from micro.sync.calendar import EXCHANGES, ALL_EXCHANGES
-from micro.storage import (
+from microshare.pipeline import Pipeline
+from microshare.sources import DataSources
+from microshare.sync.calendar import EXCHANGES, ALL_EXCHANGES
+from microshare.storage import (
     DailyPartitionStore,
     SnapshotStore,
     write_trade_cal,
 )
-from micro.fetcher import INDEX_DAILY_CODES, FUTURES_EXCHANGES, OPTIONS_EXCHANGES
-from micro.catalog import INDEX_WEIGHT_SPEC
+from microshare.fetcher import INDEX_DAILY_CODES, FUTURES_EXCHANGES, OPTIONS_EXCHANGES
+from microshare.catalog import INDEX_WEIGHT_SPEC
 
 
 # ---------------------------------------------------------------------------
@@ -247,13 +247,13 @@ def test_run_all_runs_all_26_jobs(pipeline, cfg):
     for table_name in pipeline.registry:
         pipeline._runtime.meta.update_last_date(table_name, today)
     # Also mark the per-index index_weight keys
-    from micro.sync.index import INDEX_CODES, _index_weight_meta_key
+    from microshare.sync.index import INDEX_CODES, _index_weight_meta_key
     for code in INDEX_CODES:
         pipeline._runtime.meta.update_last_date(_index_weight_meta_key(code), today)
 
     # Should complete without exception
-    with patch("micro.sync._jobs.time"), patch("micro.sync.index.time"), \
-         patch("micro.sync.futures.time"), patch("micro.sync.options.time"):
+    with patch("microshare.sync._jobs.time"), patch("microshare.sync.index.time"), \
+         patch("microshare.sync.futures.time"), patch("microshare.sync.options.time"):
         pipeline.run_all()
 
 
@@ -446,7 +446,7 @@ def test_sync_daily_kline_sleeps_between_requests(pipeline, cfg, fetcher):
     pipeline._runtime.meta.update_last_date("trade_cal", "20240103")
     fetcher.fetch_daily_kline.return_value = _kline_df("20240102")
 
-    with patch("micro.sync._jobs.time.sleep") as mock_sleep:
+    with patch("microshare.sync._jobs.time.sleep") as mock_sleep:
         pipeline.run("daily_kline", start_date="20240102", end_date="20240103")
 
     assert mock_sleep.call_count == 2
@@ -568,8 +568,8 @@ def test_sync_index_weight_fetches_monthly_ranges(pipeline, cfg, fetcher):
     fetcher.fetch_index_weight.side_effect = fetch_index_weight
 
     with (
-        patch("micro.sync.index.INDEX_CODES", ["399300.SZ"]),
-        patch("micro.sync.index.time.sleep"),
+        patch("microshare.sync.index.INDEX_CODES", ["399300.SZ"]),
+        patch("microshare.sync.index.time.sleep"),
     ):
         pipeline.run("index_weight", start_date="20240115", end_date="20240210")
 
@@ -591,9 +591,9 @@ def test_sync_index_weight_does_not_use_global_meta_for_new_index_meta(pipeline,
     pipeline._runtime.calendar._today_fn = lambda: "20240131"
 
     with (
-        patch("micro.sync.index.INDEX_CODES", ["399300.SZ"]),
-        patch("micro.sync.index.INDEX_WEIGHT_SPEC", replace(INDEX_WEIGHT_SPEC, first_date="20240101")),
-        patch("micro.sync.index.time.sleep"),
+        patch("microshare.sync.index.INDEX_CODES", ["399300.SZ"]),
+        patch("microshare.sync.index.INDEX_WEIGHT_SPEC", replace(INDEX_WEIGHT_SPEC, first_date="20240101")),
+        patch("microshare.sync.index.time.sleep"),
     ):
         pipeline.run("index_weight")
 
@@ -715,7 +715,7 @@ def test_sync_index_daily_writes_date_partitions(pipeline, cfg, fetcher):
     ]
     pipeline._runtime.calendar._today_fn = lambda: "20240102"
 
-    with patch("micro.sync.index.time.sleep"):
+    with patch("microshare.sync.index.time.sleep"):
         pipeline.run("index_daily")
 
     assert DailyPartitionStore(cfg.data_dir / "index" / "index_daily").exists("20240102")
@@ -731,7 +731,7 @@ def test_sync_index_daily_skips_existing_partitions(pipeline, cfg, fetcher):
         for ts_code in INDEX_DAILY_CODES
     ]
 
-    with patch("micro.sync.index.time.sleep"):
+    with patch("microshare.sync.index.time.sleep"):
         pipeline.run("index_daily")
 
     assert DailyPartitionStore(cfg.data_dir / "index" / "index_daily").exists("20240102")
@@ -748,7 +748,7 @@ def test_sync_index_daily_no_data_sends_notification(pipeline, cfg, fetcher, not
     fetcher.fetch_index_daily.return_value = pd.DataFrame()
     pipeline._runtime.calendar._today_fn = lambda: "20240102"
 
-    with patch("micro.sync.index.time.sleep"):
+    with patch("microshare.sync.index.time.sleep"):
         pipeline.run("index_daily")
 
     notifier.send.assert_called_once_with("index_daily 无数据，跳过")
@@ -761,7 +761,7 @@ def test_sync_index_daily_updates_metastore(pipeline, cfg, fetcher):
     ]
     pipeline._runtime.calendar._today_fn = lambda: "20240102"
 
-    with patch("micro.sync.index.time.sleep"):
+    with patch("microshare.sync.index.time.sleep"):
         pipeline.run("index_daily")
 
     assert pipeline._runtime.meta.get_last_date("index_daily") == "20240102"
@@ -779,7 +779,7 @@ def test_sync_idx_anns_writes_calendar_days_and_empty_partitions(pipeline, cfg, 
         _idx_anns_df("20240107"),
     ]
 
-    with patch("micro.sync._jobs.time.sleep"):
+    with patch("microshare.sync._jobs.time.sleep"):
         pipeline.run("idx_anns", start_date="20240105", end_date="20240107")
 
     assert fetcher.fetch_idx_anns.call_args_list == [
@@ -820,7 +820,7 @@ def test_sync_fut_basic_writes_to_futures_subdir(pipeline, cfg, fetcher):
     fetcher.fetch_fut_basic.side_effect = fut_basic_side_effect
     pipeline._runtime.calendar._today_fn = lambda: "20240102"
 
-    with patch("micro.sync.futures.time.sleep"):
+    with patch("microshare.sync.futures.time.sleep"):
         # TradingCalendar.skip_if_not_trading will be called; inject a trading day
         _setup_trade_cal_sse(pipeline, cfg)
         pipeline.run("fut_basic")
@@ -833,7 +833,7 @@ def test_sync_fut_basic_calls_all_exchanges_and_types(pipeline, cfg, fetcher):
     fetcher.fetch_fut_basic.return_value = pd.DataFrame()
     _setup_trade_cal_sse(pipeline, cfg)
 
-    with patch("micro.sync.futures.time.sleep"):
+    with patch("microshare.sync.futures.time.sleep"):
         pipeline.run("fut_basic")
 
     assert fetcher.fetch_fut_basic.call_count == len(FUTURES_EXCHANGES) * 2
@@ -855,7 +855,7 @@ def test_sync_fut_basic_failure_sends_alert_and_raises(pipeline, cfg, fetcher, n
 def test_sync_fut_basic_runs_on_non_trading_day(pipeline, cfg, fetcher, notifier):
     fetcher.fetch_fut_basic.return_value = pd.DataFrame()
     _setup_non_trading_day(pipeline, cfg)
-    with patch("micro.sync.futures.time.sleep"):
+    with patch("microshare.sync.futures.time.sleep"):
         pipeline.run("fut_basic")
     assert fetcher.fetch_fut_basic.called
 
@@ -881,7 +881,7 @@ def test_sync_fut_daily_writes_to_futures_subdir(pipeline, cfg, fetcher):
     fetcher.fetch_fut_daily.return_value = _fut_daily_df("20240102")
     pipeline._runtime.meta.update_last_date("fut_daily", "20240101")
 
-    with patch("micro.sync._jobs.time.sleep"):
+    with patch("microshare.sync._jobs.time.sleep"):
         pipeline.run("fut_daily")
 
     assert (cfg.data_dir / "futures" / "fut_daily" / "date=20240102" / "data.parquet").exists()
@@ -894,7 +894,7 @@ def test_sync_fut_daily_skips_existing_partitions(pipeline, cfg, fetcher):
 
     DailyPartitionStore(cfg.data_dir / "futures" / "fut_daily").write("20240102", pd.DataFrame({"ts_code": ["CU2401.SHF"], "trade_date": ["20240102"]}))
 
-    with patch("micro.sync._jobs.time.sleep"):
+    with patch("microshare.sync._jobs.time.sleep"):
         pipeline.run("fut_daily")
 
     fetcher.fetch_fut_daily.assert_not_called()
@@ -920,7 +920,7 @@ def test_sync_ft_limit_writes_to_futures_subdir(pipeline, cfg, fetcher):
     })
     pipeline._runtime.meta.update_last_date("ft_limit", "20240101")
 
-    with patch("micro.sync._jobs.time.sleep"):
+    with patch("microshare.sync._jobs.time.sleep"):
         pipeline.run("ft_limit")
 
     assert (cfg.data_dir / "futures" / "ft_limit" / "date=20240102" / "data.parquet").exists()
@@ -941,7 +941,7 @@ def test_sync_fut_weekly_writes_to_futures_subdir(pipeline, cfg, fetcher):
     })
     pipeline._runtime.meta.update_last_date("fut_weekly", "20240101")
 
-    with patch("micro.sync._jobs.time.sleep"):
+    with patch("microshare.sync._jobs.time.sleep"):
         pipeline.run("fut_weekly")
 
     assert (cfg.data_dir / "futures" / "fut_weekly" / "date=20240102" / "data.parquet").exists()
@@ -961,7 +961,7 @@ def test_sync_fut_index_daily_writes_to_futures_subdir(pipeline, cfg, fetcher):
     _setup_futures_trade_cal(pipeline, cfg)
     pipeline._runtime.meta.update_last_date("fut_index_daily", "20240101")
 
-    with patch("micro.sync.futures.time.sleep"):
+    with patch("microshare.sync.futures.time.sleep"):
         pipeline.run("fut_index_daily")
 
     assert (cfg.data_dir / "futures" / "fut_index_daily" / "date=20240102" / "data.parquet").exists()
@@ -991,7 +991,7 @@ def test_sync_fut_index_daily_only_fetches_trading_days(pipeline, cfg, fetcher):
 
     fetcher.fetch_fut_index_daily.return_value = pd.DataFrame()
 
-    with patch("micro.sync.futures.time.sleep"):
+    with patch("microshare.sync.futures.time.sleep"):
         pipeline.run("fut_index_daily")
 
     # Only 20240102 and 20240104 are trading days; 20240103 is closed
@@ -1017,7 +1017,7 @@ def test_sync_fut_weekly_detail_writes_to_futures_subdir(pipeline, cfg, fetcher)
     pipeline._runtime.meta.update_last_date("fut_weekly_detail", "20231231")
     pipeline._runtime.calendar._today_fn = lambda: "20240107"
 
-    with patch("micro.sync.futures.time.sleep"):
+    with patch("microshare.sync.futures.time.sleep"):
         pipeline.run("fut_weekly_detail")
 
     futures_dir = cfg.data_dir / "futures" / "fut_weekly_detail"
@@ -1035,7 +1035,7 @@ def test_sync_fut_weekly_detail_skips_existing_weeks(pipeline, cfg, fetcher):
     pipeline._runtime.meta.update_last_date("fut_weekly_detail", "20231231")
     pipeline._runtime.calendar._today_fn = lambda: "20240107"
 
-    with patch("micro.sync.futures.time.sleep"):
+    with patch("microshare.sync.futures.time.sleep"):
         pipeline.run("fut_weekly_detail")
 
     fetcher.fetch_fut_weekly_detail.assert_not_called()
@@ -1070,7 +1070,7 @@ def test_sync_opt_basic_writes_to_options_subdir(pipeline, cfg, fetcher):
     fetcher.fetch_opt_basic.side_effect = opt_basic_side_effect
     _setup_trade_cal_sse(pipeline, cfg)
 
-    with patch("micro.sync.options.time.sleep"):
+    with patch("microshare.sync.options.time.sleep"):
         pipeline.run("opt_basic")
 
     assert (cfg.data_dir / "options" / "opt_basic" / "data.parquet").exists()
@@ -1081,7 +1081,7 @@ def test_sync_opt_basic_calls_all_exchanges(pipeline, cfg, fetcher):
     fetcher.fetch_opt_basic.return_value = pd.DataFrame()
     _setup_trade_cal_sse(pipeline, cfg)
 
-    with patch("micro.sync.options.time.sleep"):
+    with patch("microshare.sync.options.time.sleep"):
         pipeline.run("opt_basic")
 
     assert fetcher.fetch_opt_basic.call_count == len(OPTIONS_EXCHANGES)
@@ -1102,7 +1102,7 @@ def test_sync_opt_basic_failure_sends_alert_and_raises(pipeline, cfg, fetcher, n
 def test_sync_opt_basic_runs_on_non_trading_day(pipeline, cfg, fetcher, notifier):
     fetcher.fetch_opt_basic.return_value = pd.DataFrame()
     _setup_non_trading_day(pipeline, cfg)
-    with patch("micro.sync.options.time.sleep"):
+    with patch("microshare.sync.options.time.sleep"):
         pipeline.run("opt_basic")
     assert fetcher.fetch_opt_basic.called
 
@@ -1126,7 +1126,7 @@ def test_sync_opt_daily_writes_to_options_subdir(pipeline, cfg, fetcher):
     fetcher.fetch_opt_daily.return_value = _opt_daily_df("20240102")
     pipeline._runtime.meta.update_last_date("opt_daily", "20240101")
 
-    with patch("micro.sync._jobs.time.sleep"):
+    with patch("microshare.sync._jobs.time.sleep"):
         pipeline.run("opt_daily")
 
     assert (cfg.data_dir / "options" / "opt_daily" / "date=20240102" / "data.parquet").exists()
@@ -1139,7 +1139,7 @@ def test_sync_opt_daily_skips_existing_partitions(pipeline, cfg, fetcher):
 
     DailyPartitionStore(cfg.data_dir / "options" / "opt_daily").write("20240102", pd.DataFrame({"ts_code": ["10004462.SH"], "trade_date": ["20240102"]}))
 
-    with patch("micro.sync._jobs.time.sleep"):
+    with patch("microshare.sync._jobs.time.sleep"):
         pipeline.run("opt_daily")
 
     fetcher.fetch_opt_daily.assert_not_called()

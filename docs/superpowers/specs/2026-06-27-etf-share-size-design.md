@@ -2,7 +2,7 @@
 
 ## Goal
 
-Add Tushare `etf_share_size` to `zer0share` so ETF daily share and scale data can be synced by trading day, stored locally, queried through the local Pro API, and included in ETF batch syncs.
+Add Tushare `etf_share_size` to `microshare` so ETF daily share and scale data can be synced by trading day, stored locally, queried through the local Pro API, and included in ETF batch syncs.
 
 ## Scope
 
@@ -94,7 +94,7 @@ The sync job fetches only `SSE` and `SZSE` because those are the documented inpu
 
 ## Sync Flow
 
-Extend `zer0share/sync/etf.py` with a `DailySyncJob`.
+Extend `microshare/sync/etf.py` with a `DailySyncJob`.
 
 The job:
 
@@ -118,7 +118,7 @@ Scheduler behavior remains config-driven. The implementation may document an exa
 
 ## Local Query API
 
-Add `zer0share.query.etf.etf_share_size`.
+Add `microshare.query.etf.etf_share_size`.
 
 Parameters:
 
@@ -169,7 +169,7 @@ Add `etf_share_size` to:
 - the local API table list
 - the storage tree under `etf/`
 - the CLI summary table
-- `skills/zer0share-data/references/api.md`, so the local data skill can discover and query the new table
+- `skills/microshare-data/references/api.md`, so the local data skill can discover and query the new table
 
 Add `examples/etf/etf_share_size_query_smoke.py`.
 

@@ -15,7 +15,7 @@
 ### Task 1: fetcher — fetch_index_daily
 
 **Files:**
-- Modify: `zer0share/fetcher.py`
+- Modify: `microshare/fetcher.py`
 - Test: `tests/test_fetcher.py`
 
 - [ ] **Step 1: Write failing tests**
@@ -99,7 +99,7 @@ def test_fetch_index_daily_returns_empty_when_empty_df(mock_pro):
 - [ ] **Step 2: Run to confirm failure**
 
 ```bash
-cd /data/zer0share
+cd /data/microshare
 uv run pytest tests/test_fetcher.py::test_fetch_index_daily_returns_correct_columns -v
 ```
 
@@ -168,7 +168,7 @@ Expected: all tests `PASSED`
 - [ ] **Step 6: Commit**
 
 ```bash
-git add zer0share/fetcher.py tests/test_fetcher.py
+git add microshare/fetcher.py tests/test_fetcher.py
 git commit -m "feat: add INDEX_DAILY_CODES, INDEX_DAILY_COLS and fetch_index_daily to fetcher"
 ```
 
@@ -177,7 +177,7 @@ git commit -m "feat: add INDEX_DAILY_CODES, INDEX_DAILY_COLS and fetch_index_dai
 ### Task 2: pipeline — sync_index_daily
 
 **Files:**
-- Modify: `zer0share/pipeline.py`
+- Modify: `microshare/pipeline.py`
 - Test: `tests/test_pipeline.py`
 
 - [ ] **Step 1: Write failing tests**
@@ -185,8 +185,8 @@ git commit -m "feat: add INDEX_DAILY_CODES, INDEX_DAILY_COLS and fetch_index_dai
 Add imports at the top of `tests/test_pipeline.py`:
 
 ```python
-from zer0share.fetcher import INDEX_DAILY_CODES
-from zer0share.storage import daily_partition_exists
+from microshare.fetcher import INDEX_DAILY_CODES
+from microshare.storage import daily_partition_exists
 ```
 
 Add test helpers and tests:
@@ -211,7 +211,7 @@ def _index_daily_df(ts_code: str = "000300.SH", trade_date: date = date(2024, 1,
 def test_sync_index_daily_fetches_all_codes(pipeline, cfg):
     pipeline._fetcher.fetch_index_daily.return_value = pd.DataFrame()
 
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("microshare.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_index_daily()
@@ -231,8 +231,8 @@ def test_sync_index_daily_writes_date_partitions(pipeline, cfg):
         for ts_code in INDEX_DAILY_CODES
     ]
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("microshare.pipeline.date") as mock_date, \
+         patch("microshare.pipeline.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_index_daily()
@@ -241,7 +241,7 @@ def test_sync_index_daily_writes_date_partitions(pipeline, cfg):
 
 
 def test_sync_index_daily_skips_existing_partitions(pipeline, cfg):
-    from zer0share.storage import write_daily_partition
+    from microshare.storage import write_daily_partition
     existing = _index_daily_df(ts_code="000300.SH", trade_date=date(2024, 1, 2))
     write_daily_partition(cfg.data_dir, "index_daily", date(2024, 1, 2), existing)
 
@@ -250,8 +250,8 @@ def test_sync_index_daily_skips_existing_partitions(pipeline, cfg):
         for ts_code in INDEX_DAILY_CODES
     ]
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("microshare.pipeline.date") as mock_date, \
+         patch("microshare.pipeline.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_index_daily()
@@ -263,7 +263,7 @@ def test_sync_index_daily_skips_existing_partitions(pipeline, cfg):
 def test_sync_index_daily_up_to_date_skips_fetch(pipeline, cfg):
     pipeline._meta.update_last_date("index_daily", date(2024, 1, 2))
 
-    with patch("zer0share.pipeline.date") as mock_date:
+    with patch("microshare.pipeline.date") as mock_date:
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_index_daily()
@@ -277,8 +277,8 @@ def test_sync_index_daily_updates_metastore(pipeline, cfg):
         for ts_code in INDEX_DAILY_CODES
     ]
 
-    with patch("zer0share.pipeline.date") as mock_date, \
-         patch("zer0share.pipeline.time.sleep"):
+    with patch("microshare.pipeline.date") as mock_date, \
+         patch("microshare.pipeline.time.sleep"):
         mock_date.today.return_value = date(2024, 1, 2)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         pipeline.sync_index_daily()
@@ -299,7 +299,7 @@ Expected: `FAILED` — `AttributeError: 'Pipeline' object has no attribute 'sync
 Add `INDEX_DAILY_CODES` to the import from `fetcher`:
 
 ```python
-from zer0share.fetcher import TushareFetcher, INDEX_DAILY_CODES
+from microshare.fetcher import TushareFetcher, INDEX_DAILY_CODES
 ```
 
 Add `write_daily_partition` and `daily_partition_exists` to the import from `storage` (they are already imported — verify; if not, add them).
@@ -391,7 +391,7 @@ Expected: all tests `PASSED`
 - [ ] **Step 6: Commit**
 
 ```bash
-git add zer0share/pipeline.py tests/test_pipeline.py
+git add microshare/pipeline.py tests/test_pipeline.py
 git commit -m "feat: add sync_index_daily to pipeline"
 ```
 
@@ -400,7 +400,7 @@ git commit -m "feat: add sync_index_daily to pipeline"
 ### Task 3: api — index_daily query method
 
 **Files:**
-- Modify: `zer0share/api.py`
+- Modify: `microshare/api.py`
 - Test: `tests/test_api.py`
 
 - [ ] **Step 1: Write failing tests**
@@ -408,7 +408,7 @@ git commit -m "feat: add sync_index_daily to pipeline"
 Add import at the top of `tests/test_api.py`:
 
 ```python
-from zer0share.storage import write_daily_partition
+from microshare.storage import write_daily_partition
 ```
 
 Add tests:
@@ -513,7 +513,7 @@ Expected: `FAILED` — `AttributeError: 'LocalPro' object has no attribute 'inde
 Add `INDEX_DAILY_COLS` to the import from `fetcher` at the top of `api.py`:
 
 ```python
-from zer0share.fetcher import (
+from microshare.fetcher import (
     ADJ_FACTOR_COLS,
     BASIC_COLS,
     CI_MEMBER_COLS,
@@ -578,7 +578,7 @@ Expected: all tests `PASSED`
 - [ ] **Step 6: Commit**
 
 ```bash
-git add zer0share/api.py tests/test_api.py
+git add microshare/api.py tests/test_api.py
 git commit -m "feat: add index_daily query method to LocalPro API"
 ```
 
@@ -587,7 +587,7 @@ git commit -m "feat: add index_daily query method to LocalPro API"
 ### Task 4: CLI — wire up sync command
 
 **Files:**
-- Modify: `zer0share/cli.py`
+- Modify: `microshare/cli.py`
 - Test: `tests/test_cli.py`
 
 - [ ] **Step 1: Write failing tests**
@@ -601,7 +601,7 @@ def test_sync_index_daily_accepts_date_range():
     pipeline.__enter__.return_value = pipeline
     pipeline.__exit__.return_value = False
 
-    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(
             cli,
             [
@@ -628,7 +628,7 @@ def test_sync_all_includes_index_daily():
     pipeline.__enter__.return_value = pipeline
     pipeline.__exit__.return_value = False
 
-    with patch("zer0share.cli._make_pipeline", return_value=pipeline):
+    with patch("microshare.cli._make_pipeline", return_value=pipeline):
         result = runner.invoke(cli, ["sync", "--all"])
 
     assert result.exit_code == 0
@@ -708,7 +708,7 @@ Expected: all tests `PASSED`
 - [ ] **Step 6: Commit**
 
 ```bash
-git add zer0share/cli.py tests/test_cli.py
+git add microshare/cli.py tests/test_cli.py
 git commit -m "feat: add index_daily to CLI sync command"
 ```
 
@@ -717,11 +717,11 @@ git commit -m "feat: add index_daily to CLI sync command"
 ### Task 5: Scheduler — add index_daily job
 
 **Files:**
-- Modify: `zer0share/scheduler.py`
+- Modify: `microshare/scheduler.py`
 
 - [ ] **Step 1: Add index_daily job to scheduler**
 
-In `zer0share/scheduler.py`, after the `daily_kline` job and before the `basic` job, add:
+In `microshare/scheduler.py`, after the `daily_kline` job and before the `basic` job, add:
 
 ```python
         scheduler.add_job(
@@ -757,7 +757,7 @@ Expected: all tests `PASSED`
 - [ ] **Step 3: Commit**
 
 ```bash
-git add zer0share/scheduler.py
+git add microshare/scheduler.py
 git commit -m "feat: add index_daily to daily scheduler"
 ```
 

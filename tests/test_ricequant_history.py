@@ -8,7 +8,7 @@ import pyarrow.parquet as pq
 import pytest
 from loguru import logger
 
-from micro.ricequant_history import (
+from microshare.ricequant_history import (
     RiceQuantHistoryManifest,
     RiceQuantHistoryRunner,
     month_chunks,

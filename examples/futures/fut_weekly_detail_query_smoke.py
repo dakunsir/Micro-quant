@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from micro import pro_api
+from microshare import pro_api
 
 
 FIELDS = "week_date,week,exchange,prd,name,vol,vol_yoy,amount,amout_yoy,cumvol,cumvol_yoy,cumamt,cumamt_yoy,open_interest,interest_wow,mc_close,close_wow"

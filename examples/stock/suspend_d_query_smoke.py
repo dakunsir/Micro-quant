@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from micro import pro_api
+from microshare import pro_api
 
 
 FIELDS = "ts_code,trade_date,suspend_timing,suspend_type"
@@ -45,7 +45,12 @@ def run_smoke(ts_code: str, trade_date: str, start_date: str, end_date: str,
     )
     _print_frame(
         "filter_by_ts_code",
-        pro.suspend_d(ts_code=ts_code_sample, limit=limit, fields=FIELDS),
+        pro.suspend_d(
+            ts_code=ts_code_sample,
+            trade_date=trade_date,
+            limit=limit,
+            fields=FIELDS,
+        ),
     )
     _print_frame(
         "filter_by_ts_code_and_trade_date",
@@ -61,11 +66,11 @@ def run_smoke(ts_code: str, trade_date: str, start_date: str, end_date: str,
     )
     _print_frame(
         "limit_only",
-        pro.suspend_d(limit=limit, fields=FIELDS),
+        pro.suspend_d(trade_date=trade_date, limit=limit, fields=FIELDS),
     )
     _print_frame(
         "offset_and_limit",
-        pro.suspend_d(offset=offset, limit=limit, fields=FIELDS),
+        pro.suspend_d(trade_date=trade_date, offset=offset, limit=limit, fields=FIELDS),
     )
     _print_frame(
         "no_fields_filter",

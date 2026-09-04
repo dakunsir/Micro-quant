@@ -2,7 +2,7 @@
 
 ## Goal
 
-Add the first ETF topic table to zer0share: Tushare `etf_basic`.
+Add the first ETF topic table to microshare: Tushare `etf_basic`.
 
 The first slice should establish the ETF data domain in the existing public
 Tushare-style data pipeline.
@@ -100,7 +100,7 @@ User-facing sync entry points:
 
 ## Query Flow
 
-Add a new `zer0share.query.etf` module with:
+Add a new `microshare.query.etf` module with:
 
 ```python
 def etf_basic(ctx, ts_code=None, index_code=None, list_date=None,
@@ -126,17 +126,17 @@ Expose the query through:
 
 ## Code Changes
 
-- Add `ETF_BASIC_COLS` to `zer0share/schema.py`.
-- Add `ETF_BASIC_SPEC` to `zer0share/catalog.py`.
-- Add `fetch_etf_basic(...)` to `zer0share/sources/tushare.py`.
-- Add `zer0share/sync/etf.py` with an `EtfBasicSyncJob`.
-- Register ETF sync jobs in `zer0share/pipeline.py`.
+- Add `ETF_BASIC_COLS` to `microshare/schema.py`.
+- Add `ETF_BASIC_SPEC` to `microshare/catalog.py`.
+- Add `fetch_etf_basic(...)` to `microshare/sources/tushare.py`.
+- Add `microshare/sync/etf.py` with an `EtfBasicSyncJob`.
+- Register ETF sync jobs in `microshare/pipeline.py`.
 - Add `ETF_TABLES = ["etf_basic"]`, `--etf`, and `etf_basic` to CLI table
   choices/status output.
-- Add `zer0share/query/etf.py`.
+- Add `microshare/query/etf.py`.
 - Add `LocalPro.etf_basic(...)` and query dispatch support in
-  `zer0share/api.py`.
-- Update README and `skills/zer0share-data/references/api.md`.
+  `microshare/api.py`.
+- Update README and `skills/microshare-data/references/api.md`.
 
 ## Testing
 

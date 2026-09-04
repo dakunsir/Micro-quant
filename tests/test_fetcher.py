@@ -5,7 +5,8 @@ import time
 from datetime import date
 from unittest.mock import call, patch
 
-from micro.fetcher import TushareFetcher
+from microshare.fetcher import TushareFetcher
+from microshare.schema import DAILY_BASIC_COLS
 
 
 BASIC_COLS = [
@@ -156,6 +157,28 @@ def mock_pro():
         yield mock.return_value
 
 
+def test_fetcher_honors_environment_token_and_http_url(monkeypatch):
+    monkeypatch.setenv("TUSHARE_TOKEN", "env_token")
+    monkeypatch.setenv("TUSHARE_HTTP_URL", "https://example.test/")
+
+    with patch("tushare.pro_api") as mock_api:
+        fetcher = TushareFetcher("fallback_token")
+
+    mock_api.assert_called_once_with("env_token")
+    assert fetcher._pro._DataApi__http_url == "https://example.test/"
+
+
+def test_fetcher_uses_default_http_url(monkeypatch):
+    monkeypatch.delenv("TUSHARE_TOKEN", raising=False)
+    monkeypatch.delenv("TUSHARE_HTTP_URL", raising=False)
+
+    with patch("tushare.pro_api") as mock_api:
+        fetcher = TushareFetcher("fallback_token")
+
+    mock_api.assert_called_once_with("fallback_token")
+    assert fetcher._pro._DataApi__http_url == TushareFetcher.DEFAULT_HTTP_URL
+
+
 def test_fetch_basic_returns_all_documented_columns(mock_pro):
     mock_pro.stock_basic.return_value = pd.DataFrame([_basic_row()])
     fetcher = TushareFetcher("fake_token")
@@ -179,6 +202,25 @@ def test_fetch_basic_requests_all_statuses_and_fields(mock_pro):
     )
 
 
+def test_fetch_basic_retries_individual_statuses_when_combined_is_empty(mock_pro):
+    mock_pro.stock_basic.side_effect = [
+        pd.DataFrame(),
+        pd.DataFrame([_basic_row(list_status="L")]),
+        pd.DataFrame(),
+        pd.DataFrame(),
+        pd.DataFrame(),
+    ]
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_basic()
+
+    assert len(df) == 1
+    assert df.iloc[0]["list_status"] == "L"
+    assert [call_args.kwargs["list_status"] for call_args in mock_pro.stock_basic.call_args_list] == [
+        "L,D,P,G", "L", "D", "P", "G"
+    ]
+
+
 def test_fetch_basic_preserves_date_strings(mock_pro):
     mock_pro.stock_basic.return_value = pd.DataFrame(
         [_basic_row(list_status="D", delist_date="20240131")]
@@ -191,6 +233,22 @@ def test_fetch_basic_preserves_date_strings(mock_pro):
     assert df.iloc[0]["delist_date"] == "20240131"
     assert df.iloc[0]["fullname"] == "平安银行股份有限公司"
     assert df.iloc[0]["act_ent_type"] == "地方国企"
+
+
+def test_fetch_daily_basic_fills_columns_missing_from_compatible_api(mock_pro):
+    mock_pro.daily_basic.return_value = pd.DataFrame(
+        {
+            "ts_code": ["000001.SZ"],
+            "trade_date": ["20240102"],
+            "close": [10.5],
+        }
+    )
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_daily_basic("20240102")
+
+    assert list(df.columns) == DAILY_BASIC_COLS
+    assert pd.isna(df.iloc[0]["limit_status"])
 
 
 def test_fetch_daily_kline_returns_correct_data(mock_pro):
@@ -476,7 +534,7 @@ def test_fetch_sw_member_iterates_l1_codes(mock_pro):
     mock_pro.index_member_all.side_effect = member_dfs
     fetcher = TushareFetcher("fake_token")
 
-    with patch("micro.fetcher.time.sleep"):
+    with patch("microshare.fetcher.time.sleep"):
         df = fetcher.fetch_sw_member()
 
     assert list(df.columns) == SW_MEMBER_COLS
@@ -527,7 +585,7 @@ def test_fetch_sw_member_preserves_date_strings(mock_pro):
     ]
     fetcher = TushareFetcher("fake_token")
 
-    with patch("micro.fetcher.time.sleep"):
+    with patch("microshare.fetcher.time.sleep"):
         df = fetcher.fetch_sw_member()
 
     # Two versions with different l3_codes don't deduplicate
@@ -577,7 +635,7 @@ def test_fetch_ci_member_iterates_l1_codes(mock_pro):
     mock_pro.ci_index_member.side_effect = [initial_df] + member_dfs
     fetcher = TushareFetcher("fake_token")
 
-    with patch("micro.fetcher.time.sleep"):
+    with patch("microshare.fetcher.time.sleep"):
         df = fetcher.fetch_ci_member()
 
     assert list(df.columns) == CI_MEMBER_COLS
@@ -613,7 +671,7 @@ def test_fetch_ci_member_preserves_date_strings(mock_pro):
     ]
     fetcher = TushareFetcher("fake_token")
 
-    with patch("micro.fetcher.time.sleep"):
+    with patch("microshare.fetcher.time.sleep"):
         df = fetcher.fetch_ci_member()
 
     assert len(df) == 1
@@ -1042,6 +1100,21 @@ def test_fetch_etf_sh_cons_stops_when_tushare_rejects_next_page(mock_pro):
     ]
 
 
+def test_fetch_etf_sh_cons_stops_on_offset_limit_error(mock_pro):
+    first_page = pd.DataFrame(
+        [_etf_sh_cons_row(con_code=f"{i:06d}.SH", con_name=f"成分{i}") for i in range(3000)]
+    )
+    mock_pro.etf_sh_cons.side_effect = [
+        first_page,
+        Exception("查询数据失败, offset"),
+    ]
+    fetcher = TushareFetcher("fake_token")
+
+    df = fetcher.fetch_etf_sh_cons("20260615")
+
+    assert len(df) == 3000
+
+
 def test_fetch_etf_sh_cons_retries_page_timeout(mock_pro):
     first_page = pd.DataFrame([
         _etf_sh_cons_row(con_code="000001.SZ", con_name="平安银行")
@@ -1084,7 +1157,7 @@ def test_fetch_etf_sh_cons_returns_empty_when_none(mock_pro):
 
 # --- Futures tests ---
 
-from micro.fetcher import (
+from microshare.fetcher import (
     FUT_BASIC_COLS, FUT_DAILY_COLS, FUT_HOLDING_COLS,
     FUT_WSR_COLS, FUT_SETTLE_COLS, FUT_MAPPING_COLS,
     FUTURES_EXCHANGES,
@@ -1310,7 +1383,7 @@ def test_fetch_fut_mapping_returns_correct_columns(mock_pro):
 
 # --- Futures batch 2 tests ---
 
-from micro.fetcher import (
+from microshare.fetcher import (
     FT_LIMIT_COLS, FUT_WEEKLY_COLS, FUT_MONTHLY_COLS,
     FUT_INDEX_DAILY_COLS, FUT_WEEKLY_DETAIL_COLS,
 )
@@ -1503,7 +1576,7 @@ def test_fetch_fut_weekly_detail_returns_empty_when_none(mock_pro):
 
 # --- Options fetcher tests ---
 
-from micro.fetcher import (
+from microshare.fetcher import (
     OPTIONS_EXCHANGES, OPT_BASIC_COLS, OPT_DAILY_COLS,
 )
 
@@ -1614,7 +1687,7 @@ def test_fetch_opt_daily_returns_correct_columns(mock_pro):
     ]
     fetcher = TushareFetcher("fake_token")
 
-    with patch("micro.fetcher.time.sleep"):
+    with patch("microshare.fetcher.time.sleep"):
         df = fetcher.fetch_opt_daily(date(2024, 1, 2))
 
     assert list(df.columns) == OPT_DAILY_COLS
@@ -1636,7 +1709,7 @@ def test_fetch_opt_daily_calls_api_with_date(mock_pro):
     mock_pro.opt_daily.return_value = pd.DataFrame([_opt_daily_row()])
     fetcher = TushareFetcher("fake_token")
 
-    with patch("micro.fetcher.time.sleep"):
+    with patch("microshare.fetcher.time.sleep"):
         fetcher.fetch_opt_daily("20240102")
 
     assert mock_pro.opt_daily.call_count == 6

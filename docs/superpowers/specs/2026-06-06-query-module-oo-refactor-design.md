@@ -2,13 +2,13 @@
 
 ## Goal
 
-Refactor `zer0share.query` from repeated function-local SQL construction into a small object-oriented query layer while preserving the public Tushare-like API exposed by `LocalPro`.
+Refactor `microshare.query` from repeated function-local SQL construction into a small object-oriented query layer while preserving the public Tushare-like API exposed by `LocalPro`.
 
 The refactor should make new local query APIs easier to add, reduce duplicated DuckDB SQL assembly, and centralize field/date/filter validation. It may break internal helper compatibility, especially `query_daily_partitioned()`, but should preserve the user-facing `LocalPro` API names, default parameters, result ordering, and tested error behavior.
 
 ## Current Context
 
-The query module currently has one function-level abstraction: `query_daily_partitioned()` in `zer0share/query/_helpers.py`. Daily partitioned tables use it across equities, futures, and options, but its signature now exposes too many repository-level details.
+The query module currently has one function-level abstraction: `query_daily_partitioned()` in `microshare/query/_helpers.py`. Daily partitioned tables use it across equities, futures, and options, but its signature now exposes too many repository-level details.
 
 The remaining query functions still duplicate the same pattern:
 
@@ -21,7 +21,7 @@ The remaining query functions still duplicate the same pattern:
 
 The duplication is visible in static tables such as `stock_basic`, `opt_basic`, industry member queries, `trade_cal`, `fut_basic`, `index_weight`, and `universe`.
 
-There is also a current worktree syntax issue in `zer0share/query/_helpers.py` where the Parquet pattern line contains a stray `I`. Removing `query_daily_partitioned()` fixes that issue by deleting the broken code path.
+There is also a current worktree syntax issue in `microshare/query/_helpers.py` where the Parquet pattern line contains a stray `I`. Removing `query_daily_partitioned()` fixes that issue by deleting the broken code path.
 
 ## Design Principles
 
@@ -48,7 +48,7 @@ Fields:
 
 - `name`: logical table name for debugging and error messages.
 - `path_parts`: path components relative to `ctx.data_dir`, such as `("futures", "fut_daily")`.
-- `columns`: allowed query columns, usually from `zer0share.schema`.
+- `columns`: allowed query columns, usually from `microshare.schema`.
 - `parquet_pattern`: file pattern below the table directory, such as `data.parquet` or `date=*/data.parquet`.
 - `sync_table`: sync command name to show when data is missing.
 - `order_by`: default stable result ordering.
