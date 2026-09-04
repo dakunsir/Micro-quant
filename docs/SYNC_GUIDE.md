@@ -136,7 +136,19 @@ daily_basic       = "17:05"
 # ... 完整示例见 config/settings.example.toml
 ```
 
-同步失败可通过企业微信告警，在 `[notifier]` 里配置 webhook。
+同步失败和质检结果可通过飞书应用消息告警。配置接收者并启用通知：
+
+```toml
+[notifier]
+enabled = true
+
+[notifier.feishu]
+enabled = true
+receive_id_type = "user_id"
+receive_id = "YOUR_FEISHU_USER_ID"
+```
+
+运行环境还必须提供 `FEISHU_APP_ID` 和 `FEISHU_APP_SECRET`。应用消息使用 skill 中的官方 `lark-oapi` 接口。
 
 ### systemd 服务（推荐，服务器常驻）
 

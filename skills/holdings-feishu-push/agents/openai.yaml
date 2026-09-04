@@ -1,0 +1,4 @@
+interface:
+  display_name: "Holdings Feishu Push"
+  short_description: "Publish holdings recommendations to a Feishu document and message"
+  default_prompt: "Use $holdings-feishu-push to create or verify the holdings recommendation document and send its concise summary to the explicitly confirmed Feishu recipient."

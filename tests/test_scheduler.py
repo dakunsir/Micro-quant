@@ -17,7 +17,6 @@ daily_kline = "16:30"
 adj_factor  = "16:35"
 
 [notifier]
-wecom_webhook_url = "https://example.com"
 enabled = false
 """
 

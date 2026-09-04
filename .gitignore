@@ -21,6 +21,7 @@ __pycache__/
 
 # Test cache
 .pytest_cache/
+.pytest-tmp/
 .pytest_tmp/
 .pytest_tmp_run_*/
 

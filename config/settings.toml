@@ -43,15 +43,12 @@ ricequant_etf_basic = "02:10"
 ricequant_etf_minute = "16:35"
 
 [notifier]
-enabled = false  # 至少启用一个通道后改为 true
-
-[notifier.wecom]
-enabled = false
-webhook_url = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY"
+enabled = true
 
 [notifier.feishu]
-enabled = false
-webhook_url = "https://open.feishu.cn/open-apis/bot/v2/hook/YOUR_KEY"
+enabled = true
+receive_id_type = "user_id"
+receive_id = "fd6a7g21"
 
 [ricequant]
 enabled = false

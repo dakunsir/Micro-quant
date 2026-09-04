@@ -33,7 +33,7 @@ A 股、ETF、期货、期权数据本地化管道：基于 [Tushare Pro](https:
 - **复权行情**：本地 `pro_bar()` 支持不复权、前复权（qfq）和后复权（hfq）
 - **股票池构建**：研究基础池、交易基础池、沪深300/中证500/中证1000等交易池
 - **数据质检**：本地表级质量检查，生成详细报告
-- **自动化运维**：APScheduler 定时同步，支持企业微信失败告警
+- **自动化运维**：APScheduler 定时同步，支持飞书应用消息告警
 
 ## 安装
 
@@ -67,9 +67,15 @@ log_path = "logs/pipeline.log"
 # 每个表单独配置触发时间（HH:MM），完整示例见 config/settings.example.toml
 
 [notifier]
-wecom_webhook_url = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY"
-enabled = false            # 填写真实 webhook_url 后改为 true
+enabled = false            # 配置飞书应用凭据和接收者后改为 true
+
+[notifier.feishu]
+enabled = false
+receive_id_type = "user_id"
+receive_id = "YOUR_FEISHU_USER_ID"
 ```
+
+飞书应用消息需要在运行环境设置 `FEISHU_APP_ID` 和 `FEISHU_APP_SECRET`，不会写入仓库。
 
 ## 快速开始
 
@@ -145,7 +151,7 @@ Micro-quant/
 │   ├── quality/      # 数据质检
 │   ├── universe.py   # 股票池构建
 │   ├── scheduler.py  # APScheduler 定时任务
-│   ├── notifier.py   # 企业微信告警
+│   ├── notifier.py   # 飞书应用消息告警
 │   └── storage.py    # Parquet 读写 + DuckDB MetaStore
 ├── config/           # settings.example.toml
 ├── docs/             # 文档

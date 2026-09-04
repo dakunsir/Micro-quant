@@ -20,8 +20,12 @@ basic       = "09:10"
 daily_kline = "16:30"
 
 [notifier]
-wecom_webhook_url = "https://example.com/webhook"
 enabled = false
+
+[notifier.feishu]
+enabled = false
+receive_id_type = "user_id"
+receive_id = ""
 """
 
 
@@ -38,26 +42,28 @@ def test_load_config_returns_schedule_dict(tmp_path):
         "basic": "09:10",
         "daily_kline": "16:30",
     }
-    assert cfg.wecom_webhook_url == "https://example.com/webhook"
-    assert cfg.notifier_enabled is False
     assert cfg.notifier.enabled is False
-    assert cfg.notifier.wecom.webhook_url == "https://example.com/webhook"
-    assert cfg.notifier.wecom.enabled is False
-    assert cfg.notifier.feishu.webhook_url == ""
+    assert cfg.notifier.feishu.receive_id_type == "user_id"
+    assert cfg.notifier.feishu.receive_id == ""
     assert cfg.notifier.feishu.enabled is False
 
 
 def test_load_config_notifier_enabled_true(tmp_path):
     cfg_file = tmp_path / "settings.toml"
     cfg_file.write_text(
-        VALID_TOML.replace("enabled = false", "enabled = true"),
+        VALID_TOML.replace(
+            "[notifier]\nenabled = false",
+            "[notifier]\nenabled = true",
+        ).replace('receive_id = ""', 'receive_id = "fd6a7g21"')
+        .replace('[notifier.feishu]\nenabled = false', '[notifier.feishu]\nenabled = true'),
         encoding="utf-8",
     )
     cfg = load_config(cfg_file)
-    assert cfg.notifier_enabled is True
+    assert cfg.notifier.enabled is True
+    assert cfg.notifier.feishu.enabled is True
 
 
-def test_load_config_accepts_nested_wecom_notifier(tmp_path):
+def test_load_config_rejects_legacy_wecom_notifier(tmp_path):
     cfg_file = tmp_path / "settings.toml"
     cfg_file.write_text(
         """
@@ -82,13 +88,11 @@ webhook_url = "https://example.com/wecom"
         encoding="utf-8",
     )
 
-    cfg = load_config(cfg_file)
-
-    assert cfg.wecom_webhook_url == "https://example.com/wecom"
-    assert cfg.notifier_enabled is True
+    with pytest.raises(ValueError, match="已移除或不支持"):
+        load_config(cfg_file)
 
 
-def test_load_config_disables_wecom_when_nested_wecom_disabled(tmp_path):
+def test_load_config_rejects_legacy_wecom_when_disabled(tmp_path):
     cfg_file = tmp_path / "settings.toml"
     cfg_file.write_text(
         """
@@ -113,10 +117,8 @@ webhook_url = "https://example.com/wecom"
         encoding="utf-8",
     )
 
-    cfg = load_config(cfg_file)
-
-    assert cfg.wecom_webhook_url == "https://example.com/wecom"
-    assert cfg.notifier_enabled is False
+    with pytest.raises(ValueError, match="已移除或不支持"):
+        load_config(cfg_file)
 
 
 def test_load_config_defaults_quality_disabled(tmp_path):
@@ -135,7 +137,6 @@ log_path = "logs/pipeline.log"
 daily_kline = "18:00"
 
 [notifier]
-wecom_webhook_url = ""
 enabled = false
 """,
         encoding="utf-8",
@@ -166,7 +167,6 @@ def test_load_config_missing_key(tmp_path):
         "[scheduler]\n"
         "trade_cal = '09:00'\n"
         "[notifier]\n"
-        "wecom_webhook_url='https://x.com'\n"
         "enabled=false\n",
         encoding="utf-8",
     )
@@ -186,7 +186,6 @@ def test_load_config_invalid_schedule_format(tmp_path):
         "[scheduler]\n"
         "trade_cal = 'not_a_time'\n"
         "[notifier]\n"
-        "wecom_webhook_url='https://x.com'\n"
         "enabled=false\n",
         encoding="utf-8",
     )
@@ -206,7 +205,6 @@ def test_load_config_out_of_range_schedule_time(tmp_path):
         "[scheduler]\n"
         "trade_cal = '25:00'\n"
         "[notifier]\n"
-        "wecom_webhook_url='https://x.com'\n"
         "enabled=false\n",
         encoding="utf-8",
     )
@@ -348,33 +346,46 @@ adjust_type = "pre"
         load_config(cfg_file)
 
 
-def test_load_config_parses_wecom_and_feishu_notifier_sections(tmp_path):
+def test_load_config_parses_feishu_notifier_section(tmp_path):
     cfg_file = tmp_path / "settings.toml"
     cfg_file.write_text(
-        VALID_TOML
-        + """
-
-[notifier.wecom]
-enabled = true
-webhook_url = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=example"
-
-[notifier.feishu]
-enabled = true
-webhook_url = "https://open.feishu.cn/open-apis/bot/v2/hook/example"
-""",
+        VALID_TOML.replace('[notifier.feishu]\nenabled = false\nreceive_id_type = "user_id"\nreceive_id = ""',
+                          '[notifier.feishu]\nenabled = true\nreceive_id_type = "user_id"\nreceive_id = "fd6a7g21"'),
         encoding="utf-8",
     )
     cfg = load_config(cfg_file)
     assert cfg.notifier.enabled is False
-    assert cfg.notifier.wecom.enabled is True
-    assert cfg.notifier.wecom.webhook_url == "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=example"
     assert cfg.notifier.feishu.enabled is True
-    assert cfg.notifier.feishu.webhook_url == "https://open.feishu.cn/open-apis/bot/v2/hook/example"
+    assert cfg.notifier.feishu.receive_id_type == "user_id"
+    assert cfg.notifier.feishu.receive_id == "fd6a7g21"
 
 
-def test_load_config_keeps_legacy_wecom_webhook_url_compatibility(tmp_path):
+@pytest.mark.parametrize("receive_id_type", ["bad", "", "USER_ID"])
+def test_load_config_rejects_invalid_feishu_receive_id_type(tmp_path, receive_id_type):
     cfg_file = tmp_path / "settings.toml"
-    cfg_file.write_text(VALID_TOML, encoding="utf-8")
-    cfg = load_config(cfg_file)
-    assert cfg.wecom_webhook_url == "https://example.com/webhook"
-    assert cfg.notifier.wecom.webhook_url == "https://example.com/webhook"
+    cfg_file.write_text(
+        VALID_TOML.replace('[notifier.feishu]\nenabled = false\nreceive_id_type = "user_id"\nreceive_id = ""',
+                          f'[notifier.feishu]\nenabled = true\nreceive_id_type = "{receive_id_type}"\nreceive_id = "fd6a7g21"'),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="receive_id_type"):
+        load_config(cfg_file)
+
+
+def test_load_config_requires_feishu_recipient_when_enabled(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        VALID_TOML.replace('[notifier.feishu]\nenabled = false', '[notifier.feishu]\nenabled = true'),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="receive_id"):
+        load_config(cfg_file)
+
+
+def test_load_config_requires_feishu_section_when_global_notifications_enabled(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(VALID_TOML.replace('[notifier]\nenabled = false', '[notifier]\nenabled = true')
+                        .replace('[notifier.feishu]\nenabled = false', ''), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="receive_id"):
+        load_config(cfg_file)
