@@ -1676,6 +1676,20 @@ def test_fetch_opt_basic_calls_api_correctly(mock_pro):
     )
 
 
+def test_fetch_opt_basic_retries_transient_response_error(mock_pro):
+    mock_pro.opt_basic.side_effect = [
+        requests.exceptions.ChunkedEncodingError("Response ended prematurely"),
+        pd.DataFrame([_opt_basic_row()]),
+    ]
+    fetcher = TushareFetcher("fake_token")
+
+    with patch("microshare.fetcher.time.sleep"):
+        df = fetcher.fetch_opt_basic("SSE")
+
+    assert len(df) == 1
+    assert mock_pro.opt_basic.call_count == 2
+
+
 def test_fetch_opt_daily_returns_correct_columns(mock_pro):
     mock_pro.opt_daily.side_effect = [
         pd.DataFrame([_opt_daily_row()]),

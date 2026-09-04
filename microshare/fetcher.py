@@ -93,7 +93,7 @@ def _call_with_network_retries(request, label: str):
     for attempt, delay in enumerate((1.0, 5.0, None), start=1):
         try:
             return request()
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
+        except requests.exceptions.RequestException as exc:
             if delay is None:
                 raise
             logger.warning(
@@ -446,7 +446,12 @@ class TushareFetcher:
 
     def fetch_opt_basic(self, exchange: str) -> pd.DataFrame:
         logger.debug(f"拉取期权合约: exchange={exchange}")
-        df = self._pro.opt_basic(exchange=exchange, fields=",".join(OPT_BASIC_COLS))
+        df = _call_with_network_retries(
+            lambda: self._pro.opt_basic(
+                exchange=exchange, fields=",".join(OPT_BASIC_COLS)
+            ),
+            f"opt_basic {exchange}",
+        )
         return _select_columns_or_empty(df, OPT_BASIC_COLS)
 
     def fetch_opt_daily(self, trade_date: str) -> pd.DataFrame:
