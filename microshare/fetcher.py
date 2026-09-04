@@ -89,6 +89,20 @@ FUT_INDEX_CODES = ["NHCI.NH", "NHAI.NH", "NHMI.NH"]
 OPTIONS_EXCHANGES = ["SSE", "SZSE", "CFFEX", "DCE", "SHFE", "CZCE"]
 
 
+def _call_with_network_retries(request, label: str):
+    for attempt, delay in enumerate((1.0, 5.0, None), start=1):
+        try:
+            return request()
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
+            if delay is None:
+                raise
+            logger.warning(
+                f"{label} failed (attempt {attempt}), retry in {delay}s: {exc}"
+            )
+            time.sleep(delay)
+    raise RuntimeError(f"{label} failed")
+
+
 class TushareFetcher:
     SW_VERSIONS = ("SW2014", "SW2021")
     DEFAULT_HTTP_URL = "https://jiaoch.top/"
@@ -454,7 +468,12 @@ class TushareFetcher:
         for src in self.SW_VERSIONS:
             logger.info(f"拉取申万行业分类: {src}")
             for level in ("L1", "L2", "L3"):
-                df = self._pro.index_classify(level=level, src=src)
+                df = _call_with_network_retries(
+                    lambda level=level, src=src: self._pro.index_classify(
+                        level=level, src=src
+                    ),
+                    f"index_classify {src}/{level}",
+                )
                 if df is not None and not df.empty:
                     df["src"] = src
                     frames.append(df)
@@ -466,14 +485,22 @@ class TushareFetcher:
     def fetch_sw_member(self) -> pd.DataFrame:
         frames = []
         for src in self.SW_VERSIONS:
-            l1_df = self._pro.index_classify(level="L1", src=src)
+            l1_df = _call_with_network_retries(
+                lambda src=src: self._pro.index_classify(level="L1", src=src),
+                f"index_classify {src}/L1",
+            )
             if l1_df is None or l1_df.empty:
                 continue
             l1_codes = l1_df["index_code"].tolist()
             logger.info(f"拉取申万行业成分({src}): {len(l1_codes)} 个一级行业")
             for l1_code in l1_codes:
                 for is_new in ("Y", "N"):
-                    df = self._pro.index_member_all(l1_code=l1_code, is_new=is_new)
+                    df = _call_with_network_retries(
+                        lambda l1_code=l1_code, is_new=is_new: self._pro.index_member_all(
+                            l1_code=l1_code, is_new=is_new
+                        ),
+                        f"index_member_all {l1_code}/{is_new}",
+                    )
                     time.sleep(0.2)
                     if df is not None and not df.empty:
                         frames.append(df)
@@ -499,7 +526,10 @@ class TushareFetcher:
         return _select_columns_or_empty(df, SW_DAILY_COLS)
 
     def fetch_ci_member(self) -> pd.DataFrame:
-        initial_df = self._pro.ci_index_member()
+        initial_df = _call_with_network_retries(
+            self._pro.ci_index_member,
+            "ci_index_member",
+        )
         if initial_df is None or initial_df.empty:
             return pd.DataFrame(columns=CI_MEMBER_COLS)
         l1_codes = initial_df["l1_code"].unique().tolist()
@@ -507,7 +537,12 @@ class TushareFetcher:
         frames = []
         for l1_code in l1_codes:
             for is_new in ("Y", "N"):
-                df = self._pro.ci_index_member(l1_code=l1_code, is_new=is_new)
+                df = _call_with_network_retries(
+                    lambda l1_code=l1_code, is_new=is_new: self._pro.ci_index_member(
+                        l1_code=l1_code, is_new=is_new
+                    ),
+                    f"ci_index_member {l1_code}/{is_new}",
+                )
                 time.sleep(0.2)
                 if df is not None and not df.empty:
                     frames.append(df)
