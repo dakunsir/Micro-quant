@@ -9,6 +9,10 @@ from uuid import uuid4
 
 RECEIVE_ID_TYPES = ("open_id", "union_id", "user_id", "email", "chat_id")
 
+# Deployment can override these with FEISHU_APP_ID/FEISHU_APP_SECRET.
+DEFAULT_FEISHU_APP_ID = "cli_aa192e0b41f8dbfc"
+DEFAULT_FEISHU_APP_SECRET = "Kd0CXzBvdmM9htEgHNWWQc0EV0WICsBR"
+
 
 def send_text_message(
     receive_id: str,
@@ -24,8 +28,8 @@ def send_text_message(
             "error": f"unsupported receive_id_type: {receive_id_type}",
         }
 
-    app_id = os.environ.get("FEISHU_APP_ID", "").strip()
-    app_secret = os.environ.get("FEISHU_APP_SECRET", "").strip()
+    app_id = os.environ.get("FEISHU_APP_ID", DEFAULT_FEISHU_APP_ID).strip()
+    app_secret = os.environ.get("FEISHU_APP_SECRET", DEFAULT_FEISHU_APP_SECRET).strip()
     if not app_id or not app_secret:
         return {
             "success": False,

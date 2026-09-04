@@ -71,16 +71,36 @@ def _fake_sdk(response):
     return {"lark_oapi": lark, "lark_oapi.api": api, "lark_oapi.api.im": im, "lark_oapi.api.im.v1": v1}, captured
 
 
-def test_sender_requires_application_credentials(monkeypatch):
+def test_sender_uses_embedded_application_credentials(monkeypatch):
     monkeypatch.delenv("FEISHU_APP_ID", raising=False)
     monkeypatch.delenv("FEISHU_APP_SECRET", raising=False)
+    response = SimpleNamespace(
+        success=lambda: True,
+        data=SimpleNamespace(message_id="om_embedded", chat_id="oc_123"),
+    )
+    modules, captured = _fake_sdk(response)
+    with patch.dict(sys.modules, modules):
+        result = send_text_message("fd6a7g21", "user_id", "hello", uuid="uuid-embedded")
 
-    result = send_text_message("fd6a7g21", "user_id", "hello")
+    assert result["success"] is True
+    assert captured["app_id"].startswith("cli_")
+    assert captured["app_secret"]
 
-    assert result == {
-        "success": False,
-        "error": "FEISHU_APP_ID and FEISHU_APP_SECRET are required",
-    }
+
+def test_sender_environment_credentials_override_embedded_values(monkeypatch):
+    monkeypatch.setenv("FEISHU_APP_ID", "app-from-env")
+    monkeypatch.setenv("FEISHU_APP_SECRET", "secret-from-env")
+    response = SimpleNamespace(
+        success=lambda: True,
+        data=SimpleNamespace(message_id="om_env", chat_id="oc_123"),
+    )
+    modules, captured = _fake_sdk(response)
+    with patch.dict(sys.modules, modules):
+        result = send_text_message("fd6a7g21", "user_id", "hello")
+
+    assert result["success"] is True
+    assert captured["app_id"] == "app-from-env"
+    assert captured["app_secret"] == "secret-from-env"
 
 
 def test_sender_rejects_invalid_receive_type(monkeypatch):

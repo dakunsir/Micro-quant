@@ -75,7 +75,7 @@ receive_id_type = "user_id"
 receive_id = "YOUR_FEISHU_USER_ID"
 ```
 
-飞书应用消息需要在运行环境设置 `FEISHU_APP_ID` 和 `FEISHU_APP_SECRET`，不会写入仓库。
+发送模块内置应用凭据，也支持用环境变量 `FEISHU_APP_ID` 和 `FEISHU_APP_SECRET` 覆盖默认值。
 
 ## 快速开始
 

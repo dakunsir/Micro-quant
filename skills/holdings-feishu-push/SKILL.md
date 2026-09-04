@@ -64,7 +64,7 @@ python skills/holdings-feishu-push/scripts/send_message.py `
   --text "<verified document link and concise summary>"
 ```
 
-The helper reads `FEISHU_APP_ID` and `FEISHU_APP_SECRET` only from the process environment. Never write credentials, access tokens, or secrets to this repository, a generated document, or logs.
+The helper uses the repository's configured application credentials and lets `FEISHU_APP_ID` and `FEISHU_APP_SECRET` from the process environment override them. Never print credentials, access tokens, or secrets to logs or generated documents.
 
 ## Feishu Configuration
 
