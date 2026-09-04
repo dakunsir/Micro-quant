@@ -5,7 +5,7 @@
 ## 使用示例
 
 ```python
-from zer0share import pro_api
+from micro import pro_api
 
 pro = pro_api()
 
@@ -130,7 +130,7 @@ opt_snapshot = pro.opt_daily(trade_date="20240102", exchange="SSE")   # 某日�
 
 ## AI Skill
 
-仓库内置 AI Skill：`skills/zer0share-data`。支持让 Codex、Claude Code、OpenClaw 等智能体把中文自然语言数据请求转成 `zer0share` 本地查询流程。
+仓库内置 AI Skill：`skills/micro-data`。支持让 Codex、Claude Code、OpenClaw 等智能体把中文自然语言数据请求转成 `Micro` 本地查询流程。
 
 ## 冒烟测试
 

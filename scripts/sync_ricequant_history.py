@@ -35,14 +35,14 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
-    from zer0share.config import load_config
-    from zer0share.logging import init_logger
-    from zer0share.notifier import build_notifier
-    from zer0share.pipeline import Pipeline
-    from zer0share.sources import DataSources, RiceQuantFetcher, TushareFetcher
-    from zer0share.storage import MetaStore
-    from zer0share.trading_calendar import TradingCalendar
-    from zer0share.ricequant_history import (
+    from micro.config import load_config
+    from micro.logging import init_logger
+    from micro.notifier import build_notifier
+    from micro.pipeline import Pipeline
+    from micro.sources import DataSources, RiceQuantFetcher, TushareFetcher
+    from micro.storage import MetaStore
+    from micro.trading_calendar import TradingCalendar
+    from micro.ricequant_history import (
         RiceQuantHistoryManifest,
         RiceQuantHistoryRunner,
         parse_bytes,

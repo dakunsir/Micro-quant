@@ -1,13 +1,13 @@
 import json
 
-from zer0share.quality.models import (
+from micro.quality.models import (
     QualityFinding,
     QualityRunOptions,
     QualityRunReport,
     Severity,
     TableSummary,
 )
-from zer0share.quality.reporter import QualityReporter, format_summary
+from micro.quality.reporter import QualityReporter, format_summary
 
 
 def test_reporter_writes_summary_findings_and_metadata(tmp_path):

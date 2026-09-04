@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from zer0share import logging as logging_module
+from micro import logging as logging_module
 
 
 def test_init_logger_defaults_to_info(tmp_path, monkeypatch):
@@ -8,8 +8,8 @@ def test_init_logger_defaults_to_info(tmp_path, monkeypatch):
     logging_module._logger_initialized = False
 
     with (
-        patch("zer0share.logging.logger.remove"),
-        patch("zer0share.logging.logger.add") as mock_add,
+        patch("micro.logging.logger.remove"),
+        patch("micro.logging.logger.add") as mock_add,
     ):
         logging_module.init_logger(tmp_path / "pipeline.log")
 
@@ -22,8 +22,8 @@ def test_init_logger_uses_log_level_env(tmp_path, monkeypatch):
     logging_module._logger_initialized = False
 
     with (
-        patch("zer0share.logging.logger.remove"),
-        patch("zer0share.logging.logger.add") as mock_add,
+        patch("micro.logging.logger.remove"),
+        patch("micro.logging.logger.add") as mock_add,
     ):
         logging_module.init_logger(tmp_path / "pipeline.log")
 

@@ -29,7 +29,7 @@ uv run python main.py sync --table ricequant_stock_minute --start-date 20240102 
 本地查询：
 
 ```python
-from zer0share import rq_api
+from micro import rq_api
 
 rq = rq_api()
 basic = rq.all_instruments(type="CS", market="cn")

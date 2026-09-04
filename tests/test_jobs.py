@@ -2,12 +2,12 @@ import time
 from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
-from zer0share.storage import MetaStore, DailyPartitionStore, SnapshotStore
-from zer0share.trading_calendar import TradingCalendar
-from zer0share.sync import SyncRuntime
-from zer0share.sync._jobs import DailySyncJob, SnapshotSyncJob, _format_duration
-from zer0share.catalog import DAILY_KLINE_SPEC, BASIC_SPEC
-from zer0share.query.repository import DailyTableSpec
+from micro.storage import MetaStore, DailyPartitionStore, SnapshotStore
+from micro.trading_calendar import TradingCalendar
+from micro.sync import SyncRuntime
+from micro.sync._jobs import DailySyncJob, SnapshotSyncJob, _format_duration
+from micro.catalog import DAILY_KLINE_SPEC, BASIC_SPEC
+from micro.query.repository import DailyTableSpec
 import pyarrow as pa
 import pyarrow.parquet as pq
 
@@ -43,7 +43,7 @@ def test_daily_sync_job_writes_partition(tmp_path):
     job = DailySyncJob(table_name="daily_kline", spec=DAILY_KLINE_SPEC, fetch=fetch, store=store)
     meta.update_last_date("daily_kline", "20240101")
 
-    with patch("zer0share.sync._jobs.time") as mock_time:
+    with patch("micro.sync._jobs.time") as mock_time:
         job.run(rt)
 
     assert store.exists("20240102")
@@ -62,8 +62,8 @@ def test_daily_sync_job_logs_start_range_and_trading_day_count(tmp_path):
     meta.update_last_date("daily_kline", "20240101")
 
     with (
-        patch("zer0share.sync._jobs.time"),
-        patch("zer0share.sync._jobs.logger.info") as log_info,
+        patch("micro.sync._jobs.time"),
+        patch("micro.sync._jobs.logger.info") as log_info,
     ):
         job.run(rt)
 
@@ -87,10 +87,10 @@ def test_daily_sync_job_progress_log_includes_elapsed_and_eta(tmp_path):
     meta.update_last_date("daily_kline", "20240101")
 
     with (
-        patch("zer0share.sync._jobs.PROGRESS_INTERVAL", 1),
-        patch("zer0share.sync._jobs.time.sleep"),
-        patch("zer0share.sync._jobs.time.monotonic", side_effect=[0, 10, 20, 20]),
-        patch("zer0share.sync._jobs.logger.info") as log_info,
+        patch("micro.sync._jobs.PROGRESS_INTERVAL", 1),
+        patch("micro.sync._jobs.time.sleep"),
+        patch("micro.sync._jobs.time.monotonic", side_effect=[0, 10, 20, 20]),
+        patch("micro.sync._jobs.logger.info") as log_info,
     ):
         job.run(rt)
 
@@ -129,7 +129,7 @@ def test_daily_sync_job_starts_from_spec_first_date_when_never_synced(tmp_path):
     }))
     job = DailySyncJob(table_name=spec.name, spec=spec, fetch=fetch, store=store)
 
-    with patch("zer0share.sync._jobs.time"):
+    with patch("micro.sync._jobs.time"):
         job.run(rt)
 
     assert fetch.call_args_list[0].args == ("20150209",)
@@ -147,7 +147,7 @@ def test_daily_sync_job_skips_existing_partition(tmp_path):
     job = DailySyncJob(table_name="daily_kline", spec=DAILY_KLINE_SPEC, fetch=fetch, store=store)
     meta.update_last_date("daily_kline", "20240101")
 
-    with patch("zer0share.sync._jobs.time"):
+    with patch("micro.sync._jobs.time"):
         job.run(rt)
 
     fetch.assert_not_called()
@@ -174,7 +174,7 @@ def test_daily_sync_job_raises_on_fetch_error(tmp_path):
     job = DailySyncJob(table_name="daily_kline", spec=DAILY_KLINE_SPEC, fetch=fetch, store=store)
     meta.update_last_date("daily_kline", "20240101")
 
-    with patch("zer0share.sync._jobs.time"), pytest.raises(RuntimeError):
+    with patch("micro.sync._jobs.time"), pytest.raises(RuntimeError):
         job.run(rt)
 
     rt.notifier.send.assert_called_once()

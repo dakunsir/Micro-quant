@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from zer0share import pro_api
+from micro import pro_api
 
 
 FIELDS = "index_code,industry_name,level,parent_code,industry_code,is_pub,src"

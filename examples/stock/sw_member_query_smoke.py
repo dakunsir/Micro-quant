@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from zer0share import pro_api
+from micro import pro_api
 
 
 FIELDS = "l1_code,l1_name,l2_code,l2_name,l3_code,l3_name,ts_code,name,in_date,out_date,is_new"

@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch
 
 import httpx
 
-from zer0share.config import FeishuNotifierConfig, NotifierConfig, WeComNotifierConfig
-from zer0share.notifier import CompositeNotifier, FeishuNotifier, NullNotifier, WeComNotifier, build_notifier
+from micro.config import FeishuNotifierConfig, NotifierConfig, WeComNotifierConfig
+from micro.notifier import CompositeNotifier, FeishuNotifier, NullNotifier, WeComNotifier, build_notifier
 
 
 def test_wecom_disabled_does_not_call_http():
@@ -24,7 +24,7 @@ def test_wecom_send_posts_text_payload():
     payload = mock_post.call_args[1]["json"]
     assert payload == {
         "msgtype": "text",
-        "text": {"content": "[zer0share] 同步完成：成功 5 天"},
+        "text": {"content": "[Micro] 同步完成：成功 5 天"},
     }
 
 
@@ -45,10 +45,10 @@ def test_wecom_http_error_does_not_raise():
 
 
 def test_feishu_builds_interactive_card_like_zer0factor():
-    n = FeishuNotifier("https://open.feishu.cn/open-apis/bot/v2/hook/fake", app="zer0share")
+    n = FeishuNotifier("https://open.feishu.cn/open-apis/bot/v2/hook/fake", app="Micro")
 
     card = n._build_card(
-        title="[zer0share] `ricequant_history` 完成",
+        title="[Micro] `ricequant_history` 完成",
         color="green",
         fields=[("行数", "22,475,520"), ("耗时", "257.4s")],
     )
@@ -56,7 +56,7 @@ def test_feishu_builds_interactive_card_like_zer0factor():
     assert card["msg_type"] == "interactive"
     assert card["card"]["config"]["wide_screen_mode"] is True
     assert card["card"]["header"]["template"] == "green"
-    assert card["card"]["header"]["title"]["content"] == "[zer0share] `ricequant_history` 完成"
+    assert card["card"]["header"]["title"]["content"] == "[Micro] `ricequant_history` 完成"
     fields = card["card"]["elements"][0]["fields"]
     assert fields[0]["is_short"] is True
     assert fields[0]["text"]["tag"] == "lark_md"
@@ -64,14 +64,14 @@ def test_feishu_builds_interactive_card_like_zer0factor():
 
 
 def test_feishu_notify_stage_done_sends_green_card():
-    n = FeishuNotifier("https://open.feishu.cn/open-apis/bot/v2/hook/fake", app="zer0share")
+    n = FeishuNotifier("https://open.feishu.cn/open-apis/bot/v2/hook/fake", app="Micro")
 
     with patch.object(n, "_send") as mock_send:
         n.notify_stage_done("2026-05", {"行数": "22,475,520", "流量": "651 MiB"}, 257.4)
 
     card = mock_send.call_args[0][0]
     assert card["card"]["header"]["template"] == "green"
-    assert "[zer0share] `2026-05` 完成" in card["card"]["header"]["title"]["content"]
+    assert "[Micro] `2026-05` 完成" in card["card"]["header"]["title"]["content"]
     content = " ".join(f["text"]["content"] for f in card["card"]["elements"][0]["fields"])
     assert "22,475,520" in content
     assert "651 MiB" in content
@@ -79,7 +79,7 @@ def test_feishu_notify_stage_done_sends_green_card():
 
 
 def test_feishu_send_posts_json_to_webhook():
-    n = FeishuNotifier("https://open.feishu.cn/open-apis/bot/v2/hook/fake", app="zer0share")
+    n = FeishuNotifier("https://open.feishu.cn/open-apis/bot/v2/hook/fake", app="Micro")
     card = n._build_card("标题", "green", [])
     with patch("urllib.request.urlopen") as mock_open:
         mock_open.return_value.__enter__ = lambda s: s
@@ -93,7 +93,7 @@ def test_feishu_send_posts_json_to_webhook():
 
 
 def test_feishu_send_silences_network_errors():
-    n = FeishuNotifier("https://open.feishu.cn/open-apis/bot/v2/hook/fake", app="zer0share")
+    n = FeishuNotifier("https://open.feishu.cn/open-apis/bot/v2/hook/fake", app="Micro")
     with patch("urllib.request.urlopen", side_effect=OSError("timeout")):
         n._send(n._build_card("标题", "green", []))
 

@@ -1,21 +1,21 @@
-# zer0share
+# Micro
 
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Stars](https://img.shields.io/github/stars/zer0quant/zer0share)
+![Stars](https://img.shields.io/github/stars/dakunsir/Micro-quant)
 
 A 股、ETF、期货、期权数据本地化管道：基于 [Tushare Pro](https://tushare.pro) 拉取数据，以 Parquet 分区存储，DuckDB 提供快速本地查询，支持增量同步与定时调度。
 
 它和 [zer0factor](https://github.com/zer0quant/zer0factor) 是配套关系：
 
-- `zer0share`：负责本地 A 股数据采集、同步和查询
+- `Micro`：负责本地 A 股数据采集、同步和查询
 - `zer0factor`：负责因子规范、因子生成、预处理、评估和存储
 
-## 为什么用 zer0share？
+## 为什么用 Micro？
 
-直接调 Tushare Pro 做研究有两个痛点：每次查询消耗积分，批量回测时 API 限速拖慢迭代。zer0share 把数据落到本地，查询走 DuckDB，既省积分又快。
+直接调 Tushare Pro 做研究有两个痛点：每次查询消耗积分，批量回测时 API 限速拖慢迭代。Micro 把数据落到本地，查询走 DuckDB，既省积分又快。
 
-| | 直接调 Tushare Pro | zer0share 本地查询 |
+| | 直接调 Tushare Pro | Micro 本地查询 |
 |---|---|---|
 | 积分消耗 | 每次请求消耗 | 零消耗 |
 | 网络依赖 | 必须联网 | 离线可用 |
@@ -43,8 +43,8 @@ A 股、ETF、期货、期权数据本地化管道：基于 [Tushare Pro](https:
 - Tushare Pro Token（基础行情需积分 ≥ 2000，部分专题表要求更高，详见[同步指南](docs/SYNC_GUIDE.md)）
 
 ```bash
-git clone https://github.com/zer0quant/zer0share.git
-cd zer0share
+git clone https://github.com/dakunsir/Micro-quant.git
+cd Micro-quant
 uv sync
 ```
 
@@ -85,7 +85,7 @@ uv run python main.py build-universe
 
 # 4. 本地查询，不消耗积分
 uv run python -c "
-from zer0share import pro_api
+from micro import pro_api
 pro = pro_api()
 print(pro.daily(ts_code='000001.SZ', start_date='20240101', end_date='20240131'))
 "
@@ -98,7 +98,7 @@ print(pro.daily(ts_code='000001.SZ', start_date='20240101', end_date='20240131')
 同步完成后，用类似 Tushare Pro 的接口查询本地数据：
 
 ```python
-from zer0share import pro_api
+from micro import pro_api
 
 pro = pro_api()
 
@@ -112,7 +112,7 @@ opt_bar = pro.opt_daily(ts_code="10004462.SH", start_date="20240101", end_date="
 
 全部 30+ 个查询方法、完整示例和冒烟测试见[本地查询 API 文档](docs/query-api.md)。
 
-仓库还内置 AI Skill（`skills/zer0share-data`），支持让 Codex、Claude Code 等智能体把中文自然语言数据请求转成本地查询流程。
+仓库还内置 AI Skill（`skills/micro-data`），支持让 Codex、Claude Code 等智能体把中文自然语言数据请求转成本地查询流程。
 
 ## CLI 命令一览
 
@@ -132,9 +132,9 @@ opt_bar = pro.opt_daily(ts_code="10004462.SH", start_date="20240101", end_date="
 ## 项目结构
 
 ```
-zer0share/
+Micro-quant/
 ├── main.py           # CLI 入口
-├── zer0share/
+├── micro/
 │   ├── api.py        # 本地 Tushare-like 查询 API
 │   ├── catalog.py    # 本地表结构、路径和查询规格
 │   ├── cli.py        # Click CLI 实现
@@ -150,7 +150,7 @@ zer0share/
 ├── config/           # settings.example.toml
 ├── docs/             # 文档
 ├── examples/         # 按专题分类的本地查询冒烟测试
-├── skills/           # zer0share-data AI Skill
+├── skills/           # Micro-data AI Skill
 └── tests/            # pytest 测试套件
 ```
 

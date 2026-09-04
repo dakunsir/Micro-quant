@@ -10,7 +10,7 @@
 """
 
 from pathlib import Path
-from zer0share.rq_api import rq_api
+from micro.rq_api import rq_api
 
 
 def main():

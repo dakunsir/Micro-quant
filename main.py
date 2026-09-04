@@ -1,4 +1,4 @@
-from zer0share.cli import cli
+from micro.cli import cli
 
 if __name__ == "__main__":
     cli()

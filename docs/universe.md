@@ -45,7 +45,7 @@ uv run python main.py build-universe --date 20240131
 ## 查询
 
 ```python
-from zer0share import pro_api
+from micro import pro_api
 
 pro = pro_api()
 pool = pro.universe("univ_trade_hs300", trade_date="20240131")

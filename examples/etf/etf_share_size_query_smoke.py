@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from zer0share import pro_api
+from micro import pro_api
 
 
 FIELDS = "trade_date,ts_code,etf_name,total_share,total_size,nav,close,exchange"

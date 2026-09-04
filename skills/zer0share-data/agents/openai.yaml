@@ -1,6 +1,0 @@
-interface:
-  display_name: "zer0share Data"
-  short_description: "本地 Tushare-like 金融数据查询"
-  default_prompt: "Use $zer0share-data to query local zer0share market data and summarize the result."
-policy:
-  allow_implicit_invocation: true

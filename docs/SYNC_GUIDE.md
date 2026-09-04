@@ -142,19 +142,19 @@ daily_basic       = "17:05"
 
 ```bash
 # 安装并启用服务
-sudo cp scripts/zer0share-scheduler.service /etc/systemd/system/
+sudo cp scripts/micro-scheduler.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable zer0share-scheduler
-sudo systemctl start zer0share-scheduler
+sudo systemctl enable micro-scheduler
+sudo systemctl start micro-scheduler
 
 # 查看状态
-sudo systemctl status zer0share-scheduler
+sudo systemctl status micro-scheduler
 
 # 查看实时日志
-journalctl -u zer0share-scheduler -f
+journalctl -u micro-scheduler -f
 
 # 修改 settings.toml 后重启生效
-sudo systemctl restart zer0share-scheduler
+sudo systemctl restart micro-scheduler
 ```
 
 ### 手动启动（调试用）

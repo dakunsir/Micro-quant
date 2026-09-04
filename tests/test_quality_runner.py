@@ -4,8 +4,8 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from zer0share.quality.models import QualityRunOptions
-from zer0share.quality.runner import QualityRunner
+from micro.quality.models import QualityRunOptions
+from micro.quality.runner import QualityRunner
 
 
 def _write_parquet(path: Path, rows: list[dict[str, object]]) -> None:

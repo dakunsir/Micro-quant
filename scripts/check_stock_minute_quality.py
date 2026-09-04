@@ -12,7 +12,7 @@ from pathlib import Path
 import duckdb
 
 try:
-    from zer0share.config import load_config
+    from micro.config import load_config
 except ImportError:  # pragma: no cover - allows running from unusual paths
     load_config = None
 

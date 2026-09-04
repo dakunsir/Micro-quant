@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from zer0share import pro_api
+from micro import pro_api
 
 
 FIELDS = "ann_date,title,source,type"

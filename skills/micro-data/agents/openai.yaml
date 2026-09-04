@@ -1,0 +1,6 @@
+interface:
+  display_name: "Micro Data"
+  short_description: "本地 Tushare-like 金融数据查询"
+  default_prompt: "Use $micro-data to query local Micro market data and summarize the result."
+policy:
+  allow_implicit_invocation: true

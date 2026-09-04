@@ -1,6 +1,6 @@
 from datetime import date
 import pytest
-from zer0share.dateutil import add_days, date_str, month_ranges, parse_date, today, week_ranges
+from micro.dateutil import add_days, date_str, month_ranges, parse_date, today, week_ranges
 
 
 def test_today_returns_yyyymmdd_string():

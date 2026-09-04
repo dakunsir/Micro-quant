@@ -1,7 +1,7 @@
 import pandas as pd
 
-from zer0share.quality.models import QualityFinding, Severity
-from zer0share.quality.rules import (
+from micro.quality.models import QualityFinding, Severity
+from micro.quality.rules import (
     check_adjustment_factor_values,
     check_adjustment_factor_jumps,
     check_duplicate_key,
