@@ -1,8 +1,11 @@
+import json
 from datetime import date, timedelta
 from unittest.mock import patch
 
 import pandas as pd
+import pytest
 
+from microshare.config import UniverseConfig
 from microshare.storage import (
     DailyPartitionStore,
     IndexWeightStore,
@@ -10,7 +13,13 @@ from microshare.storage import (
     write_trade_cal,
     write_universe,
 )
-from microshare.universe import build_universe_detail, build_universes, build_universes_range
+from microshare.universe import (
+    build_mainboard_microcap,
+    build_mainboard_microcap_range,
+    build_universe_detail,
+    build_universes,
+    build_universes_range,
+)
 
 
 def _basic(codes: list[str], trade_date: date) -> pd.DataFrame:
@@ -454,3 +463,148 @@ def test_build_universes_range_defaults_start_after_latest_complete_universe(tmp
     assert summary["built_days"] == 0
     assert summary["skipped_days"] == 0
     assert any("已是最新" in call.args[0] for call in mock_info.call_args_list)
+
+
+def _write_microcap_inputs(tmp_path, source_dates):
+    first_date = date(2024, 1, 1)
+    calendar_dates = [first_date + timedelta(days=i) for i in range(4)]
+    write_trade_cal(
+        tmp_path,
+        "SSE",
+        pd.DataFrame(
+            {
+                "exchange": ["SSE"] * len(calendar_dates),
+                "cal_date": calendar_dates,
+                "is_open": [True] * len(calendar_dates),
+                "pretrade_date": [None, first_date, calendar_dates[1], calendar_dates[2]],
+            }
+        ),
+    )
+    codes = [
+        "000001.SZ",
+        "000002.SZ",
+        "600001.SH",
+        "601001.SH",
+        "300001.SZ",
+        "920001.BJ",
+        "000009.SZ",
+    ]
+    SnapshotStore(
+        tmp_path / "stock" / "basic" / "data.parquet"
+    ).write(
+        pd.DataFrame(
+            {
+                "ts_code": codes,
+                "list_date": ["20240101", "20240101", "20240101", "20240101", "20240101", "20240101", "20240102"],
+                "delist_date": [None] * len(codes),
+            }
+        )
+    )
+    for source_date in source_dates:
+        DailyPartitionStore(tmp_path / "stock" / "daily_basic").write(
+            source_date.strftime("%Y%m%d"),
+            pd.DataFrame(
+                {
+                    "ts_code": codes,
+                    "trade_date": [source_date] * len(codes),
+                    "total_mv": [5.0, 1.0, 2.0, 0.5, 0.1, 0.2, 0.3],
+                }
+            ),
+        )
+        DailyPartitionStore(tmp_path / "stock" / "stock_st").write(
+            source_date.strftime("%Y%m%d"),
+            pd.DataFrame(
+                {
+                    "ts_code": ["601001.SH"],
+                    "name": ["*ST 示例"],
+                    "trade_date": [source_date],
+                    "type": ["ST"],
+                    "type_name": ["风险警示板"],
+                }
+            ),
+        )
+
+
+def test_build_mainboard_microcap_uses_previous_day_and_filters(tmp_path):
+    source_date = date(2024, 1, 2)
+    effective_date = date(2024, 1, 3)
+    _write_microcap_inputs(tmp_path, [source_date])
+    config = UniverseConfig(
+        name="hushen_mainboard_previous_day_bottom1000",
+        version="current",
+        target_count=2,
+        min_listing_sessions=2,
+        exclude_st=True,
+        main_board_prefixes=["600", "601", "000", "001", "002", "003"],
+    )
+
+    manifest = build_mainboard_microcap(tmp_path, effective_date, config)
+
+    assert manifest["source_trade_date"] == "20240102"
+    assert manifest["effective_trade_date"] == "20240103"
+    assert manifest["member_count"] == 2
+    assert manifest["quality_status"] == "OK"
+    output_dir = (
+        tmp_path
+        / "stock"
+        / "universe"
+        / "name=hushen_mainboard_previous_day_bottom1000"
+        / "date=20240103"
+    )
+    members = pd.read_parquet(output_dir / "data.parquet")
+    assert members.to_dict("records") == [
+        {
+            "trade_date": "20240103",
+            "universe": "hushen_mainboard_previous_day_bottom1000",
+            "ts_code": "000002.SZ",
+        },
+        {
+            "trade_date": "20240103",
+            "universe": "hushen_mainboard_previous_day_bottom1000",
+            "ts_code": "600001.SH",
+        },
+    ]
+    assert json.loads((output_dir / "manifest.json").read_text(encoding="utf-8")) == manifest
+
+
+def test_build_mainboard_microcap_range_reuses_matching_manifest(tmp_path):
+    _write_microcap_inputs(tmp_path, [date(2024, 1, 2), date(2024, 1, 3)])
+    config = UniverseConfig(
+        name="hushen_mainboard_previous_day_bottom1000",
+        version="current",
+        target_count=2,
+        min_listing_sessions=2,
+        exclude_st=True,
+        main_board_prefixes=["600", "601", "000", "001", "002", "003"],
+    )
+
+    first = build_mainboard_microcap_range(
+        tmp_path, date(2024, 1, 3), date(2024, 1, 4), config
+    )
+    second = build_mainboard_microcap_range(
+        tmp_path, date(2024, 1, 3), date(2024, 1, 4), config
+    )
+
+    assert first["built_days"] == 2
+    assert first["skipped_days"] == 0
+    assert second["built_days"] == 0
+    assert second["skipped_days"] == 2
+
+    changed = UniverseConfig(
+        name=config.name,
+        version="v2",
+        target_count=config.target_count,
+        min_listing_sessions=config.min_listing_sessions,
+        exclude_st=config.exclude_st,
+        main_board_prefixes=config.main_board_prefixes,
+    )
+    with pytest.raises(ValueError, match="配置版本或规则不一致"):
+        build_mainboard_microcap_range(
+            tmp_path, date(2024, 1, 3), date(2024, 1, 4), changed
+        )
+
+
+def test_build_mainboard_microcap_requires_source_partition(tmp_path):
+    _write_microcap_inputs(tmp_path, [])
+    with pytest.raises(FileNotFoundError, match="daily_basic data not found"):
+        build_mainboard_microcap(tmp_path, date(2024, 1, 3))

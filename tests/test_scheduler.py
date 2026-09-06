@@ -140,3 +140,188 @@ def test_start_scheduler_uses_correct_cron_times(tmp_path):
     assert job_cron_map["basic"] == {"hour": 9, "minute": 10}
     assert job_cron_map["daily_kline"] == {"hour": 16, "minute": 30}
     assert job_cron_map["adj_factor"] == {"hour": 16, "minute": 35}
+
+
+FIXED_CONFIG = """
+[tushare]
+token = "test"
+
+[paths]
+data_dir = "data"
+db_path = "db/meta.duckdb"
+log_path = "logs/pipeline.log"
+
+[api]
+host = "127.0.0.1"
+port = 8787
+default_limit = 1000
+max_limit = 5000
+
+[scheduler]
+enabled = true
+timezone = "Asia/Shanghai"
+run_time = "18:30"
+state_path = "{state_path}"
+lock_path = "{lock_path}"
+
+[notifier]
+enabled = false
+"""
+
+
+def test_fixed_scheduler_registers_one_post_close_job(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        FIXED_CONFIG.format(
+            state_path=(tmp_path / "latest.json").as_posix(),
+            lock_path=(tmp_path / "run.lock").as_posix(),
+        ),
+        encoding="utf-8",
+    )
+    scheduler = MagicMock()
+
+    with (
+        patch("microshare.scheduler.BlockingScheduler", return_value=scheduler),
+        patch("microshare.scheduler.CronTrigger") as cron_cls,
+        patch("microshare.scheduler._build_sources"),
+        patch("microshare.scheduler.build_notifier", return_value=MagicMock()),
+    ):
+        from microshare.scheduler import start_scheduler
+
+        start_scheduler(str(cfg_file))
+
+    scheduler.add_job.assert_called_once()
+    assert scheduler.add_job.call_args.kwargs["id"] == "post_close"
+    assert scheduler.add_job.call_args.kwargs["max_instances"] == 1
+    assert scheduler.add_job.call_args.kwargs["coalesce"] is True
+    assert cron_cls.call_args.kwargs["hour"] == 18
+    assert cron_cls.call_args.kwargs["minute"] == 30
+    assert cron_cls.call_args.kwargs["timezone"].key == "Asia/Shanghai"
+    scheduler.start.assert_called_once()
+
+
+def test_post_close_cycle_runs_stock_chain_and_builds_next_day(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        FIXED_CONFIG.format(
+            state_path=(tmp_path / "latest.json").as_posix(),
+            lock_path=(tmp_path / "run.lock").as_posix(),
+        ),
+        encoding="utf-8",
+    )
+    from microshare.config import load_config
+    from microshare.scheduler import run_post_close_cycle
+
+    cfg = load_config(cfg_file)
+    notifier = MagicMock()
+    pipeline = MagicMock()
+    pipeline.__enter__.return_value = pipeline
+    pipeline.__exit__.return_value = False
+    pipeline.calendar.today.return_value = "20240906"
+    pipeline.calendar.is_trading_day.return_value = True
+    pipeline.calendar.get_trading_days.return_value = ["20240909"]
+    calls = []
+    pipeline.run.side_effect = lambda *args, **kwargs: calls.append((args, kwargs)) or {"table": args[0]}
+
+    with (
+        patch("microshare.scheduler.Pipeline", return_value=pipeline),
+        patch(
+            "microshare.scheduler.build_mainboard_microcap",
+            return_value={"member_count": 1000, "quality_status": "OK", "warnings": []},
+        ) as build,
+        patch(
+            "microshare.scheduler.build_stock_history_coverage",
+            return_value={
+                "complete": True,
+                "trade_days": 2,
+                "open_t1_ready_through": "20240906",
+                "tables": {
+                    name: {
+                        "missing_partitions": 0,
+                        "empty_partitions": 0,
+                        "invalid_partitions": {},
+                    }
+                    for name in (
+                        "daily_kline", "adj_factor", "daily_basic",
+                        "stock_st", "suspend_d", "stk_limit",
+                    )
+                },
+            },
+        )
+    ):
+        state = run_post_close_cycle(cfg, MagicMock(), notifier)
+
+    assert state["status"] == "success"
+    assert [call[0][0] for call in calls] == [
+        "trade_cal", "basic", "daily_kline", "adj_factor", "daily_basic",
+        "stock_st", "suspend_d", "stk_limit",
+    ]
+    assert calls[2][1]["repair_missing"] is True
+    assert calls[2][1]["repair_start_date"] == "20150101"
+    assert calls[4][1]["repair_start_date"] == "20151231"
+    assert calls[6][1]["repair_start_date"] == "20150101"
+    assert state["coverage"]["status"] == "success"
+    build.assert_called_once()
+    assert state["effective_trade_date"] == "20240909"
+
+
+def test_post_close_cycle_skips_non_trading_day(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        FIXED_CONFIG.format(
+            state_path=(tmp_path / "latest.json").as_posix(),
+            lock_path=(tmp_path / "run.lock").as_posix(),
+        ),
+        encoding="utf-8",
+    )
+    from microshare.config import load_config
+    from microshare.scheduler import run_post_close_cycle
+
+    cfg = load_config(cfg_file)
+    pipeline = MagicMock()
+    pipeline.__enter__.return_value = pipeline
+    pipeline.__exit__.return_value = False
+    pipeline.calendar.today.return_value = "20240907"
+    pipeline.calendar.is_trading_day.return_value = False
+
+    with patch("microshare.scheduler.Pipeline", return_value=pipeline):
+        state = run_post_close_cycle(cfg, MagicMock(), MagicMock())
+
+    assert state["status"] == "skipped"
+    assert state["reason"] == "non_trading_day"
+    assert [call.args[0] for call in pipeline.run.call_args_list] == ["trade_cal"]
+    assert state["universe"]["status"] == "skipped"
+
+
+def test_post_close_cycle_records_failure_and_does_not_build_universe(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        FIXED_CONFIG.format(
+            state_path=(tmp_path / "latest.json").as_posix(),
+            lock_path=(tmp_path / "run.lock").as_posix(),
+        ),
+        encoding="utf-8",
+    )
+    from microshare.config import load_config
+    from microshare.scheduler import run_post_close_cycle
+
+    cfg = load_config(cfg_file)
+    notifier = MagicMock()
+    pipeline = MagicMock()
+    pipeline.__enter__.return_value = pipeline
+    pipeline.__exit__.return_value = False
+    pipeline.calendar.today.return_value = "20240906"
+    pipeline.calendar.is_trading_day.return_value = True
+    pipeline.run.side_effect = [None, RuntimeError("daily_kline unavailable")]
+
+    with (
+        patch("microshare.scheduler.Pipeline", return_value=pipeline),
+        patch("microshare.scheduler.build_mainboard_microcap") as build,
+    ):
+        state = run_post_close_cycle(cfg, MagicMock(), notifier)
+
+    assert state["status"] == "failed"
+    assert "daily_kline unavailable" in state["error"]
+    assert state["universe"]["status"] == "pending"
+    build.assert_not_called()
+    notifier.send.assert_called_once()

@@ -49,6 +49,16 @@ uv run python main.py sync --table ci_member    # 中信行业成分映射
 uv run python main.py sync --table sw_daily     # 申万行业指数日线行情
 ```
 
+构建沪深主板微盘 1000 股票池至少需要 `basic`、交易日历、`daily_basic` 和 `stock_st`。由于股票池在下一交易日 `D` 生效并使用前一交易日 `P` 的数据，历史起点为 `2016-01-01` 时，源数据应从 `2015-12-31` 开始同步：
+
+```bash
+uv run python main.py sync --table basic
+uv run python main.py sync --table trade_cal
+uv run python main.py sync --table daily_basic --start-date 20151231 --end-date <latest>
+uv run python main.py sync --table stock_st --start-date 20151231 --end-date <latest>
+uv run python main.py build-mainboard-microcap --start-date 20160101 --end-date <latest>
+```
+
 ### ETF 专题（可选）
 
 ```bash
@@ -118,23 +128,41 @@ uv run python main.py status
 
 ## 定时调度
 
-每个表在 `config/settings.toml` 的 `[scheduler]` 里单独配置触发时间（`HH:MM`），默认值基于 Tushare 各接口实际入库时间设计：
+收盘后股票链每天在 `Asia/Shanghai` 的固定时间执行。默认时间为 18:30，按交易日历串行增量同步股票池所需数据，并构建下一交易日生效的微盘股票池：
 
 ```toml
+[api]
+host = "127.0.0.1"
+port = 8787
+default_limit = 1000
+max_limit = 5000
+
 [scheduler]
-# 凌晨 — 静态参考数据（增量检查，数据已最新时零API消耗）
-trade_cal         = "02:00"
-basic             = "02:05"
-# 盘前 — Tushare 盘前推送
-stk_limit         = "09:15"   # 8:40 ready; delayed to avoid early empty responses
-adj_factor        = "09:25"   # 9:15~9:20 ready
-stock_st          = "09:28"   # 9:20 ready
-# 收盘后第一波 — 日线行情（15:00~16:00 ready）
-daily_kline       = "16:10"
-# 收盘后第二波 — 每日指标及其余数据（3min 间隔，17:05~17:56）
-daily_basic       = "17:05"
-# ... 完整示例见 config/settings.example.toml
+enabled = true
+timezone = "Asia/Shanghai"
+run_time = "18:30"
+state_path = "db/scheduler/latest_run.json"
+lock_path = "db/scheduler/run.lock"
 ```
+
+每次运行顺序为 `trade_cal → basic → daily_kline → adj_factor → daily_basic → stock_st → suspend_d → stk_limit → 覆盖校验 → 下一交易日股票池`。六张日频表会按物理分区扫描并补齐缺失日期，已有分区直接复用。行情、复权、停牌和涨跌停表从 2015-01-01 起修复，`daily_basic` 和 `stock_st` 从 2015-12-31 起修复。当前日期不是交易日时只更新交易日历并记录 `SKIPPED`，不生成快照。任一阶段重试失败或覆盖校验不通过，会停止后续阶段、记录 `FAILED` 并发送飞书告警，下一次运行继续增量恢复。
+
+历史行情缺失时，显式日期范围会绕过 `sync_meta` 的最新日期前沿，只复用已有分区并补齐物理缺口。首次回填按以下顺序执行：
+
+```powershell
+uv run python main.py sync --table trade_cal
+uv run python main.py sync --table basic
+uv run python main.py sync --table daily_kline --start-date 20150101 --end-date 20260904
+uv run python main.py sync --table adj_factor --start-date 20150101 --end-date 20260904
+uv run python main.py sync --table suspend_d --start-date 20150101 --end-date 20260904
+uv run python main.py sync --table stk_limit --start-date 20150101 --end-date 20260904
+uv run python main.py sync --table daily_basic --start-date 20151231 --end-date 20260904
+uv run python main.py sync --table stock_st --start-date 20151231 --end-date 20260904
+```
+
+命令可安全重跑，已存在分区会跳过。历史回填完成后，使用 `GET /v1/status` 检查 `coverage.status=ok`、各表 `missing_partitions=0`，并以 `open_t1_ready_through` 作为 `open_t1` 评估截止日。
+
+运行状态写入 `db/scheduler/latest_run.json`，调度锁写入 `db/scheduler/run.lock`。
 
 同步失败和质检结果可通过飞书应用消息告警。配置接收者并启用通知：
 
@@ -173,4 +201,23 @@ sudo systemctl restart microshare-scheduler
 
 ```bash
 uv run python main.py scheduler start
+```
+
+### 只读查询服务
+
+API 与调度器独立运行，启动后仅监听本机：
+
+```bash
+uv run python main.py api start
+```
+
+访问 `http://127.0.0.1:8787/docs` 查看 OpenAPI。服务只提供本地数据查询、健康检查和状态读取，不提供同步、构建、任意 SQL 或配置修改接口。
+
+服务器常驻时可单独安装 API 服务：
+
+```bash
+sudo cp scripts/microshare-api.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now microshare-api
+sudo systemctl status microshare-api
 ```

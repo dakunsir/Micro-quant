@@ -13,6 +13,15 @@ uv run python main.py build-universe --start-date 20240101 --end-date 20240131
 uv run python main.py build-universe --date 20240131
 ```
 
+沪深主板微盘 1000 股票池单独构建，默认从 `2016-01-01` 开始。生效日 `D` 使用前一交易日 `P` 的 `daily_basic` 和 `stock_st` 数据，筛选结果标记为 `D` 生效：
+
+```bash
+uv run python main.py build-mainboard-microcap --start-date 20160101 --end-date 20260904
+uv run python main.py build-mainboard-microcap --date 20260904
+```
+
+例如，2026-09-07 的快照使用 2026-09-04 的数据。每个分区同时写入 `data.parquet` 和 `manifest.json`，manifest 记录 `source_trade_date`、`effective_trade_date`、配置版本、成员数及质量 warning。
+
 ## 生成的股票池
 
 | 股票池 | 说明 |
@@ -23,6 +32,9 @@ uv run python main.py build-universe --date 20240131
 | `univ_trade_zz500` | 中证500成分中满足交易过滤条件的股票池 |
 | `univ_trade_zz1000` | 中证1000成分中满足交易过滤条件的股票池 |
 | `univ_trade_smallcap` | 基础交易池中总市值倒数 20% 的小市值股票池 |
+| `hushen_mainboard_previous_day_bottom1000` | 沪深主板中上市满 120 个交易日、非 ST、按前一交易日总市值升序取前 1000 只；下一交易日生效 |
+
+微盘股票池的代码前缀为 `600/601/603/605/000/001/002/003`，不额外加入成交额、停牌或涨跌停过滤。合格股票少于 1000 只时输出全部合格股票并在 manifest 中标记 warning。
 
 ## 过滤规则
 
@@ -49,4 +61,7 @@ from microshare import pro_api
 
 pro = pro_api()
 pool = pro.universe("univ_trade_hs300", trade_date="20240131")
+microcap = pro.universe(
+    "hushen_mainboard_previous_day_bottom1000", trade_date="20260904"
+)
 ```

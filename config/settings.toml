@@ -6,41 +6,26 @@ data_dir = "data"
 db_path = "db/meta.duckdb"
 log_path = "logs/pipeline.log"
 
+[universe]
+name = "hushen_mainboard_previous_day_bottom1000"
+version = "current"
+target_count = 1000
+min_listing_sessions = 120
+exclude_st = true
+main_board_prefixes = ["600", "601", "603", "605", "000", "001", "002", "003"]
+
+[api]
+host = "127.0.0.1"
+port = 8787
+default_limit = 1000
+max_limit = 5000
+
 [scheduler]
-# 凌晨 — 静态参考数据（增量检查，数据已最新时零API消耗）
-trade_cal         = "02:00"
-basic             = "02:05"
-
-# 盘前 — Tushare 盘前推送
-stk_limit         = "09:15"   # 8:40 ready; delayed to avoid early empty responses
-adj_factor        = "09:25"   # 9:15~9:20 ready
-stock_st          = "09:28"   # 9:20 ready
-
-# 收盘后第一波 — 日线行情（15:00~16:00 ready）
-daily_kline       = "16:10"
-
-# 收盘后第二波 — 每日指标及其余数据（3min 间隔，17:05~17:56）
-daily_basic       = "17:05"   # 15:00~17:00 ready
-suspend_d         = "17:08"
-index_daily       = "17:11"
-index_weight      = "17:14"
-industry          = "17:17"
-ci_member         = "17:20"
-fut_basic         = "17:23"
-fut_daily         = "17:26"
-fut_holding       = "17:29"
-fut_wsr           = "17:32"
-fut_settle        = "17:35"
-fut_mapping       = "17:38"
-ft_limit          = "17:41"
-fut_monthly       = "17:44"
-fut_index_daily   = "17:47"
-fut_weekly_detail = "17:50"
-opt_basic         = "17:53"
-opt_daily         = "17:56"
-ricequant_stock_minute = "16:30"
-ricequant_etf_basic = "02:10"
-ricequant_etf_minute = "16:35"
+enabled = true
+timezone = "Asia/Shanghai"
+run_time = "18:30"
+state_path = "db/scheduler/latest_run.json"
+lock_path = "db/scheduler/run.lock"
 
 [notifier]
 enabled = true

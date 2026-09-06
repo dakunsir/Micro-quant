@@ -121,6 +121,50 @@ def test_build_universe_rejects_date_with_range():
     assert "--date cannot be used with --start-date or --end-date" in result.output
 
 
+def test_build_mainboard_microcap_accepts_single_date(tmp_path):
+    runner = CliRunner()
+    cfg = MagicMock()
+    cfg.data_dir = tmp_path
+    cfg.log_path = tmp_path / "pipeline.log"
+    cfg.universe.name = "hushen_mainboard_previous_day_bottom1000"
+
+    with (
+        patch("microshare.cli.load_config", return_value=cfg),
+        patch("microshare.cli.build_mainboard_microcap") as mock_build,
+    ):
+        mock_build.return_value = {
+            "member_count": 1000,
+            "source_trade_date": "20260903",
+            "effective_trade_date": "20260904",
+            "quality_status": "OK",
+            "warnings": [],
+        }
+        result = runner.invoke(cli, ["build-mainboard-microcap", "--date", "20260904"])
+
+    assert result.exit_code == 0
+    mock_build.assert_called_once()
+    assert "source=20260903" in result.output
+    assert "effective=20260904" in result.output
+
+
+def test_build_mainboard_microcap_rejects_date_with_range():
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli,
+        [
+            "build-mainboard-microcap",
+            "--date",
+            "20260904",
+            "--start-date",
+            "20260903",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "--date cannot be used with --start-date or --end-date" in result.output
+
+
 def test_quality_check_full_requires_date_range():
     runner = CliRunner()
 

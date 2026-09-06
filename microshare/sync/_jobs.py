@@ -83,12 +83,17 @@ class DailySyncJob(SyncJob):
         rt: SyncRuntime,
         start_date: str | None = None,
         end_date: str | None = None,
-    ) -> None:
+        repair_missing: bool = False,
+        repair_start_date: str | None = None,
+    ) -> dict[str, object] | None:
         today = rt.calendar.today()
 
         if start_date is None:
             last = rt.meta.get_last_date(self.spec.name)
-            start = dateutil.add_days(last, 1) if last is not None else self.spec.first_date
+            if repair_missing:
+                start = repair_start_date or self.spec.first_date
+            else:
+                start = dateutil.add_days(last, 1) if last is not None else self.spec.first_date
             end = today
             if start > end:
                 logger.info(f"{self.spec.name}: 已是最新 (last={last})")
@@ -201,6 +206,14 @@ class DailySyncJob(SyncJob):
             f"日期：{date_range}\n"
             f"写入 {success} 天 / {total_rows} 条记录｜空 {empty}｜已存在 {skipped_existing}｜耗时 {_format_duration(elapsed)}"
         )
+        return {
+            "table": self.spec.name,
+            "success_days": success,
+            "rows": total_rows,
+            "empty_days": empty,
+            "skipped_days": skipped_existing,
+            "trading_days": total,
+        }
 
 
 class CalendarDateSyncJob(SyncJob):

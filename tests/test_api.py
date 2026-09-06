@@ -782,6 +782,34 @@ def test_universe_filters_by_name_date_and_code(tmp_path):
     ]
 
 
+def test_universe_accepts_pool_name_as_positional_argument(tmp_path):
+    write_universe(
+        tmp_path,
+        "hushen_mainboard_previous_day_bottom1000",
+        "20260904",
+        pd.DataFrame(
+            {
+                "trade_date": ["20260904"],
+                "universe": ["hushen_mainboard_previous_day_bottom1000"],
+                "ts_code": ["000001.SZ"],
+            }
+        ),
+    )
+
+    result = LocalPro(tmp_path).universe(
+        "hushen_mainboard_previous_day_bottom1000",
+        trade_date="20260904",
+    )
+
+    assert result.to_dict("records") == [
+        {
+            "trade_date": "20260904",
+            "universe": "hushen_mainboard_previous_day_bottom1000",
+            "ts_code": "000001.SZ",
+        }
+    ]
+
+
 def test_adj_factor_filters_trade_date_and_formats_dates(tmp_path):
     DailyPartitionStore(tmp_path / "stock" / "adj_factor").write("20240102", pd.DataFrame(
             {

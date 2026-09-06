@@ -3,7 +3,7 @@ from microshare.notifier import Notifier
 from microshare.sources import DataSources
 from microshare.storage import MetaStore
 from microshare.sync import SyncRuntime
-from microshare.sync._jobs import SyncJob
+from microshare.sync._jobs import DailySyncJob, SyncJob
 from microshare.trading_calendar import TradingCalendar
 
 
@@ -23,10 +23,26 @@ class Pipeline:
         for job in ricequant.build_jobs(cfg, sources):
             self._registry[job.table_name] = job
 
-    def run(self, table_name: str, start_date: str | None = None, end_date: str | None = None) -> None:
+    def run(
+        self,
+        table_name: str,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        repair_missing: bool = False,
+        repair_start_date: str | None = None,
+    ) -> dict[str, object] | None:
         if table_name not in self._registry:
             raise ValueError(f"未知表: {table_name}")
-        self._registry[table_name].run(self._runtime, start_date, end_date)
+        job = self._registry[table_name]
+        if isinstance(job, DailySyncJob) and repair_missing:
+            return job.run(
+                self._runtime,
+                start_date,
+                end_date,
+                repair_missing=True,
+                repair_start_date=repair_start_date,
+            )
+        return job.run(self._runtime, start_date, end_date)
 
     def run_all(self, start_date: str | None = None, end_date: str | None = None) -> None:
         for job in self._registry.values():
@@ -35,6 +51,10 @@ class Pipeline:
     @property
     def registry(self) -> dict[str, SyncJob]:
         return self._registry
+
+    @property
+    def calendar(self) -> TradingCalendar:
+        return self._runtime.calendar
 
     def close(self) -> None:
         self._runtime.meta.close()

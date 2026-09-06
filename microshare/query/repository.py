@@ -176,7 +176,8 @@ class BaseParquetRepository:
             return
         if self.spec.sync_table == "build-universe":
             raise FileNotFoundError(
-                "universe data not found; run `python main.py build-universe` first"
+                "universe data not found; run `python main.py build-universe` or "
+                "`python main.py build-mainboard-microcap` first"
             )
         raise FileNotFoundError(
             f"{self.spec.sync_table} data not found; run `python main.py sync --table {self.spec.sync_table}` first"

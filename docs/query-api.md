@@ -45,6 +45,9 @@ sw_daily = pro.sw_daily(trade_date="20240131")                     # 申万行�
 
 # 股票池
 pool = pro.universe("univ_trade_hs300", trade_date="20240131")     # 某日沪深300交易池
+microcap = pro.universe(
+    "hushen_mainboard_previous_day_bottom1000", trade_date="20260904"
+)                                                                     # 点时主板微盘池
 
 # ETF
 etf_basic = pro.etf_basic(list_status="L", exchange="SH")
@@ -131,6 +134,51 @@ opt_snapshot = pro.opt_daily(trade_date="20240102", exchange="SSE")   # 某日�
 ## AI Skill
 
 仓库内置 AI Skill：`skills/microshare-data`。支持让 Codex、Claude Code、OpenClaw 等智能体把中文自然语言数据请求转成 `Microshare` 本地查询流程。
+
+## 只读 REST API
+
+启动独立服务：
+
+```bash
+uv run python main.py api start
+```
+
+服务默认只监听 `127.0.0.1:8787`，OpenAPI 文档位于 `/docs`。查询接口为：
+
+```text
+GET /healthz
+GET /v1/status
+GET /v1/query/{api_name}
+```
+
+例如：
+
+```text
+http://127.0.0.1:8787/v1/query/daily?ts_code=000001.SZ&start_date=20240101&end_date=20240131&fields=ts_code,trade_date,close&limit=100
+```
+
+HTTP 服务只调用本地只读查询白名单，不提供同步、股票池构建、任意 SQL 或配置修改接口。单次默认返回 1000 行，最大 5000 行；使用 `offset` 分页读取更大结果。未同步的数据返回 404，参数错误返回 400/422。
+
+`GET /v1/status` 还会返回股票历史覆盖状态。重点字段如下：
+
+```json
+{
+  "coverage": {
+    "status": "ok",
+    "open_t1_ready_through": "20260903",
+    "tables": {
+      "daily_kline": {
+        "first_date": "20150105",
+        "last_date": "20260904",
+        "missing_partitions": 0,
+        "empty_partitions": 0
+      }
+    }
+  }
+}
+```
+
+`open_t1_ready_through` 是 `open_t1` 因子评估可以安全使用的最后信号日。最新行情为 `20260904` 时，下一交易日开盘价尚未出现，因此最多评估到 `20260903`。下游评估应先检查该字段和各表的 `missing_partitions`，不能把查询返回的部分历史数据当成完整区间。
 
 ## 冒烟测试
 

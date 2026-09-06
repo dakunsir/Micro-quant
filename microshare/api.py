@@ -6,6 +6,49 @@ from microshare.query import QueryContext
 from microshare.query import calendar, stock, index, industry, futures, options, etf
 
 
+READ_ONLY_QUERY_METHODS = {
+    "stock_basic": "stock_basic",
+    "trade_cal": "trade_cal",
+    "daily": "daily",
+    "adj_factor": "adj_factor",
+    "daily_basic": "daily_basic",
+    "stock_st": "stock_st",
+    "suspend_d": "suspend_d",
+    "stk_limit": "stk_limit",
+    "index_daily": "index_daily",
+    "index_weight": "index_weight",
+    "sw_daily": "sw_daily",
+    "idx_anns": "idx_anns",
+    "universe": "universe",
+    "pro_bar": "pro_bar",
+    "index_classify": "index_classify",
+    "sw_classify": "index_classify",
+    "index_member_all": "index_member_all",
+    "sw_member": "index_member_all",
+    "ci_index_member": "ci_index_member",
+    "ci_member": "ci_index_member",
+    "fut_basic": "fut_basic",
+    "fut_daily": "fut_daily",
+    "fut_holding": "fut_holding",
+    "fut_wsr": "fut_wsr",
+    "fut_settle": "fut_settle",
+    "fut_mapping": "fut_mapping",
+    "ft_limit": "ft_limit",
+    "fut_weekly": "fut_weekly",
+    "fut_monthly": "fut_monthly",
+    "fut_index_daily": "fut_index_daily",
+    "fut_weekly_detail": "fut_weekly_detail",
+    "opt_basic": "opt_basic",
+    "opt_daily": "opt_daily",
+    "etf_basic": "etf_basic",
+    "etf_index": "etf_index",
+    "fund_daily": "fund_daily",
+    "fund_adj": "fund_adj",
+    "etf_share_size": "etf_share_size",
+    "etf_sh_cons": "etf_sh_cons",
+}
+
+
 def _check_dates(kwargs: dict) -> None:
     for key in ("start_date", "end_date", "trade_date", "ann_date", "pub_date", "base_date"):
         val = kwargs.get(key)
@@ -69,7 +112,11 @@ class LocalPro:
         _check_dates(kwargs)
         return index.idx_anns(self._ctx, **kwargs)
 
-    def universe(self, **kwargs):
+    def universe(self, universe=None, **kwargs):
+        if universe is not None:
+            if "universe" in kwargs:
+                raise TypeError("universe was provided both positionally and by keyword")
+            kwargs["universe"] = universe
         _check_dates(kwargs)
         return stock.universe(self._ctx, **kwargs)
 
@@ -165,52 +212,11 @@ class LocalPro:
         return etf.etf_sh_cons(self._ctx, **kwargs)
 
     def query(self, api_name: str, **kwargs):
-        dispatch = {
-            "stock_basic": self.stock_basic,
-            "trade_cal": self.trade_cal,
-            "daily": self.daily,
-            "adj_factor": self.adj_factor,
-            "daily_basic": self.daily_basic,
-            "stock_st": self.stock_st,
-            "suspend_d": self.suspend_d,
-            "stk_limit": self.stk_limit,
-            "index_daily": self.index_daily,
-            "index_weight": self.index_weight,
-            "sw_daily": self.sw_daily,
-            "idx_anns": self.idx_anns,
-            "universe": self.universe,
-            "pro_bar": self.pro_bar,
-            "index_classify": self.index_classify,
-            "sw_classify": self.index_classify,
-            "index_member_all": self.index_member_all,
-            "sw_member": self.index_member_all,
-            "ci_index_member": self.ci_index_member,
-            "ci_member": self.ci_index_member,
-            "fut_basic": self.fut_basic,
-            "fut_daily": self.fut_daily,
-            "fut_holding": self.fut_holding,
-            "fut_wsr": self.fut_wsr,
-            "fut_settle": self.fut_settle,
-            "fut_mapping": self.fut_mapping,
-            "ft_limit": self.ft_limit,
-            "fut_weekly": self.fut_weekly,
-            "fut_monthly": self.fut_monthly,
-            "fut_index_daily": self.fut_index_daily,
-            "fut_weekly_detail": self.fut_weekly_detail,
-            "opt_basic": self.opt_basic,
-            "opt_daily": self.opt_daily,
-            "etf_basic": self.etf_basic,
-            "etf_index": self.etf_index,
-            "fund_daily": self.fund_daily,
-            "fund_adj": self.fund_adj,
-            "etf_share_size": self.etf_share_size,
-            "etf_sh_cons": self.etf_sh_cons,
-        }
         try:
-            method = dispatch[api_name]
+            method_name = READ_ONLY_QUERY_METHODS[api_name]
         except KeyError as e:
             raise ValueError(f"unknown api: {api_name}") from e
-        return method(**kwargs)
+        return getattr(self, method_name)(**kwargs)
 
 
 def pro_api(config_path="config/settings.toml") -> LocalPro:

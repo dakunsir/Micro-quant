@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Stars](https://img.shields.io/github/stars/dakunsir/Micro-quant)
+![Stars](https://img.shields.io/github/stars/dakunsir/microshare)
 
 A 股、ETF、期货、期权数据本地化管道：基于 [Tushare Pro](https://tushare.pro) 拉取数据，以 Parquet 分区存储，DuckDB 提供快速本地查询，支持增量同步与定时调度。
 
@@ -31,7 +31,7 @@ A 股、ETF、期货、期权数据本地化管道：基于 [Tushare Pro](https:
 - **本地优先存储**：Parquet 分区文件 + DuckDB 元数据，无需数据库服务
 - **Tushare-like 查询**：本地 `pro_api()` 直接返回 DataFrame，不消耗 Tushare 积分
 - **复权行情**：本地 `pro_bar()` 支持不复权、前复权（qfq）和后复权（hfq）
-- **股票池构建**：研究基础池、交易基础池、沪深300/中证500/中证1000等交易池
+- **股票池构建**：研究基础池、交易基础池、沪深300/中证500/中证1000交易池，以及按点时规则构建的沪深主板微盘 1000 股票池
 - **数据质检**：本地表级质量检查，生成详细报告
 - **自动化运维**：APScheduler 定时同步，支持飞书应用消息告警
 
@@ -43,8 +43,8 @@ A 股、ETF、期货、期权数据本地化管道：基于 [Tushare Pro](https:
 - Tushare Pro Token（基础行情需积分 ≥ 2000，部分专题表要求更高，详见[同步指南](docs/SYNC_GUIDE.md)）
 
 ```bash
-git clone https://github.com/dakunsir/Micro-quant.git
-cd Micro-quant
+git clone https://github.com/dakunsir/microshare.git
+cd microshare
 uv sync
 ```
 
@@ -63,8 +63,26 @@ data_dir = "data"          # Parquet 存储目录
 db_path = "db/meta.duckdb" # DuckDB 文件路径
 log_path = "logs/pipeline.log"
 
+[api]
+host = "127.0.0.1"
+port = 8787
+default_limit = 1000
+max_limit = 5000
+
+[universe]
+name = "hushen_mainboard_previous_day_bottom1000"
+version = "current"
+target_count = 1000
+min_listing_sessions = 120
+exclude_st = true
+main_board_prefixes = ["600", "601", "603", "605", "000", "001", "002", "003"]
+
 [scheduler]
-# 每个表单独配置触发时间（HH:MM），完整示例见 config/settings.example.toml
+enabled = false
+timezone = "Asia/Shanghai"
+run_time = "18:30"
+state_path = "db/scheduler/latest_run.json"
+lock_path = "db/scheduler/run.lock"
 
 [notifier]
 enabled = false            # 配置飞书应用凭据和接收者后改为 true
@@ -89,12 +107,18 @@ uv run python main.py status
 # 3. 构建股票池（默认从 2016-01-01 增量构建到今天）
 uv run python main.py build-universe
 
+# 构建沪深主板微盘 1000 股票池（使用前一交易日数据，下一交易日生效）
+uv run python main.py build-mainboard-microcap --start-date 20160101 --end-date 20260904
+
 # 4. 本地查询，不消耗积分
 uv run python -c "
 from microshare import pro_api
 pro = pro_api()
 print(pro.daily(ts_code='000001.SZ', start_date='20240101', end_date='20240131'))
 "
+
+# 5. 启动只读 REST/OpenAPI 服务（仅监听本机）
+uv run python main.py api start
 ```
 
 同步顺序、逐表命令和定时调度部署见[同步指南](docs/SYNC_GUIDE.md)。
@@ -118,6 +142,8 @@ opt_bar = pro.opt_daily(ts_code="10004462.SH", start_date="20240101", end_date="
 
 全部 30+ 个查询方法、完整示例和冒烟测试见[本地查询 API 文档](docs/query-api.md)。
 
+也可以通过 `GET /v1/query/{api_name}` 供本机 LLM 调用。服务不提供同步、构建、任意 SQL 或配置修改路由，单次最多返回 5000 行，使用 `limit`/`offset` 分页。`GET /v1/status` 会同时报告历史分区缺口和 `open_t1_ready_through`，下游因子评估必须先确认该日期覆盖目标结束日。
+
 仓库还内置 AI Skill（`skills/microshare-data`），支持让 Codex、Claude Code 等智能体把中文自然语言数据请求转成本地查询流程。
 
 ## CLI 命令一览
@@ -129,16 +155,18 @@ opt_bar = pro.opt_daily(ts_code="10004462.SH", start_date="20240101", end_date="
 | `sync --stock` / `--etf` / `--futures` / `--options` | 按专题分组同步 |
 | `sync --ricequant` | 同步 RiceQuant 分钟线（可选，需 RiceQuant 账号） |
 | `build-universe [--date / --start-date / --end-date]` | 构建股票池（详见[股票池文档](docs/universe.md)） |
+| `build-mainboard-microcap [--date / --start-date / --end-date]` | 构建沪深主板前一交易日总市值倒数 1000 股票池 |
 | `status` | 查看各表最后同步时间 |
 | `quality check [--all / --market / --table]` | 本地数据质检，报告写入 `reports/quality/` |
-| `scheduler start` | 启动定时调度 |
+| `scheduler start` | 启动 18:30 收盘后股票链增量调度 |
+| `api start` | 启动只读本地 REST/OpenAPI 服务 |
 
 所有命令通过 `uv run python main.py <命令>` 执行，加 `--help` 查看完整参数。
 
 ## 项目结构
 
 ```
-Micro-quant/
+microshare/
 ├── main.py           # CLI 入口
 ├── microshare/
 │   ├── api.py        # 本地 Tushare-like 查询 API
@@ -150,7 +178,8 @@ Micro-quant/
 │   ├── query/        # 本地查询实现
 │   ├── quality/      # 数据质检
 │   ├── universe.py   # 股票池构建
-│   ├── scheduler.py  # APScheduler 定时任务
+│   ├── scheduler.py  # 收盘后增量调度
+│   ├── http_api.py   # 只读 REST/OpenAPI 服务
 │   ├── notifier.py   # 飞书应用消息告警
 │   └── storage.py    # Parquet 读写 + DuckDB MetaStore
 ├── config/           # settings.example.toml
@@ -164,7 +193,7 @@ Micro-quant/
 
 - [同步指南](docs/SYNC_GUIDE.md)：积分要求、全部同步表、首次同步顺序和定时调度部署
 - [本地查询 API](docs/query-api.md)：全部查询方法、完整示例和冒烟测试
-- [股票池构建](docs/universe.md)：6 个股票池的定义和过滤规则
+- [股票池构建](docs/universe.md)：现有股票池、点时微盘股票池的定义和过滤规则
 - [数据存储结构](docs/storage.md)：Parquet 分区布局和 DuckDB 元数据
 - [examples/README.md](examples/README.md)：示例脚本清单和默认参数
 - [RiceQuant 分钟线](docs/ricequant.md)：可选分钟线数据源的配置、同步和查询

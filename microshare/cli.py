@@ -13,7 +13,12 @@ from microshare.quality.runner import QualityRunner
 from microshare.quality.targets import select_targets
 from microshare.sources import DataSources, RiceQuantFetcher, TushareFetcher
 from microshare.storage import MetaStore
-from microshare.universe import build_universes, build_universes_range
+from microshare.universe import (
+    build_mainboard_microcap,
+    build_mainboard_microcap_range,
+    build_universes,
+    build_universes_range,
+)
 
 
 def _validate_date(ctx, param, value):
@@ -52,6 +57,21 @@ def _make_pipeline(config_path: str = "config/settings.toml") -> Pipeline:
 @click.group()
 def cli():
     pass
+
+
+@cli.group("api")
+def api_cmd():
+    """启动只读本地数据 API。"""
+    pass
+
+
+@api_cmd.command("start")
+@click.option("--config", "config_path", default="config/settings.toml", show_default=True)
+def api_start_cmd(config_path: str) -> None:
+    """启动 FastAPI/ OpenAPI 查询服务。"""
+    from microshare.http_api import run_server
+
+    run_server(config_path)
 
 
 FUTURES_TABLES = [
@@ -267,6 +287,57 @@ def build_universe_cmd(
     )
     for name, count in summary["counts"].items():
         click.echo(f"{name}: {count}")
+
+
+@cli.command("build-mainboard-microcap")
+@click.option("--date", "trade_date", default=None, callback=_validate_date)
+@click.option("--start-date", default=None, callback=_validate_date)
+@click.option("--end-date", default=None, callback=_validate_date)
+def build_mainboard_microcap_cmd(
+    trade_date: str | None,
+    start_date: str | None,
+    end_date: str | None,
+) -> None:
+    """构建按前一交易日数据筛选、下一交易日生效的主板微盘股票池。"""
+    if trade_date is not None and (start_date is not None or end_date is not None):
+        raise click.UsageError("--date cannot be used with --start-date or --end-date")
+
+    cfg = load_config(Path("config/settings.toml"))
+    init_logger(cfg.log_path)
+    try:
+        if trade_date is not None:
+            manifest = build_mainboard_microcap(
+                cfg.data_dir,
+                _parse_date(trade_date),
+                config=cfg.universe,
+            )
+            click.echo(
+                f"{cfg.universe.name}: {manifest['member_count']} members "
+                f"(source={manifest['source_trade_date']}, "
+                f"effective={manifest['effective_trade_date']}, "
+                f"status={manifest['quality_status']})"
+            )
+            for warning in manifest["warnings"]:
+                click.echo(f"warning: {warning}")
+            return
+
+        summary = build_mainboard_microcap_range(
+            cfg.data_dir,
+            start_date=_parse_date(start_date) if start_date is not None else None,
+            end_date=_parse_date(end_date) if end_date is not None else None,
+            config=cfg.universe,
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    click.echo(
+        f"range: {summary['start_date']} ~ {summary['end_date']}, "
+        f"trading_days: {summary['trading_days']}, "
+        f"built: {summary['built_days']}, skipped: {summary['skipped_days']}, "
+        f"members: {summary['member_count']}"
+    )
+    for warning in summary["warnings"]:
+        click.echo(f"warning: {warning}")
 
 
 @cli.command()

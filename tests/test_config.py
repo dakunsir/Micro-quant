@@ -46,6 +46,14 @@ def test_load_config_returns_schedule_dict(tmp_path):
     assert cfg.notifier.feishu.receive_id_type == "user_id"
     assert cfg.notifier.feishu.receive_id == ""
     assert cfg.notifier.feishu.enabled is False
+    assert cfg.universe.name == "hushen_mainboard_previous_day_bottom1000"
+    assert cfg.universe.version == "current"
+    assert cfg.universe.target_count == 1000
+    assert cfg.universe.min_listing_sessions == 120
+    assert cfg.universe.exclude_st is True
+    assert cfg.universe.main_board_prefixes == [
+        "600", "601", "603", "605", "000", "001", "002", "003"
+    ]
 
 
 def test_load_config_notifier_enabled_true(tmp_path):
@@ -148,6 +156,77 @@ enabled = false
     assert cfg.quality.mode == "daily"
     assert cfg.quality.markets == ["stock", "index", "etf", "futures", "options"]
     assert cfg.quality.notify_on == ["warn", "fail"]
+
+
+def test_load_config_parses_api_and_fixed_scheduler(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        """
+[tushare]
+token = "token"
+[paths]
+data_dir = "data"
+db_path = "db/meta.duckdb"
+log_path = "logs/pipeline.log"
+[api]
+host = "127.0.0.1"
+port = 8787
+default_limit = 1000
+max_limit = 5000
+[scheduler]
+enabled = true
+timezone = "Asia/Shanghai"
+run_time = "18:30"
+state_path = "db/scheduler/latest_run.json"
+lock_path = "db/scheduler/run.lock"
+[notifier]
+enabled = false
+""",
+        encoding="utf-8",
+    )
+
+    cfg = load_config(cfg_file)
+
+    assert cfg.api.host == "127.0.0.1"
+    assert cfg.api.port == 8787
+    assert cfg.api.default_limit == 1000
+    assert cfg.api.max_limit == 5000
+    assert cfg.scheduler.enabled is True
+    assert cfg.scheduler.timezone == "Asia/Shanghai"
+    assert cfg.scheduler.run_time == "18:30"
+    assert cfg.scheduler.state_path == Path("db/scheduler/latest_run.json")
+
+
+@pytest.mark.parametrize(
+    ("section", "value", "message"),
+    [
+        ("host", '"0.0.0.0"', "回环地址"),
+        ("port", "70000", "api.port"),
+        ("default_limit", "5001", "default_limit"),
+        ("max_limit", "5001", "max_limit"),
+    ],
+)
+def test_load_config_rejects_invalid_api_settings(tmp_path, section, value, message):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        VALID_TOML
+        + f"\n[api]\n{section} = {value}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=message):
+        load_config(cfg_file)
+
+
+def test_load_config_rejects_invalid_scheduler_timezone(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        VALID_TOML.replace('daily_kline = "16:30"', 'daily_kline = "16:30"\ntimezone = "Not/AZone"'),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="scheduler.timezone"):
+        load_config(cfg_file)
 
 
 def test_load_config_file_not_found():
@@ -358,6 +437,59 @@ def test_load_config_parses_feishu_notifier_section(tmp_path):
     assert cfg.notifier.feishu.enabled is True
     assert cfg.notifier.feishu.receive_id_type == "user_id"
     assert cfg.notifier.feishu.receive_id == "fd6a7g21"
+
+
+def test_load_config_parses_mainboard_microcap_universe(tmp_path):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        VALID_TOML
+        + """
+
+[universe]
+name = "custom_pool"
+version = "v2"
+target_count = 20
+min_listing_sessions = 30
+exclude_st = false
+main_board_prefixes = ["600", "000"]
+""",
+        encoding="utf-8",
+    )
+
+    cfg = load_config(cfg_file)
+
+    assert cfg.universe.name == "custom_pool"
+    assert cfg.universe.version == "v2"
+    assert cfg.universe.target_count == 20
+    assert cfg.universe.min_listing_sessions == 30
+    assert cfg.universe.exclude_st is False
+    assert cfg.universe.main_board_prefixes == ["600", "000"]
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("target_count", "0", "target_count"),
+        ("min_listing_sessions", "-1", "min_listing_sessions"),
+        ("main_board_prefixes", "[\"60\"]", "三位数字"),
+    ],
+)
+def test_load_config_rejects_invalid_mainboard_microcap_universe(
+    tmp_path, field, value, message
+):
+    cfg_file = tmp_path / "settings.toml"
+    cfg_file.write_text(
+        VALID_TOML
+        + f"""
+
+[universe]
+{field} = {value}
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=message):
+        load_config(cfg_file)
 
 
 @pytest.mark.parametrize("receive_id_type", ["bad", "", "USER_ID"])
